@@ -26,3 +26,8 @@ void SequenceClock::stop() {
     thread_.join();
   }
 }
+
+void SequenceClock::await() {
+  std::unique_lock<std::mutex> lock_{cv_mutex};
+  return cv.wait(lock_);
+}

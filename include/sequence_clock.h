@@ -7,21 +7,22 @@
 #include <thread>
 
 class SequenceClock {
-  // This class will serve as the clock for a sequence so that its events will
-  // be sequenced on time
+  // Ensures a sequence's events are scheduled on time
 
-  std::atomic<bool> live; // Used to start or terminate the clock's run loop
+  std::atomic<bool> live; // Control variable for clock's run loop
   std::chrono::duration<float> interval =
       std::chrono::seconds{1}; // Time interval between ticks
 
-  std::condition_variable cv;
+  std::thread thread_;        // Thread in which the clock runs
+  std::condition_variable cv; // Used to notify clock consumers
+  std::mutex cv_mutex;        // Mutex used for the condition variable
 
-  std::thread thread_;
+  void run(); // Defines what happens while the clock is running
 
 public:
-  void start();
-  void run();
-  void stop();
+  void start(); // Start the clock in a parallel thread
+  void stop();  // Stop the clock
+  void await(); // Wait for the clock's next tick
 };
 
 #endif
