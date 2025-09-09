@@ -1,23 +1,25 @@
-#include "../include/sequence_clock.h"
+#include "../include/sequencer_clock.h"
 #include <thread>
 
-void SequenceClock::start() {
+namespace MicroComposer_sequencer {
+
+void Clock::start() {
   if (live.load()) {
     // Already started
     return;
   }
   live.store(true);
-  thread_ = std::thread{&SequenceClock::run, this};
+  thread_ = std::thread{&Clock::run, this};
 }
 
-void SequenceClock::run() {
+void Clock::run() {
   while (live.load()) {
     cv.notify_all();
     std::this_thread::sleep_for(interval);
   }
 }
 
-void SequenceClock::stop() {
+void Clock::stop() {
   if (!live.load()) {
     return;
   }
@@ -27,7 +29,9 @@ void SequenceClock::stop() {
   }
 }
 
-void SequenceClock::await() {
+void Clock::await() {
   std::unique_lock<std::mutex> lock_{cv_mutex};
   return cv.wait(lock_);
 }
+
+} // namespace MicroComposer_sequencer

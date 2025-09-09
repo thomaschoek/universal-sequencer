@@ -1,12 +1,14 @@
-#ifndef SEQUENCE_CLOCK_H
-#define SEQUENCE_CLOCK_H
+#ifndef SEQUENCER_CLOCK_H
+#define SEQUENCER_CLOCK_H
 
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
 #include <thread>
 
-class SequenceClock {
+namespace MicroComposer_sequencer {
+
+class Clock {
   // Ensures a sequence's events are scheduled on time
 
   std::atomic<bool> live; // Control variable for clock's run loop
@@ -25,4 +27,5 @@ public:
   void await(); // Wait for the clock's next tick
 };
 
+} // namespace MicroComposer_sequencer
 #endif
