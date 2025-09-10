@@ -11,16 +11,18 @@
 #include <mutex>
 #include <thread>
 
-namespace MicroComposer_sequence {
+#include "timing_config.h"
+
+namespace MicroComposer {
+namespace sequence {
 
 // Ensures a sequence's events are scheduled on time
 class Sequence_clock {
+public:
+  const timing_capabilities::TimingCapabilities &timing_capabilities =
+      timing_capabilities::TimingCapabilities::get_instance();
 
-  // Time to busy wait before notifying threads
-  // 30 milliseconds
-  static constexpr const std::chrono::microseconds busy_wait_time{
-      std::chrono::microseconds(500)};
-
+private:
   // Control variable for clock's run loop
   std::atomic<bool> live{false};
 
@@ -36,6 +38,9 @@ class Sequence_clock {
 
   // Mutex used for the condition variable
   mutable std::mutex cond_mutex;
+
+  const std::chrono::nanoseconds busy_wait_time{timing_capabilities.precision *
+                                                2};
 
   void run() const {
 #ifndef NDEBUG
@@ -84,6 +89,11 @@ public:
   }
 
   void set_interval(const std::chrono::milliseconds &new_interval) {
+    // Check that the new interval is above the minimum allowed
+    if (new_interval < timing_capabilities.min_interval) {
+      throw std::runtime_error(
+          "Error: Clock interval too short for system capabilities.");
+    }
     // Set the clock's tick interval
     interval.store(new_interval, std::memory_order_relaxed);
   }
@@ -135,5 +145,6 @@ public:
   }
 };
 
-} // namespace MicroComposer_sequence
+} // namespace sequence
+} // namespace MicroComposer
 #endif

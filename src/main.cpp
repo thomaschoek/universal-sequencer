@@ -5,7 +5,7 @@
 #include <iostream>
 
 int main() {
-  using namespace MicroComposer_sequence;
+  using namespace MicroComposer::sequence;
   auto clock_ = Sequence_clock();
 
   auto t_start = std::chrono::steady_clock::now();

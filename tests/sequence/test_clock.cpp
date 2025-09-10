@@ -2,7 +2,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <chrono>
 
-using namespace MicroComposer_sequence;
+using namespace MicroComposer::sequence;
 
 TEST_CASE("Sequence_clock basic functionality", "[clock]") {
   Sequence_clock clock;
@@ -23,7 +23,7 @@ TEST_CASE("Sequence_clock basic functionality", "[clock]") {
 TEST_CASE("Sequence_clock start/stop operations", "[clock]") {
   Sequence_clock clock;
 
-  SECTION("Clock can be started and becomes live") {
+  SECTION("Clock can be started and stopped") {
     clock.start();
     REQUIRE(clock.is_live());
     clock.stop();
@@ -48,8 +48,8 @@ TEST_CASE("Sequence_clock start/stop operations", "[clock]") {
 TEST_CASE("Sequence_clock timing behavior", "[clock][timing]") {
   Sequence_clock clock;
 
-  SECTION("Clock ticks at approximately correct intervals") {
-    auto test_interval = std::chrono::milliseconds(100);
+  SECTION("Clock is precise enough for minimum allowed interval") {
+    auto test_interval = std::chrono::milliseconds(10);
     clock.set_interval(test_interval);
 
     clock.start();
@@ -59,8 +59,10 @@ TEST_CASE("Sequence_clock timing behavior", "[clock][timing]") {
 
     auto start_time = std::chrono::steady_clock::now();
 
+    const uint n_ticks = 60;
+
     // Wait for 2 more ticks
-    for (int i = 0; i < 2; ++i) {
+    for (uint i = 0; i < n_ticks; ++i) {
       clock.wait();
     }
 
@@ -70,9 +72,10 @@ TEST_CASE("Sequence_clock timing behavior", "[clock][timing]") {
 
     clock.stop();
 
-    // Should be approximately 2 intervals (with tolerance for timing precision)
-    auto expected = 2 * test_interval;
-    auto tolerance = std::chrono::milliseconds(50);
+    // Should be approximately n_ticks intervals (with tolerance for timing
+    // precision)
+    auto expected = n_ticks * test_interval;
+    auto tolerance = std::chrono::milliseconds(1);
 
     REQUIRE(elapsed >= (expected - tolerance));
     REQUIRE(elapsed <= (expected + tolerance));
