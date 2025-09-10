@@ -44,3 +44,29 @@ A C++ MIDI step sequencer application that provides precise timing control for m
 - `src/` - Source files
 - `build/` - Build artifacts (created during build)
 - `CMakeLists.txt` - CMake configuration
+
+### Testing
+
+Directory Structure:
+tests/
+├── CMakeLists.txt           # Test build configuration
+├── main.cpp                 # Test runner entry point
+└── sequence/
+    └── test_clock.cpp       # Unit tests for Sequence_clock
+
+- Catch2 v3.4.0 integrated via CMake FetchContent (no manual installation needed)
+- Comprehensive tests for Sequence_clock covering:
+  - Basic state management (is_live, intervals)
+  - Start/stop operations and edge cases
+  - Timing precision validation
+- CMake integration with CTest support
+- Automatic test discovery - new tests are found automatically
+
+Usage:
+- cd build
+- cmake .. && make - Build project and tests
+- ./tests/tests - Run tests directly
+- ctest - Run tests through CTest framework
+- All tests currently pass (11 assertions across 3 test cases)
+
+The framework is ready for expanding with additional test files following the same pattern.

@@ -17,3 +17,9 @@ include_directories(include)
 # Add executable
 add_executable(MicroComposer src/main.cpp)
 
+# Enable testing
+enable_testing()
+
+# Add tests subdirectory
+add_subdirectory(tests)
+
