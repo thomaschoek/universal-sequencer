@@ -14,7 +14,8 @@ TEST_CASE("Sequence_clock basic functionality", "[clock]") {
   }
 
   SECTION("Clock interval can be changed") {
-    auto new_interval = std::chrono::milliseconds(500);
+    auto new_interval = max(clock.timing_capabilities.min_interval,
+                            std::chrono::milliseconds(500));
     clock.set_interval(new_interval);
     REQUIRE(clock.get_interval() == new_interval);
   }
@@ -49,7 +50,7 @@ TEST_CASE("Sequence_clock timing behavior", "[clock][timing]") {
   Sequence_clock clock;
 
   SECTION("Clock is precise enough for minimum allowed interval") {
-    auto test_interval = std::chrono::milliseconds(10);
+    auto test_interval = clock.timing_capabilities.min_interval;
     clock.set_interval(test_interval);
 
     clock.start();
@@ -75,7 +76,7 @@ TEST_CASE("Sequence_clock timing behavior", "[clock][timing]") {
     // Should be approximately n_ticks intervals (with tolerance for timing
     // precision)
     auto expected = n_ticks * test_interval;
-    auto tolerance = std::chrono::milliseconds(1);
+    auto tolerance = clock.timing_capabilities.precision;
 
     REQUIRE(elapsed >= (expected - tolerance));
     REQUIRE(elapsed <= (expected + tolerance));
