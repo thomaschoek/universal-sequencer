@@ -3,7 +3,6 @@
 
 #include <atomic>
 #include <chrono>
-#include <cmath>
 #include <condition_variable>
 #include <mutex>
 #include <thread>
@@ -36,7 +35,7 @@ class Sequence_clock {
 
   void run() const {
     // Clock's main loop, to be run on this.thread_
-    auto next_notify_time = std::chrono::high_resolution_clock::now();
+    auto next_notify_time = std::chrono::steady_clock::now();
     auto early_wake_time = next_notify_time - busy_wait_time;
 
     while (is_live()) {
@@ -47,7 +46,7 @@ class Sequence_clock {
       std::this_thread::sleep_until(early_wake_time);
 
       next_notify_time = early_wake_time + busy_wait_time;
-      while (std::chrono::high_resolution_clock::now() < next_notify_time) {
+      while (std::chrono::steady_clock::now() < next_notify_time) {
         // Busy wait for precise remaining time until next notify
       }
     }
