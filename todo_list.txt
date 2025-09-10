@@ -1,0 +1,22 @@
+- Implement RT scheduling
+  - use sched_params
+  - may require root privileges
+
+  RT Scheduling
+
+  Real-time scheduling gives your thread higher priority:
+
+  #include <sched.h>
+  #include <pthread.h>
+
+  void start() {
+      // ... existing code ...
+      thread_ = std::thread{&Sequence_clock::run, this};
+
+      // Set RT priority
+      sched_param param;
+      param.sched_priority = 99; // Max RT priority
+      pthread_setschedparam(thread_.native_handle(), SCHED_FIFO, &param);
+  }
+
+  Requirements: Usually needs root privileges or proper system limits configuration.
