@@ -1,6 +1,10 @@
 #ifndef SEQUENCER_CLOCK_H
 #define SEQUENCER_CLOCK_H
 
+#ifndef NDEBUG
+#include <iostream>
+#endif
+
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -34,11 +38,28 @@ class Sequence_clock {
   mutable std::mutex cond_mutex;
 
   void run() const {
+#ifndef NDEBUG
+    // Print debug message about the exact time the clock started
+    auto now = std::chrono::steady_clock::now();
+    auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+        now.time_since_epoch());
+    std::cout << "[DEBUG] in Clock::run at " << now_ms.count() << " ms..."
+              << std::endl;
+#endif
+
     // Clock's main loop, to be run on this.thread_
     auto next_notify_time = std::chrono::steady_clock::now();
     auto early_wake_time = next_notify_time - busy_wait_time;
 
     while (is_live()) {
+#ifndef NDEBUG
+      std::cout << "[DEBUG] Clock tick at "
+                << std::chrono::duration_cast<std::chrono::milliseconds>(
+                       std::chrono::steady_clock::now().time_since_epoch())
+                       .count()
+                << " ms" << std::endl;
+#endif
+
       cond.notify_all();
 
       // Wake up just before threads should be notified
@@ -68,6 +89,14 @@ public:
   }
 
   void start() {
+#ifndef NDEBUG
+    // Print debug message about the exact time the clock started
+    auto now = std::chrono::steady_clock::now();
+    auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+        now.time_since_epoch());
+    std::cout << "[DEBUG] In Clock::start at " << now_ms.count() << " ms..."
+              << std::endl;
+#endif
     // Start the clock in a parallel thread
     if (live) {
       // Already started
@@ -83,6 +112,14 @@ public:
     thread_ = std::thread{&Sequence_clock::run, this};
   }
   void stop() {
+#ifndef NDEBUG
+    // Print debug message about the exact time the clock started
+    auto now = std::chrono::steady_clock::now();
+    auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+        now.time_since_epoch());
+    std::cout << "[DEBUG] In Clock::stop at " << now_ms.count() << " ms..."
+              << std::endl;
+#endif
     // Use live control variable to stop the clock's running thread
     if (live) {
       live.store(false);
