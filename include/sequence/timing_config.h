@@ -88,7 +88,7 @@ struct TimingCapabilities {
         max_sleep_time + sleep_times_std_dev;
 
     const std::chrono::milliseconds min_interval_ =
-        std::chrono::duration_cast<std::chrono::milliseconds>(precision * 10);
+        std::chrono::duration_cast<std::chrono::milliseconds>(precision_ * 10);
 
 #ifndef NDEBUG
     std::cout << "[DEBUG] Detected timing capabilities:" << std::endl;

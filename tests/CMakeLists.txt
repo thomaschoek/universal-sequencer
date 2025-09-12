@@ -11,6 +11,7 @@ FetchContent_MakeAvailable(Catch2)
 add_executable(tests 
     main.cpp
     sequence/test_clock.cpp
+    sequence/test_timing_capabilities.cpp
 )
 
 # Link against Catch2
