@@ -31,7 +31,7 @@ private:
       std::chrono::milliseconds{1000}};
 
   // Thread in which the clock runs
-  std::thread thread_;
+  std::jthread thread_;
 
   // Used to notify clock consumers
   mutable std::condition_variable cond;
@@ -119,7 +119,7 @@ public:
     // Set control variable
     live.store(true, std::memory_order_relaxed);
     // Start the clock's thread
-    thread_ = std::thread{&Sequence_clock::run, this};
+    thread_ = std::jthread{&Sequence_clock::run, this};
   }
   void stop() {
 #ifndef NDEBUG
