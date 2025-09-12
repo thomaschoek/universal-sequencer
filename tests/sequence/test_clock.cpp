@@ -68,15 +68,14 @@ TEST_CASE("Sequence_clock timing behavior", "[clock][timing]") {
     }
 
     auto end_time = std::chrono::steady_clock::now();
-    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-        end_time - start_time);
+    auto elapsed = end_time - start_time;
 
     clock.stop();
 
     // Should be approximately n_ticks intervals (with tolerance for timing
     // precision)
-    auto expected = n_ticks * test_interval;
     auto tolerance = clock.timing_capabilities.precision;
+    decltype(tolerance) expected = n_ticks * test_interval;
 
     REQUIRE(elapsed >= (expected - tolerance));
     REQUIRE(elapsed <= (expected + tolerance));

@@ -6,8 +6,12 @@
 #endif
 
 #include <chrono>
+#include <execution>
 #include <mutex>
+#include <numeric>
 #include <thread>
+#include <valarray>
+#include <vector>
 
 namespace MicroComposer {
 namespace timing_capabilities {
@@ -24,23 +28,66 @@ struct TimingCapabilities {
   // Detect system timing capabilities
   TimingCapabilities() {
 
-    // Measure actual sleep precision by testing short sleeps
-    std::chrono::nanoseconds total_error{0};
+    typedef std::chrono::nanoseconds::rep nanoseconds_cnt_t;
 
-    for (uint i = 0; i < test_iterations; ++i) {
-      auto start_time = std::chrono::steady_clock::now();
-      auto target_wake_time = start_time + test_sleep_time;
+    // Measure actual sleep precision by testing short sleeps
+    std::valarray<nanoseconds_cnt_t> sleep_times(test_iterations);
+
+    for (auto &sleep_time : sleep_times) {
+      const auto start_time = std::chrono::steady_clock::now();
+      const auto target_wake_time = start_time + test_sleep_time;
       std::this_thread::sleep_until(target_wake_time);
-      auto end = std::chrono::steady_clock::now();
-      auto actual_sleep_time =
-          std::chrono::duration_cast<std::chrono::nanoseconds>(end -
-                                                               start_time);
-      total_error += std::chrono::abs(actual_sleep_time - test_sleep_time);
+      const auto end_time = std::chrono::steady_clock::now();
+      sleep_time = (end_time - start_time).count();
     }
 
-    std::chrono::nanoseconds precision_ = total_error / test_iterations;
+    const nanoseconds_cnt_t total_sleep_time = sleep_times.sum();
 
-    std::chrono::milliseconds min_interval_ =
+    std::cout << "[DEBUG] Total sleep time over " << test_iterations
+              << " iterations: " << total_sleep_time << "ns" << std::endl;
+
+    const nanoseconds_cnt_t mean_sleep_time =
+        total_sleep_time / sleep_times.size();
+
+    std::cout << "[DEBUG] Mean sleep time over " << test_iterations
+              << " iterations: " << mean_sleep_time << "ns" << std::endl;
+
+    // Parallel standard deviation calculation
+    const nanoseconds_cnt_t variance =
+        std::transform_reduce(std::execution::par_unseq,
+                              std::begin(sleep_times), std::end(sleep_times),
+                              0.0, std::plus{},
+                              [mean_sleep_time](nanoseconds_cnt_t sleep_time) {
+                                return pow(sleep_time - mean_sleep_time, 2);
+                              }) /
+        sleep_times.size();
+
+    std::cout << "[DEBUG] Sleep time variance over " << test_iterations
+              << " iterations: " << variance << "ns^2" << std::endl;
+
+    const auto sleep_times_std_dev = std::chrono::nanoseconds(
+        static_cast<nanoseconds_cnt_t>(round(std::sqrt(variance))));
+
+    std::cout << "[DEBUG] Sleep time standard deviation over "
+              << test_iterations << " iterations: "
+              << std::chrono::duration_cast<std::chrono::microseconds>(
+                     sleep_times_std_dev)
+                     .count()
+              << "μs" << std::endl;
+
+    const auto max_sleep_time = std::chrono::nanoseconds{sleep_times.max()};
+
+    std::cout << "[DEBUG] Max sleep time over " << test_iterations
+              << " iterations: "
+              << std::chrono::duration_cast<std::chrono::microseconds>(
+                     max_sleep_time)
+                     .count()
+              << "μs" << std::endl;
+
+    const std::chrono::nanoseconds precision_ =
+        max_sleep_time + sleep_times_std_dev;
+
+    const std::chrono::milliseconds min_interval_ =
         std::chrono::duration_cast<std::chrono::milliseconds>(precision * 10);
 
 #ifndef NDEBUG
