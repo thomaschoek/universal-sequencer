@@ -1,5 +1,5 @@
-#include "sequence/clock.h"
-#include "sequence/output.h"
+#include "sequence/clock.hpp"
+#include "sequence/output.hpp"
 
 #include <chrono>
 #include <iostream>

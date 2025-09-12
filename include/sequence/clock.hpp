@@ -11,13 +11,13 @@
 #include <mutex>
 #include <thread>
 
-#include "timing_config.h"
+#include "timing_config.hpp"
 
 namespace MicroComposer {
 namespace sequence {
 
 // Ensures a sequence's events are scheduled on time
-class Sequence_clock {
+struct Sequence_clock {
 public:
   const timing_capabilities::TimingCapabilities &timing_capabilities =
       timing_capabilities::TimingCapabilities::get_instance();
@@ -42,6 +42,8 @@ private:
   const std::chrono::nanoseconds busy_wait_time{timing_capabilities.precision *
                                                 2};
 
+  void tick() const;
+
   void run() const {
 #ifndef NDEBUG
     // Print debug message about the exact time the clock started
@@ -65,7 +67,7 @@ private:
                 << " ms" << std::endl;
 #endif
 
-      cond.notify_all();
+      tick();
 
       // Wake up just before threads should be notified
       early_wake_time += get_interval();

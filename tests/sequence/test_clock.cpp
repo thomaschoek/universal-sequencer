@@ -1,4 +1,4 @@
-#include "sequence/clock.h"
+#include "sequence/clock.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <chrono>
 
