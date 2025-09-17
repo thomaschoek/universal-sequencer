@@ -1,18 +1,18 @@
-#include "sequence/clock.h"
-#include "sequence/output.h"
+#include "sequencer.h"
 
 #include <chrono>
 #include <iostream>
+#include <thread>
 
 int main() {
-  using namespace MicroComposer::sequence;
-  auto clock_ = Sequence_clock();
+  using namespace sequencer;
+  Sequencer seq;
 
   auto t_start = std::chrono::steady_clock::now();
-  clock_.start();
+  seq.start();
 
   std::this_thread::sleep_for(std::chrono::seconds(5));
-  clock_.stop();
+  seq.stop();
 
   auto t_end = std::chrono::steady_clock::now();
 
@@ -22,6 +22,5 @@ int main() {
                    .count()
             << " ms" << std::endl;
 
-  auto output_ = SequenceOutput();
   return 0;
 }

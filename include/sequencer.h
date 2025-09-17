@@ -1,30 +1,30 @@
 #ifndef SEQUENCER_H
 #define SEQUENCER_H
 
+#include "atomic_step_sequence.h"
 #include <atomic>
-#include <chrono>
-#include <vector>
+#include <mutex>
+#include <thread>
 
-struct Step {
-  std::chrono::duration<double> offset;
-  std::chrono::duration<double> length;
-  std::vector<double> parameters;
-};
+namespace sequencer {
 
 class Sequencer {
 
-private:
+  std::mutex mutex_;
+  std::jthread thread_;
   std::atomic<bool> live{false};
-  void run() const;
+  AtomicStepSequence sequence;
+  void run();
   void trigger(const Step &step) const;
 
 public:
   bool is_live() const;
+  void store_live(const bool &val);
 
-  std::vector<Step> steps;
-
-  void start() const;
-  void stop() const;
+  void start();
+  void stop();
 };
+
+} // namespace sequencer
 
 #endif

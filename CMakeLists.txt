@@ -15,7 +15,12 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 include_directories(include)
 
 # Add executable
-add_executable(MicroComposer src/main.cpp)
+add_executable(MicroComposer
+    src/main.cpp
+    src/sequencer.cpp
+    src/step.cpp
+    src/atomic_step_sequence.cpp
+)
 
 # Enable testing
 enable_testing()
