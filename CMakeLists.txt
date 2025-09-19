@@ -21,7 +21,6 @@ add_executable(MicroComposer
     src/sequence/atomic_step_sequence.cpp
     src/synth/synth.cpp
     src/sequencer/step_sequencer_output.cpp
-    src/sequencer/synth_sequencer.cpp
 )
 
 # Enable testing

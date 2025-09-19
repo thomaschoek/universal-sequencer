@@ -7,7 +7,8 @@
 int main() {
   using namespace MicroComposer::sequencer;
   AtomicStepSequence seq{8};
-  Sequencer seqr{seq};
+  StepSequencerOutput out;
+  StepSequencer seqr{seq, out};
 
   auto t_start = std::chrono::steady_clock::now();
   seqr.start();

@@ -1,4 +1,5 @@
-#include "sequencer/synth_sequencer.h"
+#include "sequencer/step_sequencer.h"
+#include "sequencer/step_sequencer_output.h"
 #include "synth/synth.h"
 #include <chrono>
 #include <cstdio>
@@ -83,37 +84,40 @@ int main() {
   sequence.push_back(Step(0.0, 0.5, {493.88, 0.6})); // B4
   sequence.push_back(Step(0.0, 0.5, {523.25, 0.6})); // C5
 
-  // Create a synthesizer sequencer
-  SynthSequencer synth_seq(sequence, 44100.0, WaveformType::SINE);
+  // Create synthesizer output
+  StepSequencerSynthOutput synth_output(44100.0, WaveformType::SINE);
 
   // Set up real-time audio callback
-  synth_seq.setAudioCallback(
+  synth_output.setAudioCallback(
       [&audio_output](const std::vector<double> &samples, double sample_rate) {
         audio_output.playAudio(samples, sample_rate);
       });
 
+  // Create step sequencer with synth output
+  StepSequencer sequencer(sequence, synth_output);
+
   std::cout << "🎵 Playing C major scale with sine wave..." << std::endl;
-  synth_seq.start();
+  sequencer.start();
   std::this_thread::sleep_for(std::chrono::seconds(5));
-  synth_seq.stop();
+  sequencer.stop();
 
   std::cout << "🎵 Switching to square wave..." << std::endl;
-  synth_seq.setWaveform(WaveformType::SQUARE);
-  synth_seq.start();
+  synth_output.setWaveform(WaveformType::SQUARE);
+  sequencer.start();
   std::this_thread::sleep_for(std::chrono::seconds(3));
-  synth_seq.stop();
+  sequencer.stop();
 
   std::cout << "🎵 Switching to sawtooth wave..." << std::endl;
-  synth_seq.setWaveform(WaveformType::SAWTOOTH);
-  synth_seq.start();
+  synth_output.setWaveform(WaveformType::SAWTOOTH);
+  sequencer.start();
   std::this_thread::sleep_for(std::chrono::seconds(3));
-  synth_seq.stop();
+  sequencer.stop();
 
   std::cout << "🎵 Switching to triangle wave..." << std::endl;
-  synth_seq.setWaveform(WaveformType::TRIANGLE);
-  synth_seq.start();
+  synth_output.setWaveform(WaveformType::TRIANGLE);
+  sequencer.start();
   std::this_thread::sleep_for(std::chrono::seconds(3));
-  synth_seq.stop();
+  sequencer.stop();
 
   std::cout << "\n✅ Real-Time Synthesizer Demo Complete!" << std::endl;
   return 0;

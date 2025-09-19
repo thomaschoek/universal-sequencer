@@ -5,7 +5,6 @@ add_executable(synth_example
     ${CMAKE_SOURCE_DIR}/src/sequence/atomic_step_sequence.cpp
     ${CMAKE_SOURCE_DIR}/src/synth/synth.cpp
     ${CMAKE_SOURCE_DIR}/src/sequencer/step_sequencer_output.cpp
-    ${CMAKE_SOURCE_DIR}/src/sequencer/synth_sequencer.cpp
 )
 
 add_executable(simple_audio_example
@@ -14,7 +13,6 @@ add_executable(simple_audio_example
     ${CMAKE_SOURCE_DIR}/src/sequence/atomic_step_sequence.cpp
     ${CMAKE_SOURCE_DIR}/src/synth/synth.cpp
     ${CMAKE_SOURCE_DIR}/src/sequencer/step_sequencer_output.cpp
-    ${CMAKE_SOURCE_DIR}/src/sequencer/synth_sequencer.cpp
 )
 
 target_include_directories(synth_example PRIVATE ${CMAKE_SOURCE_DIR}/include)
