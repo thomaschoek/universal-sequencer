@@ -24,7 +24,6 @@ public:
   void start();
   void stop();
 
-  Sequencer() = default;
   explicit Sequencer(const AtomicStepSequence &seq) : sequence(seq) {}
   ~Sequencer() { stop(); }
 };

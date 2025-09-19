@@ -10,10 +10,10 @@ FetchContent_MakeAvailable(Catch2)
 # Create test executable
 add_executable(tests
     main.cpp
-    sequence/test_clock.cpp
-    sequence/test_timing_capabilities.cpp
-    sequence/test_atomic_step_sequence.cpp
-    atomic_deque/test_atomic_deque.cpp
+    test_clock.cpp
+    test_timing_capabilities.cpp
+    test_atomic_step_sequence.cpp
+    test_atomic_deque.cpp
 )
 
 # Link against Catch2 and project sources
