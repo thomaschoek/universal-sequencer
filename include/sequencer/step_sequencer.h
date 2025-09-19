@@ -1,10 +1,12 @@
-#ifndef SEQUENCER_H
-#define SEQUENCER_H
+#ifndef MICRO_COMPOSER_STEP_SEQUENCER_H
+#define MICRO_COMPOSER_STEP_SEQUENCER_H
 
-#include "atomic_step_sequence.h"
+#include "sequence/atomic_step_sequence.h"
 #include <atomic>
 #include <mutex>
 #include <thread>
+
+namespace MicroComposer {
 
 namespace sequencer {
 
@@ -29,5 +31,6 @@ public:
 };
 
 } // namespace sequencer
+} // namespace MicroComposer
 
 #endif

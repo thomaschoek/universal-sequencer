@@ -22,9 +22,8 @@ target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)
 
 # Add project source files that tests depend on
 target_sources(tests PRIVATE
-    ${CMAKE_SOURCE_DIR}/src/step.cpp
-    ${CMAKE_SOURCE_DIR}/src/atomic_step_sequence.cpp
-    ${CMAKE_SOURCE_DIR}/src/sequencer.cpp
+    ${CMAKE_SOURCE_DIR}/src/sequence/atomic_step_sequence.cpp
+    ${CMAKE_SOURCE_DIR}/src/sequencer/step_sequencer.cpp
 )
 
 # Include project headers

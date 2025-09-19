@@ -1,5 +1,5 @@
-#ifndef SEQUENCER_TIMING_CONFIG_H
-#define SEQUENCER_TIMING_CONFIG_H
+#ifndef MICRO_COMPOSER_TIMING_CONFIG_H
+#define MICRO_COMPOSER_TIMING_CONFIG_H
 
 #ifndef NDEBUG
 #include <iostream>
@@ -37,55 +37,73 @@ private:
 #ifdef __linux__
     // First, check what scheduling policy is actually being used
     int policy = sched_getscheduler(0);
-    
+
 #ifndef NDEBUG
-    const char* policy_name = "UNKNOWN";
+    const char *policy_name = "UNKNOWN";
     switch (policy) {
-      case SCHED_NORMAL: policy_name = "SCHED_NORMAL (CFS)"; break;
-      case SCHED_FIFO: policy_name = "SCHED_FIFO"; break;
-      case SCHED_RR: policy_name = "SCHED_RR"; break;
-      case SCHED_BATCH: policy_name = "SCHED_BATCH"; break;
-      case SCHED_IDLE: policy_name = "SCHED_IDLE"; break;
-      default: policy_name = "UNKNOWN"; break;
+    case SCHED_NORMAL:
+      policy_name = "SCHED_NORMAL (CFS)";
+      break;
+    case SCHED_FIFO:
+      policy_name = "SCHED_FIFO";
+      break;
+    case SCHED_RR:
+      policy_name = "SCHED_RR";
+      break;
+    case SCHED_BATCH:
+      policy_name = "SCHED_BATCH";
+      break;
+    case SCHED_IDLE:
+      policy_name = "SCHED_IDLE";
+      break;
+    default:
+      policy_name = "UNKNOWN";
+      break;
     }
-    std::cout << "[DEBUG] Current scheduling policy: " << policy_name << std::endl;
+    std::cout << "[DEBUG] Current scheduling policy: " << policy_name
+              << std::endl;
 #endif
-    
+
     // Only query RR interval if we're actually using round-robin
     if (policy == SCHED_RR) {
       struct timespec quantum;
       if (sched_rr_get_interval(0, &quantum) == 0) {
 #ifndef NDEBUG
-        std::cout << "[DEBUG] Using actual RR quantum from sched_rr_get_interval" << std::endl;
+        std::cout
+            << "[DEBUG] Using actual RR quantum from sched_rr_get_interval"
+            << std::endl;
 #endif
         return std::chrono::nanoseconds(quantum.tv_sec * 1'000'000'000 +
                                         quantum.tv_nsec);
       }
     }
-    
+
     // For other policies, use appropriate granularity values
     switch (policy) {
-      case SCHED_NORMAL:
-      case SCHED_BATCH:
+    case SCHED_NORMAL:
+    case SCHED_BATCH:
 #ifndef NDEBUG
-        std::cout << "[DEBUG] Using CFS typical granularity (4ms)" << std::endl;
+      std::cout << "[DEBUG] Using CFS typical granularity (4ms)" << std::endl;
 #endif
-        return std::chrono::milliseconds(4); // CFS typical granularity
-      case SCHED_FIFO:
+      return std::chrono::milliseconds(4); // CFS typical granularity
+    case SCHED_FIFO:
 #ifndef NDEBUG
-        std::cout << "[DEBUG] SCHED_FIFO has no fixed quantum, using 10ms default" << std::endl;
+      std::cout << "[DEBUG] SCHED_FIFO has no fixed quantum, using 10ms default"
+                << std::endl;
 #endif
-        return std::chrono::milliseconds(10); // FIFO has no quantum, use reasonable default
-      case SCHED_IDLE:
+      return std::chrono::milliseconds(
+          10); // FIFO has no quantum, use reasonable default
+    case SCHED_IDLE:
 #ifndef NDEBUG
-        std::cout << "[DEBUG] SCHED_IDLE using 100ms (low priority)" << std::endl;
+      std::cout << "[DEBUG] SCHED_IDLE using 100ms (low priority)" << std::endl;
 #endif
-        return std::chrono::milliseconds(100); // Idle tasks get infrequent scheduling
-      default:
+      return std::chrono::milliseconds(
+          100); // Idle tasks get infrequent scheduling
+    default:
 #ifndef NDEBUG
-        std::cout << "[DEBUG] Unknown policy, using 10ms fallback" << std::endl;
+      std::cout << "[DEBUG] Unknown policy, using 10ms fallback" << std::endl;
 #endif
-        return std::chrono::milliseconds(10);
+      return std::chrono::milliseconds(10);
     }
 #elif _WIN32
     return std::chrono::milliseconds(15); // Windows typical quantum

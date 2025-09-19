@@ -1,10 +1,12 @@
-#include "sequencer.h"
+#include "sequencer/step_sequencer.h"
 #include <chrono>
 #ifndef NDEBUG
 #include <iostream>
 #endif
 #include <optional>
 #include <thread>
+
+namespace MicroComposer {
 
 namespace sequencer {
 
@@ -99,3 +101,5 @@ void Sequencer::stop() {
 }
 
 } // namespace sequencer
+
+} // namespace MicroComposer

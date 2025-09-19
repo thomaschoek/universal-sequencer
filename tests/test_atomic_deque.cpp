@@ -1,10 +1,10 @@
-#include "atomic_deque.h"
+#include "utils/atomic_deque.h"
 #include <catch2/catch_test_macros.hpp>
 #include <future>
 #include <thread>
 #include <vector>
 
-using namespace atomic_deque;
+using namespace MicroComposer::atomic_deque;
 
 TEST_CASE("AtomicDeque basic operations", "[atomic_deque]") {
   AtomicDeque<int> deque;

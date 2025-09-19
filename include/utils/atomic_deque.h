@@ -1,9 +1,11 @@
-#ifndef ATOMIC_DEQUE_H
-#define ATOMIC_DEQUE_H
+#ifndef MICRO_COMPOSER_ATOMIC_DEQUE_H
+#define MICRO_COMPOSER_ATOMIC_DEQUE_H
 
 #include <deque>
 #include <mutex>
 #include <stdexcept>
+
+namespace MicroComposer {
 
 namespace atomic_deque {
 
@@ -197,5 +199,7 @@ template <typename T> const T &AtomicDeque<T>::operator[](size_type pos) const {
 }
 
 } // namespace atomic_deque
+
+} // namespace MicroComposer
 
 #endif // ATOMIC_DEQUE_H

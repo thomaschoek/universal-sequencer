@@ -1,8 +1,9 @@
-#include "clock.h"
+#include "clock/clock.h"
 #include <catch2/catch_test_macros.hpp>
 #include <chrono>
 
-using namespace MicroComposer::sequence;
+using namespace MicroComposer;
+using namespace MicroComposer::clock;
 
 TEST_CASE("Sequence_clock basic functionality", "[clock]") {
   Sequence_clock clock;

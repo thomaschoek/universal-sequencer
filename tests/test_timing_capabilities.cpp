@@ -1,4 +1,4 @@
-#include "timing_config.h"
+#include "clock/timing_config.h"
 #include <catch2/catch_test_macros.hpp>
 #include <chrono>
 

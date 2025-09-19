@@ -17,9 +17,11 @@ include_directories(include)
 # Add executable
 add_executable(MicroComposer
     src/main.cpp
-    src/sequencer.cpp
-    src/step.cpp
-    src/atomic_step_sequence.cpp
+    src/sequencer/step_sequencer.cpp
+    src/sequence/atomic_step_sequence.cpp
+    src/synth/synth.cpp
+    src/sequencer/step_sequencer_output.cpp
+    src/sequencer/synth_sequencer.cpp
 )
 
 # Enable testing
@@ -27,4 +29,7 @@ enable_testing()
 
 # Add tests subdirectory
 add_subdirectory(tests)
+
+# Add examples subdirectory
+add_subdirectory(examples)
 

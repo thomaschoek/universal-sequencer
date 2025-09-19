@@ -1,8 +1,10 @@
-#ifndef STEP_H
-#define STEP_H
+#ifndef MICRO_COMPOSER_STEP_H
+#define MICRO_COMPOSER_STEP_H
 
 #include <chrono>
 #include <vector>
+
+namespace MicroComposer {
 
 namespace sequencer {
 
@@ -14,12 +16,12 @@ struct Step {
 
   Step() = default;
   Step(double offset_seconds, double length_seconds,
-       const std::vector<double>& params = {})
+       const std::vector<double> &params = {})
       : parameters(params),
         offset(std::chrono::duration<double>(offset_seconds)),
         length(std::chrono::duration<double>(length_seconds)) {}
   Step(double offset_seconds, double length_seconds,
-       std::vector<double>&& params)
+       std::vector<double> &&params)
       : parameters(std::move(params)),
         offset(std::chrono::duration<double>(offset_seconds)),
         length(std::chrono::duration<double>(length_seconds)) {}
@@ -40,5 +42,7 @@ struct Step {
 };
 
 } // namespace sequencer
+
+} // namespace MicroComposer
 
 #endif // STEP_H

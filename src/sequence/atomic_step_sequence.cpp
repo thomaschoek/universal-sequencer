@@ -1,7 +1,8 @@
-#include "atomic_step_sequence.h"
+#include "sequence/atomic_step_sequence.h"
 #include <optional>
 
-namespace sequencer {
+using namespace MicroComposer;
+using namespace MicroComposer::sequencer;
 
 std::optional<Step> AtomicStepSequence::step() {
   std::scoped_lock lck{mutex_};
@@ -13,5 +14,3 @@ std::optional<Step> AtomicStepSequence::step() {
   }
   return *step_itr_++;
 }
-
-} // namespace sequencer

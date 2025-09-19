@@ -1,5 +1,5 @@
-#ifndef SEQUENCER_CLOCK_H
-#define SEQUENCER_CLOCK_H
+#ifndef MICRO_COMPOSER_CLOCK_H
+#define MICRO_COMPOSER_CLOCK_H
 
 #ifndef NDEBUG
 #include <iostream>
@@ -11,10 +11,10 @@
 #include <mutex>
 #include <thread>
 
-#include "timing_config.h"
+#include "clock/timing_config.h"
 
 namespace MicroComposer {
-namespace sequence {
+namespace clock {
 
 // Ensures a sequence's events are scheduled on time
 class Sequence_clock {
@@ -145,6 +145,6 @@ public:
   }
 };
 
-} // namespace sequence
+} // namespace clock
 } // namespace MicroComposer
 #endif

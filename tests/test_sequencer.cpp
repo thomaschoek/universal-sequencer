@@ -1,6 +1,5 @@
-#include "atomic_step_sequence.h"
-#include "sequencer.h"
-#include "step.h"
+#include "sequence/atomic_step_sequence.h"
+#include "sequencer/step_sequencer.h"
 #include <atomic>
 #include <catch2/catch_test_macros.hpp>
 #include <chrono>
@@ -10,7 +9,7 @@
 #include <thread>
 #include <vector>
 
-using namespace sequencer;
+using namespace MicroComposer::sequencer;
 
 // Thread-safe trigger counter for testing
 class TriggerCounter {
@@ -138,14 +137,16 @@ TEST_CASE("Sequencer step triggering", "[sequencer]") {
 
   SECTION("Steps are triggered in sequence") {
     AtomicStepSequence seq(0);
-    seq.push_back(Step(0.01, 0.01, {1.0}));  // Longer intervals for more predictable timing
+    seq.push_back(Step(0.01, 0.01,
+                       {1.0})); // Longer intervals for more predictable timing
     seq.push_back(Step(0.01, 0.01, {2.0}));
     seq.push_back(Step(0.01, 0.01, {3.0}));
 
     TestSequencer sequencer(seq, &counter);
 
     sequencer.start();
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));  // Longer test duration
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(200)); // Longer test duration
     sequencer.stop();
 
     // Should have triggered multiple cycles
@@ -154,9 +155,10 @@ TEST_CASE("Sequencer step triggering", "[sequencer]") {
     auto triggered = counter.getTriggeredSteps();
     REQUIRE(triggered.size() > 3);
 
-    // Check that steps cycle correctly - but more flexibly since timing might vary
+    // Check that steps cycle correctly - but more flexibly since timing might
+    // vary
     std::set<double> triggered_values;
-    for (const auto& step : triggered) {
+    for (const auto &step : triggered) {
       triggered_values.insert(step.parameters[0]);
     }
 
@@ -391,7 +393,8 @@ TEST_CASE("Sequencer thread safety - step copying behavior",
   SECTION("Steps are copied safely during iteration") {
     AtomicStepSequence seq(0);
 
-    // Helper function to create large parameter vectors - returns by value (rvalue)
+    // Helper function to create large parameter vectors - returns by value
+    // (rvalue)
     auto createLargeParams = [](int size) {
       std::vector<double> params;
       for (int i = 0; i < size; ++i) {

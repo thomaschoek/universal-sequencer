@@ -1,11 +1,11 @@
-#include "sequencer.h"
+#include "sequencer/step_sequencer.h"
 
 #include <chrono>
 #include <iostream>
 #include <thread>
 
 int main() {
-  using namespace sequencer;
+  using namespace MicroComposer::sequencer;
   AtomicStepSequence seq{8};
   Sequencer seqr{seq};
 

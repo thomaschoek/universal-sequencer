@@ -1,9 +1,11 @@
-#ifndef ATOMIC_STEP_SEQUENCE_H
-#define ATOMIC_STEP_SEQUENCE_H
+#ifndef MICRO_COMPOSER_ATOMIC_STEP_SEQUENCE_H
+#define MICRO_COMPOSER_ATOMIC_STEP_SEQUENCE_H
 
-#include "atomic_deque.h"
-#include "step.h"
+#include "sequence/step.h"
+#include "utils/atomic_deque.h"
 #include <optional>
+
+namespace MicroComposer {
 
 namespace sequencer {
 
@@ -21,5 +23,7 @@ public:
   }
 };
 } // namespace sequencer
+
+} // namespace MicroComposer
 
 #endif // ATOMIC_STEP_SEQUENCE_H
