@@ -11,7 +11,7 @@
 
   void start() {
       // ... existing code ...
-      thread_ = std::thread{&Sequence_clock::run, this};
+      thread_ = std::jthread{&Sequence_clock::run, this};
 
       // Set RT priority
       sched_param param;

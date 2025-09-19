@@ -23,6 +23,12 @@ This is a C++ MIDI step sequencer application called micro-composer. The project
 - Use STL containers and algorithms where appropriate
 - ALWAYS make sure you do test driven development and follow the SOLID principles
 
+## Unit Tests
+- Use Catch2 as testing framework
+- tests are in the 'tests/' directory
+- tests directory has its own CMakeLists.txt
+- Write tests for all public interfaces and critical internal logic
+
 ## Audio Programming Specifics
 - Real-time audio code must be lock-free and allocation-free
 - Separate audio thread logic from UI/control thread logic

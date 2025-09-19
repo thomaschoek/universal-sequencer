@@ -78,9 +78,7 @@ AtomicDeque<T>::AtomicDeque(AtomicDeque &&other) noexcept {
 template <typename T>
 AtomicDeque<T> &AtomicDeque<T>::operator=(const AtomicDeque &other) {
   if (this != &other) {
-    std::lock(mutex_, other.mutex_);
-    std::scoped_lock<std::mutex> lock1(mutex_);
-    std::scoped_lock<std::mutex> lock2(other.mutex_);
+    std::scoped_lock lck(mutex_, other.mutex_);
     static_cast<base_type &>(*this) = static_cast<const base_type &>(other);
   }
   return *this;
@@ -89,9 +87,7 @@ AtomicDeque<T> &AtomicDeque<T>::operator=(const AtomicDeque &other) {
 template <typename T>
 AtomicDeque<T> &AtomicDeque<T>::operator=(AtomicDeque &&other) noexcept {
   if (this != &other) {
-    std::lock(mutex_, other.mutex_);
-    std::scoped_lock<std::mutex> lock1(mutex_);
-    std::scoped_lock<std::mutex> lock2(other.mutex_);
+    std::scoped_lock lck(mutex_, other.mutex_);
     static_cast<base_type &>(*this) =
         std::move(static_cast<base_type &>(other));
   }
