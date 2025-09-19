@@ -2,6 +2,7 @@
 #define STEP_H
 
 #include <chrono>
+#include <vector>
 
 namespace sequencer {
 
@@ -10,6 +11,18 @@ struct Step {
   std::vector<double> parameters;
   std::chrono::duration<double> offset{std::chrono::duration<double>(0)};
   std::chrono::duration<double> length{std::chrono::duration<double>(1)};
+
+  Step() = default;
+  Step(double offset_seconds, double length_seconds,
+       const std::vector<double>& params = {})
+      : parameters(params),
+        offset(std::chrono::duration<double>(offset_seconds)),
+        length(std::chrono::duration<double>(length_seconds)) {}
+  Step(double offset_seconds, double length_seconds,
+       std::vector<double>&& params)
+      : parameters(std::move(params)),
+        offset(std::chrono::duration<double>(offset_seconds)),
+        length(std::chrono::duration<double>(length_seconds)) {}
 #ifndef NDEBUG
   friend std::ostream &operator<<(std::ostream &os, const Step &step) {
     os << "Step(offset: " << step.offset.count()

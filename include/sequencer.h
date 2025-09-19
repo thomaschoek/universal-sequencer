@@ -15,7 +15,7 @@ class Sequencer {
   std::atomic<bool> live{false};
   AtomicStepSequence sequence;
   void run();
-  void trigger(const Step &step) const;
+  virtual void trigger(const Step &step) const;
 
 public:
   bool is_live() const;

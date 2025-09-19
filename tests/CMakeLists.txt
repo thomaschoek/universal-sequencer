@@ -14,6 +14,7 @@ add_executable(tests
     test_timing_capabilities.cpp
     test_atomic_step_sequence.cpp
     test_atomic_deque.cpp
+    test_sequencer.cpp
 )
 
 # Link against Catch2 and project sources
@@ -23,6 +24,7 @@ target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)
 target_sources(tests PRIVATE
     ${CMAKE_SOURCE_DIR}/src/step.cpp
     ${CMAKE_SOURCE_DIR}/src/atomic_step_sequence.cpp
+    ${CMAKE_SOURCE_DIR}/src/sequencer.cpp
 )
 
 # Include project headers
