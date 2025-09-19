@@ -1,5 +1,6 @@
 #include "sequence/atomic_step_sequence.h"
 #include "sequencer/step_sequencer.h"
+#include "sequencer/step_sequencer_output.h"
 #include <atomic>
 #include <catch2/catch_test_macros.hpp>
 #include <chrono>
@@ -40,39 +41,33 @@ public:
 };
 
 // Custom Sequencer class for testing that captures triggered steps
-class TestSequencer : public Sequencer {
+class TestSequencerOutput : public StepSequencerOutput {
 private:
   TriggerCounter *counter_;
 
-protected:
-  void trigger(const Step &step) const override {
+public:
+  void write(const Step &step) override {
     if (counter_) {
       counter_->trigger(step);
     }
   }
 
-public:
-  explicit TestSequencer(const AtomicStepSequence &seq,
-                         TriggerCounter *counter = nullptr)
-      : Sequencer(seq), counter_(counter) {}
-
   void setTriggerCounter(TriggerCounter *counter) { counter_ = counter; }
-
-  // Expose protected methods for testing
-  using Sequencer::store_live;
 };
 
 TEST_CASE("Sequencer basic functionality", "[sequencer]") {
   SECTION("Default construction and initial state") {
     AtomicStepSequence seq(0);
-    Sequencer sequencer(seq);
+    TestSequencerOutput out;
+    StepSequencer sequencer(seq, out);
 
     REQUIRE_FALSE(sequencer.is_live());
   }
 
   SECTION("Start and stop with empty sequence") {
     AtomicStepSequence seq(0);
-    Sequencer sequencer(seq);
+    TestSequencerOutput out;
+    StepSequencer sequencer(seq, out);
 
     sequencer.start();
     // Should not become live with empty sequence
@@ -87,7 +82,8 @@ TEST_CASE("Sequencer basic functionality", "[sequencer]") {
     seq.push_back(Step(0.001, 0.001, {1.0})); // Very short steps for fast test
     seq.push_back(Step(0.001, 0.001, {2.0}));
 
-    Sequencer sequencer(seq);
+    TestSequencerOutput out;
+    StepSequencer sequencer(seq, out);
 
     sequencer.start();
     REQUIRE(sequencer.is_live());
@@ -103,7 +99,8 @@ TEST_CASE("Sequencer basic functionality", "[sequencer]") {
     AtomicStepSequence seq(0);
     seq.push_back(Step(0.001, 0.001, {1.0}));
 
-    Sequencer sequencer(seq);
+    TestSequencerOutput out;
+    StepSequencer sequencer(seq, out);
 
     sequencer.start();
     REQUIRE(sequencer.is_live());
@@ -119,7 +116,9 @@ TEST_CASE("Sequencer basic functionality", "[sequencer]") {
     AtomicStepSequence seq(0);
     seq.push_back(Step(0.001, 0.001, {1.0}));
 
-    Sequencer sequencer(seq);
+    TestSequencerOutput out;
+
+    StepSequencer sequencer(seq, out);
 
     sequencer.start();
     REQUIRE(sequencer.is_live());
@@ -142,7 +141,9 @@ TEST_CASE("Sequencer step triggering", "[sequencer]") {
     seq.push_back(Step(0.01, 0.01, {2.0}));
     seq.push_back(Step(0.01, 0.01, {3.0}));
 
-    TestSequencer sequencer(seq, &counter);
+    TestSequencerOutput out;
+
+    StepSequencer sequencer(seq, out);
 
     sequencer.start();
     std::this_thread::sleep_for(
@@ -173,7 +174,9 @@ TEST_CASE("Sequencer step triggering", "[sequencer]") {
     AtomicStepSequence seq(0);
     seq.push_back(Step(0.001, 0.001, {42.0}));
 
-    TestSequencer sequencer(seq, &counter);
+    TestSequencerOutput out;
+
+    StepSequencer sequencer(seq, out);
 
     sequencer.start();
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
@@ -197,7 +200,9 @@ TEST_CASE("Sequencer thread safety - concurrent modifications",
     seq.push_back(Step(0.001, 0.001, {1.0}));
     seq.push_back(Step(0.001, 0.001, {2.0}));
 
-    TestSequencer sequencer(seq, &counter);
+    TestSequencerOutput out;
+
+    StepSequencer sequencer(seq, out);
 
     std::atomic<bool> stop_modification{false};
     std::atomic<int> steps_added{0};
@@ -237,7 +242,9 @@ TEST_CASE("Sequencer thread safety - concurrent modifications",
       seq.push_back(Step(0.001, 0.001, {static_cast<double>(i)}));
     }
 
-    TestSequencer sequencer(seq, &counter);
+    TestSequencerOutput out;
+
+    StepSequencer sequencer(seq, out);
 
     std::atomic<bool> stop_modification{false};
     std::atomic<int> steps_removed{0};
@@ -274,7 +281,9 @@ TEST_CASE("Sequencer thread safety - concurrent modifications",
       seq.push_back(Step(0.001, 0.001, {static_cast<double>(i)}));
     }
 
-    TestSequencer sequencer(seq, &counter);
+    TestSequencerOutput out;
+
+    StepSequencer sequencer(seq, out);
 
     std::atomic<bool> stop_modification{false};
     std::atomic<int> modifications{0};
@@ -318,7 +327,8 @@ TEST_CASE("Sequencer thread safety - concurrent modifications",
       seq.push_back(Step(0.001, 0.001, {static_cast<double>(i)}));
     }
 
-    TestSequencer sequencer(seq, &counter);
+    TestSequencerOutput out;
+    StepSequencer sequencer(seq, out);
 
     std::atomic<bool> stop_all{false};
     std::vector<std::future<int>> modifier_futures;
@@ -405,7 +415,8 @@ TEST_CASE("Sequencer thread safety - step copying behavior",
 
     seq.push_back(Step(0.001, 0.001, createLargeParams(100)));
 
-    TestSequencer sequencer(seq, &counter);
+    TestSequencerOutput out;
+    StepSequencer sequencer(seq, out);
 
     std::atomic<bool> stop_modifications{false};
 
@@ -466,7 +477,8 @@ TEST_CASE("Sequencer thread safety - step copying behavior",
       seq.push_back(Step(0.001, 0.001, {static_cast<double>(i)}));
     }
 
-    TestSequencer sequencer(seq, &counter);
+    TestSequencerOutput out;
+    StepSequencer sequencer(seq, out);
 
     std::atomic<bool> stop_modifications{false};
 
@@ -513,7 +525,8 @@ TEST_CASE("Sequencer thread safety - safe shutdown",
       seq.push_back(Step(0.001, 0.001, {static_cast<double>(i)}));
     }
 
-    TestSequencer sequencer(seq, &counter);
+    TestSequencerOutput out;
+    StepSequencer sequencer(seq, out);
 
     std::atomic<bool> modifier_running{true};
     std::vector<std::future<void>> modifier_futures;
@@ -556,7 +569,8 @@ TEST_CASE("Sequencer thread safety - safe shutdown",
     seq.push_back(Step(0.001, 0.001, {1.0}));
     seq.push_back(Step(0.001, 0.001, {2.0}));
 
-    TestSequencer sequencer(seq, &counter);
+    TestSequencerOutput out;
+    StepSequencer sequencer(seq, out);
 
     std::atomic<bool> stop_test{false};
 
@@ -596,7 +610,8 @@ TEST_CASE("Sequencer destructor safety", "[sequencer][thread_safety]") {
     seq.push_back(Step(0.001, 0.001, {1.0}));
 
     {
-      TestSequencer sequencer(seq, &counter);
+      TestSequencerOutput out;
+      StepSequencer sequencer(seq, out);
       sequencer.start();
       REQUIRE(sequencer.is_live());
 
@@ -627,7 +642,9 @@ TEST_CASE("Sequencer destructor safety", "[sequencer][thread_safety]") {
     });
 
     {
-      TestSequencer sequencer(seq, &counter);
+      TestSequencerOutput out;
+
+      StepSequencer sequencer(seq, out);
       sequencer.start();
       std::this_thread::sleep_for(std::chrono::milliseconds(20));
       // Destructor executes here with modifier still running

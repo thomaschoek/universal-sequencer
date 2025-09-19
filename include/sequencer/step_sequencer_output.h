@@ -9,7 +9,12 @@ namespace MicroComposer {
 
 namespace sequencer {
 
-class StepSequencerSynthOutput {
+class StepSequencerOutput {
+public:
+  virtual void write(const Step &step);
+};
+
+class StepSequencerSynthOutput : StepSequencerOutput {
 private:
   MicroComposer::synth::Synthesizer output_;
   MicroComposer::synth::WaveformType default_waveform_;

@@ -10,17 +10,11 @@ namespace MicroComposer {
 
 namespace sequencer {
 
-bool Sequencer::is_live() const { return live.load(std::memory_order_relaxed); }
-
-void Sequencer::trigger(const Step &step) const {
-#ifndef NDEBUG
-  std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(
-                   std::chrono::steady_clock::now().time_since_epoch())
-            << ": " << step << std::endl;
-#endif
+inline bool StepSequencer::is_live() const {
+  return live.load(std::memory_order_relaxed);
 }
 
-void Sequencer::run() {
+void StepSequencer::run() {
 #ifndef NDEBUG
   // Print debug message about the exact time the clock started
   auto now = std::chrono::steady_clock::now();
@@ -48,7 +42,7 @@ void Sequencer::run() {
     // Sleep until the next trigger time
     std::this_thread::sleep_until(trigger_time);
 
-    trigger(step.value());
+    output.write(step.value());
 
     trigger_time += step->length;
 
@@ -61,11 +55,11 @@ void Sequencer::run() {
   }
 }
 
-void Sequencer::store_live(const bool &val) {
+inline void StepSequencer::store_live(const bool &val) {
   live.store(val, std::memory_order_relaxed);
 }
 
-void Sequencer::start() {
+void StepSequencer::start() {
 #ifndef NDEBUG
   // Print debug message about the exact time the clock started
   auto now = std::chrono::steady_clock::now();
@@ -79,10 +73,10 @@ void Sequencer::start() {
     return;
   }
   store_live(true);
-  thread_ = std::jthread(&Sequencer::run, this);
+  thread_ = std::jthread(&StepSequencer::run, this);
 }
 
-void Sequencer::stop() {
+void StepSequencer::stop() {
 #ifndef NDEBUG
   // Print debug message about the exact time the clock started
   auto now = std::chrono::steady_clock::now();
