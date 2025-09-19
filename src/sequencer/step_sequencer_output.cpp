@@ -2,6 +2,7 @@
 #ifndef NDEBUG
 #include <iostream>
 #endif
+#include <chrono>
 
 namespace MicroComposer {
 

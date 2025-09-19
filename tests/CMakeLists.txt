@@ -24,6 +24,8 @@ target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)
 target_sources(tests PRIVATE
     ${CMAKE_SOURCE_DIR}/src/sequence/atomic_step_sequence.cpp
     ${CMAKE_SOURCE_DIR}/src/sequencer/step_sequencer.cpp
+    ${CMAKE_SOURCE_DIR}/src/sequencer/step_sequencer_output.cpp
+    ${CMAKE_SOURCE_DIR}/src/synth/synth.cpp
 )
 
 # Include project headers
