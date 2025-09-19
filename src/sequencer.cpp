@@ -1,6 +1,8 @@
 #include "sequencer.h"
 #include <chrono>
+#ifndef NDEBUG
 #include <iostream>
+#endif
 #include <optional>
 #include <thread>
 
@@ -17,6 +19,15 @@ void Sequencer::trigger(const Step &step) const {
 }
 
 void Sequencer::run() {
+#ifndef NDEBUG
+  // Print debug message about the exact time the clock started
+  auto now = std::chrono::steady_clock::now();
+  auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+      now.time_since_epoch());
+  std::cout << "[DEBUG] in Sequencer::run at " << now_ms.count() << " ms..."
+            << std::endl;
+#endif
+
   std::optional<Step> step;
   if (sequence.empty()) {
     store_live(false);
@@ -53,6 +64,15 @@ void Sequencer::store_live(const bool &val) {
 }
 
 void Sequencer::start() {
+#ifndef NDEBUG
+  // Print debug message about the exact time the clock started
+  auto now = std::chrono::steady_clock::now();
+  auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+      now.time_since_epoch());
+  std::cout << "[DEBUG] In Sequencer::start at " << now_ms.count() << " ms..."
+            << std::endl;
+#endif
+
   if (is_live()) {
     return;
   }
@@ -61,6 +81,15 @@ void Sequencer::start() {
 }
 
 void Sequencer::stop() {
+#ifndef NDEBUG
+  // Print debug message about the exact time the clock started
+  auto now = std::chrono::steady_clock::now();
+  auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+      now.time_since_epoch());
+  std::cout << "[DEBUG] In Sequencer::stop at " << now_ms.count() << " ms..."
+            << std::endl;
+#endif
+
   if (is_live()) {
     store_live(false);
   }

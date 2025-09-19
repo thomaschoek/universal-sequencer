@@ -6,13 +6,14 @@
 
 int main() {
   using namespace sequencer;
-  Sequencer seq;
+  AtomicStepSequence seq{8};
+  Sequencer seqr{seq};
 
   auto t_start = std::chrono::steady_clock::now();
-  seq.start();
+  seqr.start();
 
   std::this_thread::sleep_for(std::chrono::seconds(5));
-  seq.stop();
+  seqr.stop();
 
   auto t_end = std::chrono::steady_clock::now();
 

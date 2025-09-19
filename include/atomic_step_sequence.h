@@ -15,6 +15,10 @@ private:
 
 public:
   std::optional<Step> step();
+
+  explicit AtomicStepSequence(base_t::size_type count) : base_t(count) {
+    step_itr_ = begin();
+  }
 };
 } // namespace sequencer
 
