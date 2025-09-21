@@ -15,7 +15,7 @@ public:
   virtual void write(const Step &step);
 };
 
-class StepSequencerSynthOutput : StepSequencerOutput {
+class StepSequencerSynthOutput : public StepSequencerOutput {
 private:
   MicroComposer::synth::Synthesizer output_;
   MicroComposer::synth::WaveformType default_waveform_;

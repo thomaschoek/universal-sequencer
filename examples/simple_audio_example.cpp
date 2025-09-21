@@ -1,4 +1,5 @@
-#include "sequencer/synth_sequencer.h"
+#include "sequencer/step_sequencer.h"
+#include "sequencer/step_sequencer_output.h"
 #include "synth/synth.h"
 #include <chrono>
 #include <cstdlib>
@@ -66,22 +67,26 @@ int main() {
   sequence.push_back(Step(0.0, 1.0, {329.63, 0.8})); // E4
   sequence.push_back(Step(0.0, 1.0, {349.23, 0.8})); // F4
 
-  SynthSequencer synth_seq(sequence, 44100.0, WaveformType::SINE);
+  // Create synthesizer output
+  StepSequencerSynthOutput synth_output(44100.0, WaveformType::SINE);
 
   // Collect all audio samples
   std::vector<double> all_samples;
 
-  synth_seq.setAudioCallback(
+  synth_output.setAudioCallback(
       [&all_samples](const std::vector<double> &samples, double sample_rate) {
         std::cout << "[AUDIO] Capturing " << samples.size() << " samples..."
                   << std::endl;
         all_samples.insert(all_samples.end(), samples.begin(), samples.end());
       });
 
+  // Create step sequencer with synth output
+  StepSequencer sequencer(sequence, synth_output);
+
   std::cout << "Generating audio..." << std::endl;
-  synth_seq.start();
+  sequencer.start();
   std::this_thread::sleep_for(std::chrono::seconds(5));
-  synth_seq.stop();
+  sequencer.stop();
 
   std::cout << "Writing WAV file..." << std::endl;
   writeWavFile(all_samples, 44100.0, "/tmp/synth_output.wav");
