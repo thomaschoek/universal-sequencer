@@ -12,5 +12,6 @@ std::optional<Step> AtomicStepSequence::step() {
   if (step_itr_ >= end() || step_itr_ < begin()) {
     step_itr_ = begin();
   }
+  // Return a copy of the current step's value, then increment the step iterator
   return *step_itr_++;
 }
