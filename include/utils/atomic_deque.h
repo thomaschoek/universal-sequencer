@@ -57,6 +57,8 @@ public:
   const T &at(size_type pos) const;
   T &operator[](size_type pos);
   const T &operator[](size_type pos) const;
+
+  std::scoped_lock<std::mutex> lock() const;
 };
 
 template <typename T>
@@ -196,6 +198,11 @@ template <typename T> T &AtomicDeque<T>::operator[](size_type pos) {
 template <typename T> const T &AtomicDeque<T>::operator[](size_type pos) const {
   std::scoped_lock<std::mutex> lock(mutex_);
   return base_type::operator[](pos);
+}
+
+template <typename T>
+inline std::scoped_lock<std::mutex> AtomicDeque<T>::lock() const {
+  return std::scoped_lock<std::mutex>(mutex_);
 }
 
 } // namespace atomic_deque

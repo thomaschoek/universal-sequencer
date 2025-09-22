@@ -1,7 +1,7 @@
 #ifndef MICRO_COMPOSER_STEP_SEQUENCER_OUTPUT_H
 #define MICRO_COMPOSER_STEP_SEQUENCER_OUTPUT_H
 
-#include "sequence/step.h"
+#include <vector>
 
 namespace MicroComposer {
 

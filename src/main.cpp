@@ -8,22 +8,23 @@
 int main() {
   using namespace MicroComposer::sequencer;
   using namespace MicroComposer::synth;
-  AtomicStepSequence seq{8};
+  using namespace MicroComposer::atomic_deque;
+  AtomicDeque<Step> steps;
 
   // Add some steps with different frequencies (musical notes)
   // Each step: offset, duration, {frequency, amplitude, phase}
-  seq.push_back(Step(0.0, 0.5, {261.63, 0.6})); // C4
-  seq.push_back(Step(0.0, 0.5, {293.66, 0.6})); // D4
-  seq.push_back(Step(0.0, 0.5, {329.63, 0.6})); // E4
-  seq.push_back(Step(0.0, 0.5, {349.23, 0.6})); // F4
-  seq.push_back(Step(0.0, 0.5, {392.00, 0.6})); // G4
-  seq.push_back(Step(0.0, 0.5, {440.00, 0.6})); // A4
-  seq.push_back(Step(0.0, 0.5, {493.88, 0.6})); // B4
-  seq.push_back(Step(0.0, 0.5, {523.25, 0.6})); // C5
+  steps.push_back(Step(0.0, 0.5, {261.63, 0.6})); // C4
+  steps.push_back(Step(0.0, 0.5, {293.66, 0.6})); // D4
+  steps.push_back(Step(0.0, 0.5, {329.63, 0.6})); // E4
+  steps.push_back(Step(0.0, 0.5, {349.23, 0.6})); // F4
+  steps.push_back(Step(0.0, 0.5, {392.00, 0.6})); // G4
+  steps.push_back(Step(0.0, 0.5, {440.00, 0.6})); // A4
+  steps.push_back(Step(0.0, 0.5, {493.88, 0.6})); // B4
+  steps.push_back(Step(0.0, 0.5, {523.25, 0.6})); // C5
 
   RealTimeAudioOutput synth_out;
   StepSynth synth{synth_out};
-  StepSequencer seqr{seq, synth};
+  StepSequencer seqr{steps, synth};
 
   auto t_start = std::chrono::steady_clock::now();
   seqr.start();
