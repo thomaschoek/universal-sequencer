@@ -1,6 +1,7 @@
 #ifndef MICRO_COMPOSER_ATOMIC_EVENT_SEQUENCER_H
 #define MICRO_COMPOSER_ATOMIC_EVENT_SEQUENCER_H
 
+#include "sequencable/sequencable.h"
 #include "utils/atomic_deque.h"
 #include <atomic>
 #include <mutex>
@@ -15,13 +16,7 @@ namespace MicroComposer {
 
 namespace sequencer {
 
-template <typename T>
-concept Sequencable = requires(T t) {
-  { t.duration } -> std::convertible_to<std::chrono::duration<double>>;
-  { t.offset } -> std::convertible_to<std::chrono::duration<double>>;
-};
-
-template <Sequencable EVENT_T> class AtomicSequencer {
+template <sequencable::Sequencable EVENT_T> class AtomicSequencer {
 
   std::mutex mutex_;
   std::jthread thread_;
@@ -48,7 +43,7 @@ public:
       : event_handler(handler), sequence(seq) {}
 };
 
-template <Sequencable EVENT_T>
+template <sequencable::Sequencable EVENT_T>
 std::optional<EVENT_T> AtomicSequencer<EVENT_T>::next_event() {
   std::scoped_lock{sequence.lock()};
   if (sequence.empty()) {
@@ -61,7 +56,8 @@ std::optional<EVENT_T> AtomicSequencer<EVENT_T>::next_event() {
   return *step_itr++;
 }
 
-template <Sequencable EVENT_T> void AtomicSequencer<EVENT_T>::run() {
+template <sequencable::Sequencable EVENT_T>
+void AtomicSequencer<EVENT_T>::run() {
 #ifndef NDEBUG
   // Print debug message about the exact time the clock started
   auto now = std::chrono::steady_clock::now();
@@ -116,7 +112,8 @@ template <Sequencable EVENT_T> void AtomicSequencer<EVENT_T>::run() {
   }
 }
 
-template <Sequencable EVENT_T> void AtomicSequencer<EVENT_T>::start() {
+template <sequencable::Sequencable EVENT_T>
+void AtomicSequencer<EVENT_T>::start() {
 #ifndef NDEBUG
   // Print debug message about the exact time the clock started
   auto now = std::chrono::steady_clock::now();
@@ -133,7 +130,8 @@ template <Sequencable EVENT_T> void AtomicSequencer<EVENT_T>::start() {
   thread_ = std::jthread(&AtomicSequencer::run, this);
 }
 
-template <Sequencable EVENT_T> void AtomicSequencer<EVENT_T>::stop() {
+template <sequencable::Sequencable EVENT_T>
+void AtomicSequencer<EVENT_T>::stop() {
 #ifndef NDEBUG
   // Print debug message about the exact time the clock started
   auto now = std::chrono::steady_clock::now();

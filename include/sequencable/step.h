@@ -4,6 +4,8 @@
 #include <chrono>
 #include <vector>
 
+#include "sequencable/sequencable.h"
+
 namespace MicroComposer {
 
 namespace sequencable {
@@ -40,6 +42,8 @@ struct Step {
   }
 #endif
 };
+
+static_assert(Sequencable<Step>, "Step does not satisfy Sequencable concept");
 
 } // namespace sequencable
 
