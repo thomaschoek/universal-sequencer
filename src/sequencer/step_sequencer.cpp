@@ -42,7 +42,7 @@ void StepSequencer::run() {
     // Sleep until the next trigger time
     std::this_thread::sleep_until(trigger_time);
 
-    output.write(step.value());
+    output.write(std::move(step.value().parameters));
 
     trigger_time += step->length;
 

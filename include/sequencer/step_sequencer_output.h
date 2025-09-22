@@ -10,7 +10,7 @@ namespace sequencer {
 class StepSequencerOutput {
 public:
   virtual ~StepSequencerOutput() = default;
-  virtual void write(const Step &step);
+  virtual void write(const std::vector<double> &&step_params);
 };
 
 } // namespace sequencer

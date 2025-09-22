@@ -11,10 +11,18 @@ namespace synth {
 class StepSynth : public Synthesizer, public sequencer::StepSequencerOutput {
 
 protected:
-  static Synthesizable parseStep(const sequencer::Step &step);
+  enum class ParameterIndex {
+    FREQUENCY = 0,
+    DURATION = 1,
+    AMPLITUDE = 2,
+    PHASE = 3
+  };
+  static OscillationParams
+  parseStepParams(const std::vector<double> &step_params);
 
 public:
-  void write(const sequencer::Step &step);
+  explicit StepSynth(SynthOutput &output) : Synthesizer(output) {}
+  void write(const std::vector<double> &&step_params) override;
 };
 
 } // namespace synth
