@@ -34,8 +34,9 @@ protected:
   std::vector<double> generateSamples(const OscillationParams &params) const;
 
 public:
-  explicit Synthesizer(SynthOutput &output, const double sample_rate = 44100.0)
-      : output_(output), sample_rate_(output.get_sample_rate()) {};
+  explicit Synthesizer(SynthOutput &output) : output_(output) {
+    sample_rate_ = output.get_sample_rate();
+  };
 
   // Generate and immediately output audio samples
   void play(const OscillationParams &params) const;

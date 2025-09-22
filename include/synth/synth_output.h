@@ -9,9 +9,15 @@ namespace MicroComposer {
 namespace synth {
 
 class SynthOutput {
+protected:
+  double sample_rate_{44100.0};
+
+  explicit SynthOutput(double sample_rate = 44100.0)
+      : sample_rate_(sample_rate) {}
+
 public:
-  const double get_sample_rate() const;
-  void write(const std::vector<double> samples);
+  const double get_sample_rate() const { return sample_rate_; }
+  virtual void write(const std::vector<double> &samples);
 };
 
 class RealTimeAudioOutput : public SynthOutput {
@@ -24,7 +30,7 @@ public:
 
   ~RealTimeAudioOutput();
 
-  void write(const std::vector<double> &samples);
+  void write(const std::vector<double> &samples) override;
 
   bool isWorking() const { return is_open; }
 };

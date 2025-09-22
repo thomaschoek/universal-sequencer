@@ -27,6 +27,3 @@ enable_testing()
 # Add tests subdirectory
 add_subdirectory(tests)
 
-# Add examples subdirectory
-add_subdirectory(examples)
-

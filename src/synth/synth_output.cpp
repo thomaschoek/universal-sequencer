@@ -7,6 +7,11 @@ namespace MicroComposer {
 
 namespace synth {
 
+void SynthOutput::write(const std::vector<double> &samples) {
+  // Default implementation does nothing
+  (void)samples; // Suppress unused parameter warning
+}
+
 RealTimeAudioOutput::RealTimeAudioOutput(double sample_rate)
     : pacat_pipe(nullptr), is_open(false) {
   // Open pipe to pacat for real-time audio output
