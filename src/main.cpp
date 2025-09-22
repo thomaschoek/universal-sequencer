@@ -3,6 +3,7 @@
 #include "synth/synth.h"
 
 #include <chrono>
+#include <functional>
 #include <iostream>
 #include <thread>
 
@@ -26,10 +27,7 @@ int main() {
 
   RealTimeAudioOutput synth_out;
   Synthesizer synth{synth_out};
-  AtomicSequencer<SynthStep> seqr{[&synth](const SynthStep &step) {
-    auto samples = synth.generateSamples(step);
-    synth.output_.write(samples);
-  }, steps};
+  AtomicSequencer<SynthStep> seqr{std::bind(&Synthesizer::play, &synth, std::placeholders::_1), steps};
 
   auto t_start = std::chrono::steady_clock::now();
   seqr.start();

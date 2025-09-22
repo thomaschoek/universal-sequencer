@@ -8,8 +8,8 @@
 #ifndef NDEBUG
 #include <iostream>
 #endif
-#include <optional>
 #include <functional>
+#include <optional>
 
 namespace MicroComposer {
 
@@ -31,7 +31,7 @@ template <Sequencable EVENT_T> class AtomicSequencer {
   atomic_deque::AtomicDeque<EVENT_T>::iterator step_itr;
   std::optional<EVENT_T> next_event();
 
-  void (&event_handler)(const EVENT_T &item);
+  std::function<void(const EVENT_T)> event_handler;
   void run();
 
 public:
@@ -43,7 +43,7 @@ public:
   void start();
   void stop();
 
-  explicit AtomicSequencer(void (&handler)(const EVENT_T &item),
+  explicit AtomicSequencer(std::function<void(const EVENT_T)> handler,
                            atomic_deque::AtomicDeque<EVENT_T> &seq)
       : event_handler(handler), sequence(seq) {}
 };

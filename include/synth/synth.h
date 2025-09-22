@@ -30,12 +30,15 @@ private:
 protected:
   SynthOutput &output_;
 
+  // Generate audio samples for the given parameters
+  std::vector<double> generateSamples(const OscillationParams &params) const;
+
 public:
   explicit Synthesizer(SynthOutput &output, const double sample_rate = 44100.0)
       : output_(output), sample_rate_(output.get_sample_rate()) {};
 
-  // Generate audio samples for the given parameters
-  std::vector<double> generateSamples(const OscillationParams &params) const;
+  // Generate and immediately output audio samples
+  void play(const OscillationParams &params) const;
 };
 
 } // namespace synth

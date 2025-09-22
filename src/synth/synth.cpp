@@ -20,5 +20,10 @@ Synthesizer::generateSamples(const OscillationParams &params) const {
   return samples;
 }
 
+void Synthesizer::play(const OscillationParams &params) const {
+  auto samples = generateSamples(params);
+  output_.write(samples);
+}
+
 } // namespace synth
 } // namespace MicroComposer
