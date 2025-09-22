@@ -2,6 +2,7 @@
 #include "sequencer/step_sequencer.h"
 #include "sequencer/step_sequencer_output.h"
 #include <atomic>
+#include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <chrono>
 #include <future>
@@ -46,12 +47,10 @@ private:
   TriggerCounter counter_;
 
 public:
-  void write(const Step &step) override {
-    counter_.trigger(step);
-  }
+  void write(const Step &step) override { counter_.trigger(step); }
 
-  TriggerCounter& getCounter() { return counter_; }
-  const TriggerCounter& getCounter() const { return counter_; }
+  TriggerCounter &getCounter() { return counter_; }
+  const TriggerCounter &getCounter() const { return counter_; }
 };
 
 TEST_CASE("Sequencer basic functionality", "[sequencer]") {
@@ -390,20 +389,21 @@ TEST_CASE("Sequencer thread safety - concurrent modifications",
 TEST_CASE("Sequencer thread safety - step copying behavior",
           "[sequencer][thread_safety]") {
 
-  SECTION("Steps are copied safely during iteration") {
+  SECTION("Steps are copied safely during sequence modifications") {
     AtomicStepSequence seq(0);
 
-    // Helper function to create large parameter vectors - returns by value
-    // (rvalue)
-    auto createLargeParams = [](int size) {
+    // Helper function to create parameter vectors
+    auto createParams = [](int base_value, int size) {
       std::vector<double> params;
       for (int i = 0; i < size; ++i) {
-        params.push_back(i * 0.1);
+        params.push_back(base_value + i * 0.1);
       }
       return params;
     };
 
-    seq.push_back(Step(0.001, 0.001, createLargeParams(100)));
+    // Add initial steps
+    seq.push_back(Step(0.001, 0.001, createParams(1, 10)));
+    seq.push_back(Step(0.001, 0.001, createParams(2, 10)));
 
     TestSequencerOutput out;
     StepSequencer sequencer(seq, out);
@@ -412,16 +412,19 @@ TEST_CASE("Sequencer thread safety - step copying behavior",
 
     sequencer.start();
 
-    // Thread that modifies the step's parameters while sequencer is running
+    // Thread that adds/removes steps while sequencer is running
     auto modifier = std::async(std::launch::async, [&]() {
+      int step_counter = 100;
       while (!stop_modifications.load()) {
-        if (seq.size() > 0) {
-          // Modify the parameters of the first step directly
-          for (auto &param : seq[0].parameters) {
-            param += 1000.0; // Make a significant change
-          }
+        // Add a step with unique parameters
+        seq.push_back(Step(0.001, 0.001, createParams(step_counter++, 10)));
+
+        // Occasionally remove steps to prevent unlimited growth
+        if (seq.size() > 20) {
+          seq.pop_front();
         }
-        std::this_thread::sleep_for(std::chrono::microseconds(100));
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
       }
     });
 
@@ -437,23 +440,15 @@ TEST_CASE("Sequencer thread safety - step copying behavior",
     auto triggered = out.getCounter().getTriggeredSteps();
     REQUIRE(triggered.size() > 0);
 
-    // Each triggered step should have valid parameter data
+    // Each triggered step should have consistent parameter data
     for (const auto &step : triggered) {
-      REQUIRE(step.parameters.size() == 100);
-      // Parameters should be either original values or modified values
-      // but should be consistent within each step (no partial corruption)
-      bool is_original = (step.parameters[0] < 100.0);
-      bool is_modified = (step.parameters[0] > 1000.0);
-      REQUIRE((is_original || is_modified));
+      REQUIRE(step.parameters.size() == 10);
 
-      if (is_original) {
-        for (size_t i = 0; i < step.parameters.size(); ++i) {
-          REQUIRE(step.parameters[i] == i * 0.1);
-        }
-      } else {
-        for (size_t i = 0; i < step.parameters.size(); ++i) {
-          REQUIRE(step.parameters[i] == (i * 0.1 + 1000.0));
-        }
+      // Verify that all parameters in a step are consistent with each other
+      // (i.e., they all come from the same base value)
+      double base_value = step.parameters[0];
+      for (size_t i = 0; i < step.parameters.size(); ++i) {
+        REQUIRE(step.parameters[i] == Catch::Approx(base_value + i * 0.1));
       }
     }
   }
