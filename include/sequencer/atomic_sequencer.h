@@ -16,8 +16,8 @@ namespace sequencer {
 
 template <typename T>
 concept Sequencable = requires(T t) {
-  { t.duration } -> std::convertible_to<double>;
-  { t.offset } -> std::convertible_to<double>;
+  { t.duration } -> std::convertible_to<std::chrono::duration<double>>;
+  { t.offset } -> std::convertible_to<std::chrono::duration<double>>;
 };
 
 template <Sequencable EVENT_T> class AtomicSequencer {
@@ -42,7 +42,7 @@ public:
   void start();
   void stop();
 
-  explicit AtomicSequencer(void (&handler)(EVENT_T param),
+  explicit AtomicSequencer(void (&handler)(const EVENT_T &item),
                            atomic_deque::AtomicDeque<EVENT_T> &seq)
       : event_handler(handler), sequence(seq) {}
 };
@@ -79,25 +79,39 @@ template <Sequencable EVENT_T> void AtomicSequencer<EVENT_T>::run() {
 
   std::chrono::time_point<std::chrono::steady_clock,
                           std::chrono::duration<double>>
-      trigger_time = std::chrono::steady_clock::now();
+      event_time = std::chrono::steady_clock::now();
+
+  std::chrono::duration<double> stored_event_duration = event_buffer->duration;
 
   while (is_live()) {
     // Add the current step's offset to trigger time
-    trigger_time += event_buffer->offset;
+    event_time += event_buffer->offset;
 
+    // Store this event's duration before it's moved out of scope to handler
+    stored_event_duration = event_buffer->duration;
+
+    // IMPORTANT! DO NOT put anything in between the following 3 statements
+    // crucial for timing accuracy and to prevent undefined behaviour due to
+    // moved out event buffer
+    //
     // Sleep until the next trigger time
-    std::this_thread::sleep_until(trigger_time);
-
-    event_handler(std::move(event_buffer.value().parameters));
-
-    trigger_time += event_buffer->duration;
-
+    std::this_thread::sleep_until(event_time);
+    // Move event to handler immediately after waking up
+    event_handler(std::move(event_buffer.value()));
+    // Load next event into buffer
     event_buffer = next_event();
+    // ...
+    // PROFIT!!!
 
+    // Check that buffer has value, else stop running (this means the sequence
+    // has been emptied)
     if (!event_buffer.has_value()) {
       store_live(false);
       return;
     }
+
+    // Next event should be scheduled after current event completes
+    event_time += stored_event_duration;
   }
 }
 

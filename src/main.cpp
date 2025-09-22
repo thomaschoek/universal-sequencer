@@ -1,4 +1,5 @@
-#include "sequencer/step_sequencer.h"
+#include "sequence/step.h"
+#include "sequencer/atomic_sequencer.h"
 #include "synth/step_synth.h"
 
 #include <chrono>
@@ -24,7 +25,7 @@ int main() {
 
   RealTimeAudioOutput synth_out;
   StepSynth synth{synth_out};
-  StepSequencer seqr{steps, synth};
+  AtomicSequencer<Step> seqr{steps, synth};
 
   auto t_start = std::chrono::steady_clock::now();
   seqr.start();
