@@ -6,7 +6,7 @@
 
 namespace MicroComposer {
 
-namespace sequencer {
+namespace sequencable {
 
 struct Step {
   typedef std::vector<double>::size_type param_idx_t;
@@ -41,7 +41,7 @@ struct Step {
 #endif
 };
 
-} // namespace sequencer
+} // namespace sequencable
 
 } // namespace MicroComposer
 

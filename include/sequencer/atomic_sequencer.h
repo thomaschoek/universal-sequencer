@@ -9,6 +9,7 @@
 #include <iostream>
 #endif
 #include <optional>
+#include <functional>
 
 namespace MicroComposer {
 

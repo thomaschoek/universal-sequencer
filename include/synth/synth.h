@@ -9,8 +9,6 @@
 namespace MicroComposer {
 namespace synth {
 
-enum class WaveformType { SINE, SQUARE, SAWTOOTH, TRIANGLE };
-
 struct OscillationParams {
   double frequency{440.0};
   std::chrono::duration<double> duration{1};
