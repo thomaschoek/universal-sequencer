@@ -25,8 +25,7 @@ public:
                            MicroComposer::synth::WaveformType waveform =
                                MicroComposer::synth::WaveformType::SINE);
 
-  void send(const Step &step);
-  void send(const Step &step, MicroComposer::synth::WaveformType waveform);
+  void write(const Step &step);
 
   // Configure the synthesizer
   void setWaveform(MicroComposer::synth::WaveformType waveform);

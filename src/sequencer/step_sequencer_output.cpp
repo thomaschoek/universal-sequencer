@@ -22,12 +22,8 @@ StepSequencerSynthOutput::StepSequencerSynthOutput(
     double sample_rate, MicroComposer::synth::WaveformType waveform)
     : output_(sample_rate), default_waveform_(waveform) {}
 
-void StepSequencerSynthOutput::send(const Step &step) {
-  send(step, default_waveform_);
-}
-
-void StepSequencerSynthOutput::send(
-    const Step &step, MicroComposer::synth::WaveformType waveform) {
+void StepSequencerSynthOutput::write(const Step &step) {
+  MicroComposer::synth::WaveformType waveform = default_waveform_;
   MicroComposer::synth::Synthesizable synth_step;
 
   if (step.parameters.size() >= 2) {
