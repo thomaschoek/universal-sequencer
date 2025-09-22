@@ -1,47 +1,43 @@
 #ifndef MICRO_COMPOSER_SYNTH_H
 #define MICRO_COMPOSER_SYNTH_H
 
+#include "synth/synth_output.h"
 #include <chrono>
-#include <functional>
 #include <vector>
 
 namespace MicroComposer {
 namespace synth {
 
-struct Synthesizable {
-  double frequency;
-  double amplitude;
-  double phase;
-  std::chrono::duration<double> duration;
+struct OscillationParams {
+  double frequency{440.0};
+  std::chrono::duration<double> duration{1};
+  double amplitude{0.5};
+  double phase{0};
+  std::vector<double>::size_type
+  compute_n_samples(std::vector<double>::size_type sample_rate) const {
+    return duration.count() * sample_rate;
+  }
 };
-
-enum class WaveformType { SINE, SQUARE, SAWTOOTH, TRIANGLE };
 
 class Synthesizer {
 private:
-  double sample_rate_;
-  std::function<void(const std::vector<double> &, double)> audio_callback_;
+  std::vector<double>::size_type sample_rate_;
+  inline double sine_sample(const double frequency,
+                            const std::vector<double>::size_type phase) const;
 
-  // Waveform generators
-  double generateSine(double frequency, double phase, double time) const;
-  double generateSquare(double frequency, double phase, double time) const;
-  double generateSawtooth(double frequency, double phase, double time) const;
-  double generateTriangle(double frequency, double phase, double time) const;
-
-public:
-  Synthesizer(double sample_rate = 44100.0);
-
-  void synthesize(const Synthesizable &params,
-                  WaveformType waveform = WaveformType::SINE);
-
-  // Set callback for audio output (e.g., to audio system, file, or console)
-  void setAudioCallback(
-      std::function<void(const std::vector<double> &, double)> callback);
+protected:
+  SynthOutput &output_;
 
   // Generate audio samples for the given parameters
-  std::vector<double>
-  generateSamples(const Synthesizable &params,
-                  WaveformType waveform = WaveformType::SINE) const;
+  std::vector<double> generateSamples(const OscillationParams &params) const;
+
+public:
+  explicit Synthesizer(SynthOutput &output) : output_(output) {
+    sample_rate_ = output.get_sample_rate();
+  };
+
+  // Generate and immediately output audio samples
+  void play(const OscillationParams &params) const;
 };
 
 } // namespace synth
