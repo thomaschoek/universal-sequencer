@@ -17,7 +17,6 @@ include_directories(include)
 # Add executable
 add_executable(MicroComposer
     src/main.cpp
-    src/synth/synth.cpp
     src/synth/synth_output.cpp
 )
 

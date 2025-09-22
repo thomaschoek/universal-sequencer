@@ -20,7 +20,6 @@ target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)
 
 # Add project source files that tests depend on
 target_sources(tests PRIVATE
-    ${CMAKE_SOURCE_DIR}/src/synth/synth.cpp
     ${CMAKE_SOURCE_DIR}/src/synth/synth_output.cpp
 )
 

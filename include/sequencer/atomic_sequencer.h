@@ -1,6 +1,7 @@
 #ifndef MICRO_COMPOSER_ATOMIC_EVENT_SEQUENCER_H
 #define MICRO_COMPOSER_ATOMIC_EVENT_SEQUENCER_H
 
+#include "sequencable/concept.h"
 #include "utils/atomic_deque.h"
 #include <atomic>
 #include <mutex>
@@ -8,48 +9,42 @@
 #ifndef NDEBUG
 #include <iostream>
 #endif
-#include <functional>
 #include <optional>
 
 namespace MicroComposer {
 
 namespace sequencer {
 
-template <typename T>
-concept Sequencable = requires(T t) {
-  { t.duration } -> std::convertible_to<std::chrono::duration<double>>;
-  { t.offset } -> std::convertible_to<std::chrono::duration<double>>;
-};
-
-template <Sequencable EVENT_T> class AtomicSequencer {
+template <sequencable::Sequencable EVENT_T, typename HandlerT>
+class AtomicSequencer {
 
   std::mutex mutex_;
   std::jthread thread_;
   std::atomic<bool> live{false};
 
-  atomic_deque::AtomicDeque<EVENT_T> &sequence;
+  atomic_deque::AtomicDeque<EVENT_T>& sequence;
   atomic_deque::AtomicDeque<EVENT_T>::iterator step_itr;
   std::optional<EVENT_T> next_event();
 
-  std::function<void(const EVENT_T)> event_handler;
+  HandlerT event_handler;
   void run();
 
 public:
   bool is_live() const { return live.load(std::memory_order_relaxed); };
-  void store_live(const bool &val) {
+  void store_live(const bool& val) {
     live.store(val, std::memory_order_relaxed);
   };
 
   void start();
   void stop();
 
-  explicit AtomicSequencer(std::function<void(const EVENT_T)> handler,
-                           atomic_deque::AtomicDeque<EVENT_T> &seq)
+  explicit AtomicSequencer(HandlerT handler,
+                           atomic_deque::AtomicDeque<EVENT_T>& seq)
       : event_handler(handler), sequence(seq) {}
 };
 
-template <Sequencable EVENT_T>
-std::optional<EVENT_T> AtomicSequencer<EVENT_T>::next_event() {
+template <sequencable::Sequencable EVENT_T, typename HandlerT>
+std::optional<EVENT_T> AtomicSequencer<EVENT_T, HandlerT>::next_event() {
   std::scoped_lock{sequence.lock()};
   if (sequence.empty()) {
     return std::nullopt;
@@ -61,7 +56,8 @@ std::optional<EVENT_T> AtomicSequencer<EVENT_T>::next_event() {
   return *step_itr++;
 }
 
-template <Sequencable EVENT_T> void AtomicSequencer<EVENT_T>::run() {
+template <sequencable::Sequencable EVENT_T, typename HandlerT>
+void AtomicSequencer<EVENT_T, HandlerT>::run() {
 #ifndef NDEBUG
   // Print debug message about the exact time the clock started
   auto now = std::chrono::steady_clock::now();
@@ -116,7 +112,8 @@ template <Sequencable EVENT_T> void AtomicSequencer<EVENT_T>::run() {
   }
 }
 
-template <Sequencable EVENT_T> void AtomicSequencer<EVENT_T>::start() {
+template <sequencable::Sequencable EVENT_T, typename HandlerT>
+void AtomicSequencer<EVENT_T, HandlerT>::start() {
 #ifndef NDEBUG
   // Print debug message about the exact time the clock started
   auto now = std::chrono::steady_clock::now();
@@ -133,7 +130,8 @@ template <Sequencable EVENT_T> void AtomicSequencer<EVENT_T>::start() {
   thread_ = std::jthread(&AtomicSequencer::run, this);
 }
 
-template <Sequencable EVENT_T> void AtomicSequencer<EVENT_T>::stop() {
+template <sequencable::Sequencable EVENT_T, typename HandlerT>
+void AtomicSequencer<EVENT_T, HandlerT>::stop() {
 #ifndef NDEBUG
   // Print debug message about the exact time the clock started
   auto now = std::chrono::steady_clock::now();
