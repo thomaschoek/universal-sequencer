@@ -23,11 +23,13 @@ struct MainWindow::Impl {
         system("clear"); // Clear console (Linux/Mac)
 
         std::cout << "=== MicroComposer GUI ===\n\n";
+        std::cout << "Current sequence: C major scale (8 steps)\n";
+        std::cout << "Current tempo: 120 BPM\n\n";
         std::cout << "Controls:\n";
         std::cout << "1. Play/Start Sequencer\n";
         std::cout << "2. Stop Sequencer\n";
-        std::cout << "3. Change Tempo (Current: 120 BPM)\n";
-        std::cout << "4. Edit Note Frequencies\n";
+        std::cout << "3. Change Tempo\n";
+        std::cout << "4. Edit Note Frequencies (0-7)\n";
         std::cout << "5. Exit\n\n";
         std::cout << "Enter your choice (1-5): ";
         std::cout.flush();

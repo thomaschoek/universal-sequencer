@@ -36,15 +36,20 @@ void GuiApplication::initialize_sequencer() {
 }
 
 void GuiApplication::initialize_default_sequence() {
-    // Add a simple C major scale
-    sequence_->push_back(Event_t{261.63}); // C4
-    sequence_->push_back(Event_t{293.66}); // D4
-    sequence_->push_back(Event_t{329.63}); // E4
-    sequence_->push_back(Event_t{349.23}); // F4
-    sequence_->push_back(Event_t{392.00}); // G4
-    sequence_->push_back(Event_t{440.00}); // A4
-    sequence_->push_back(Event_t{493.88}); // B4
-    sequence_->push_back(Event_t{523.25}); // C5
+    // Calculate initial timing based on default BPM
+    double beat_duration = 60.0 / current_bpm_; // seconds per beat
+    std::chrono::duration<double> duration{beat_duration};
+    std::chrono::duration<double> offset{0.0};
+
+    // Add a simple C major scale with proper timing
+    sequence_->push_back(Event_t{261.63, 0.5, 0.0, offset, duration}); // C4
+    sequence_->push_back(Event_t{293.66, 0.5, 0.0, offset, duration}); // D4
+    sequence_->push_back(Event_t{329.63, 0.5, 0.0, offset, duration}); // E4
+    sequence_->push_back(Event_t{349.23, 0.5, 0.0, offset, duration}); // F4
+    sequence_->push_back(Event_t{392.00, 0.5, 0.0, offset, duration}); // G4
+    sequence_->push_back(Event_t{440.00, 0.5, 0.0, offset, duration}); // A4
+    sequence_->push_back(Event_t{493.88, 0.5, 0.0, offset, duration}); // B4
+    sequence_->push_back(Event_t{523.25, 0.5, 0.0, offset, duration}); // C5
 }
 
 int GuiApplication::run() {
@@ -89,13 +94,34 @@ void GuiApplication::on_stop_button_clicked() {
 void GuiApplication::on_tempo_changed(double bpm) {
     current_bpm_ = bpm;
     std::cout << "Tempo changed to: " << bpm << " BPM\n";
-    // TODO: Implement tempo change in sequencer
+
+    // Calculate new duration based on BPM (quarter note duration)
+    double beat_duration = 60.0 / bpm; // seconds per beat
+    std::chrono::duration<double> new_duration{beat_duration};
+
+    // Update all events in the sequence with new duration
+    {
+        std::scoped_lock lock(sequence_->lock());
+        for (auto& event : *sequence_) {
+            event.duration = new_duration;
+        }
+    }
+    std::cout << "Updated event durations to " << beat_duration << " seconds per beat\n";
 }
 
 void GuiApplication::on_note_changed(int step, double frequency) {
     if (step >= 0 && step < static_cast<int>(sequence_->size())) {
         std::cout << "Step " << step << " frequency changed to: " << frequency << " Hz\n";
-        // TODO: Implement live step editing
+
+        // Update the frequency of the specified step
+        {
+            std::scoped_lock lock(sequence_->lock());
+            auto it = sequence_->begin() + step;
+            if (it != sequence_->end()) {
+                it->frequency = frequency;
+                std::cout << "Successfully updated step " << step << " frequency\n";
+            }
+        }
     }
 }
 
