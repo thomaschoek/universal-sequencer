@@ -10,15 +10,15 @@
 #include <mutex>
 #include <thread>
 
-namespace MicroComposer {
+namespace Micro_composer {
 
 namespace sequencer {
 
 template <sequencable::Sequencable Event_t, typename Handler_t>
-class AtomicSequencer {
+class Atomic_sequencer {
 public:
-  explicit AtomicSequencer(Handler_t handler,
-                           atomic_deque::AtomicDeque<Event_t>& seq)
+  explicit Atomic_sequencer(Handler_t handler,
+                            atomic_deque::Atomic_deque<Event_t>& seq)
       : event_handler(handler), sequence(seq) {}
 
   void start();
@@ -31,15 +31,15 @@ private:
   Handler_t event_handler;
   void fire_and_forget(Event_t&& event) const;
 
-  atomic_deque::AtomicDeque<Event_t>& sequence;
-  atomic_deque::AtomicDeque<Event_t>::iterator event_itr;
+  atomic_deque::Atomic_deque<Event_t>& sequence;
+  atomic_deque::Atomic_deque<Event_t>::iterator event_itr;
 
   std::mutex mutex_;
   std::jthread thread_;
 };
 
 template <sequencable::Sequencable Event_t, typename Handler_t>
-Event_t AtomicSequencer<Event_t, Handler_t>::next_event() {
+Event_t Atomic_sequencer<Event_t, Handler_t>::next_event() {
   std::scoped_lock{sequence.lock()};
   if (sequence.empty()) {
     throw std::out_of_range(
@@ -54,12 +54,12 @@ Event_t AtomicSequencer<Event_t, Handler_t>::next_event() {
 
 template <sequencable::Sequencable Event_t, typename Handler_t>
 inline void
-AtomicSequencer<Event_t, Handler_t>::fire_and_forget(Event_t&& event) const {
+Atomic_sequencer<Event_t, Handler_t>::fire_and_forget(Event_t&& event) const {
   std::ignore = std::async(std::launch::async, event_handler, std::move(event));
 }
 
 template <sequencable::Sequencable Event_t, typename Handler_t>
-void AtomicSequencer<Event_t, Handler_t>::run(std::stop_token st) {
+void Atomic_sequencer<Event_t, Handler_t>::run(std::stop_token st) {
 
 #ifndef NDEBUG
   // Print debug message about the exact time the clock started
@@ -109,7 +109,7 @@ void AtomicSequencer<Event_t, Handler_t>::run(std::stop_token st) {
 }
 
 template <sequencable::Sequencable Event_t, typename Handler_t>
-void AtomicSequencer<Event_t, Handler_t>::start() {
+void Atomic_sequencer<Event_t, Handler_t>::start() {
 #ifndef NDEBUG
   // Print debug message about the exact time the clock started
   auto now = std::chrono::steady_clock::now();
@@ -129,11 +129,11 @@ void AtomicSequencer<Event_t, Handler_t>::start() {
     std::this_thread::sleep_for(std::chrono::seconds{1});
   }
 
-  thread_ = std::jthread(&AtomicSequencer::run, this);
+  thread_ = std::jthread(&Atomic_sequencer::run, this);
 }
 
 template <sequencable::Sequencable Event_t, typename Handler_t>
-void AtomicSequencer<Event_t, Handler_t>::stop() {
+void Atomic_sequencer<Event_t, Handler_t>::stop() {
 #ifndef NDEBUG
   // Print debug message about the exact time the clock started
   auto now = std::chrono::steady_clock::now();
@@ -151,11 +151,11 @@ void AtomicSequencer<Event_t, Handler_t>::stop() {
 }
 
 template <sequencable::Sequencable Event_t, typename Handler_t>
-inline bool AtomicSequencer<Event_t, Handler_t>::is_running() const {
+inline bool Atomic_sequencer<Event_t, Handler_t>::is_running() const {
   return thread_.joinable();
 }
 
 } // namespace sequencer
-} // namespace MicroComposer
+} // namespace Micro_composer
 
 #endif // MICRO_COMPOSER_ATOMIC_EVENT_SEQUENCER_H

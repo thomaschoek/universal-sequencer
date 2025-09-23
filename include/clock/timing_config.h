@@ -18,7 +18,7 @@
 #include <time.h>
 #endif
 
-namespace MicroComposer {
+namespace Micro_composer {
 namespace timing_capabilities {
 
 constexpr const uint test_iterations{1000};
@@ -39,7 +39,7 @@ private:
     int policy = sched_getscheduler(0);
 
 #ifndef NDEBUG
-    const char *policy_name = "UNKNOWN";
+    const char* policy_name = "UNKNOWN";
     switch (policy) {
     case SCHED_NORMAL:
       policy_name = "SCHED_NORMAL (CFS)";
@@ -123,7 +123,7 @@ public:
     // Measure actual sleep precision by testing short sleeps
     std::valarray<nanoseconds_cnt_t> sleep_times(test_iterations);
 
-    for (auto &sleep_time : sleep_times) {
+    for (auto& sleep_time : sleep_times) {
       const auto start_time = std::chrono::steady_clock::now();
       const auto target_wake_time = start_time + test_sleep_time;
       std::this_thread::sleep_until(target_wake_time);
@@ -218,7 +218,7 @@ public:
     scheduling_quantum = scheduling_quantum_;
   }
 
-  static const TimingCapabilities &get_instance() {
+  static const TimingCapabilities& get_instance() {
     static std::once_flag initialized;
     static TimingCapabilities instance;
     std::call_once(initialized, []() {
@@ -229,6 +229,6 @@ public:
 };
 
 } // namespace timing_capabilities
-} // namespace MicroComposer
+} // namespace Micro_composer
 
 #endif

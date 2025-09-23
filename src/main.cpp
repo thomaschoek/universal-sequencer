@@ -7,11 +7,11 @@
 #include <thread>
 
 int main() {
-  using namespace MicroComposer::sequencer;
-  using namespace MicroComposer::synth;
-  using namespace MicroComposer::atomic_deque;
-  using namespace MicroComposer::sequencable;
-  AtomicDeque<OscillationEvent> steps;
+  using namespace Micro_composer::sequencer;
+  using namespace Micro_composer::synth;
+  using namespace Micro_composer::atomic_deque;
+  using namespace Micro_composer::sequencable;
+  Atomic_deque<OscillationEvent> steps;
 
   // Add some steps with different frequencies (musical notes)
   // Each step: offset, duration, {frequency, amplitude, phase}
@@ -27,7 +27,7 @@ int main() {
   RealTimeAudioOutput synth_out;
   Synthesizer synth{synth_out};
   auto handler = [&synth](const OscillationEvent& event) { synth.play(event); };
-  AtomicSequencer<OscillationEvent, decltype(handler)> seqr{handler, steps};
+  Atomic_sequencer<OscillationEvent, decltype(handler)> seqr{handler, steps};
 
   auto t_start = std::chrono::steady_clock::now();
   seqr.start();

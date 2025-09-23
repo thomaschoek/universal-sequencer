@@ -4,10 +4,10 @@
 #include <thread>
 #include <vector>
 
-using namespace MicroComposer::atomic_deque;
+using namespace Micro_composer::atomic_deque;
 
 TEST_CASE("AtomicDeque basic operations", "[atomic_deque]") {
-  AtomicDeque<int> deque;
+  Atomic_deque<int> deque;
 
   SECTION("Default constructor creates empty deque") {
     REQUIRE(deque.empty());
@@ -49,7 +49,7 @@ TEST_CASE("AtomicDeque basic operations", "[atomic_deque]") {
 
 TEST_CASE("AtomicDeque constructors", "[atomic_deque]") {
   SECTION("Size constructor") {
-    AtomicDeque<int> deque(5);
+    Atomic_deque<int> deque(5);
     REQUIRE(deque.size() == 5);
     REQUIRE_FALSE(deque.empty());
 
@@ -59,7 +59,7 @@ TEST_CASE("AtomicDeque constructors", "[atomic_deque]") {
   }
 
   SECTION("Size and value constructor") {
-    AtomicDeque<int> deque(3, 42);
+    Atomic_deque<int> deque(3, 42);
     REQUIRE(deque.size() == 3);
 
     for (size_t i = 0; i < 3; ++i) {
@@ -68,12 +68,12 @@ TEST_CASE("AtomicDeque constructors", "[atomic_deque]") {
   }
 
   SECTION("Copy constructor") {
-    AtomicDeque<int> original;
+    Atomic_deque<int> original;
     original.push_back(1);
     original.push_back(2);
     original.push_back(3);
 
-    AtomicDeque<int> copy(original);
+    Atomic_deque<int> copy(original);
     REQUIRE(copy.size() == 3);
     REQUIRE(copy[0] == 1);
     REQUIRE(copy[1] == 2);
@@ -81,12 +81,12 @@ TEST_CASE("AtomicDeque constructors", "[atomic_deque]") {
   }
 
   SECTION("Move constructor") {
-    AtomicDeque<int> original;
+    Atomic_deque<int> original;
     original.push_back(1);
     original.push_back(2);
     original.push_back(3);
 
-    AtomicDeque<int> moved(std::move(original));
+    Atomic_deque<int> moved(std::move(original));
     REQUIRE(moved.size() == 3);
     REQUIRE(moved[0] == 1);
     REQUIRE(moved[1] == 2);
@@ -96,11 +96,11 @@ TEST_CASE("AtomicDeque constructors", "[atomic_deque]") {
 
 TEST_CASE("AtomicDeque assignment operators", "[atomic_deque]") {
   SECTION("Copy assignment") {
-    AtomicDeque<int> original;
+    Atomic_deque<int> original;
     original.push_back(1);
     original.push_back(2);
 
-    AtomicDeque<int> copy;
+    Atomic_deque<int> copy;
     copy = original;
 
     REQUIRE(copy.size() == 2);
@@ -109,11 +109,11 @@ TEST_CASE("AtomicDeque assignment operators", "[atomic_deque]") {
   }
 
   SECTION("Move assignment") {
-    AtomicDeque<int> original;
+    Atomic_deque<int> original;
     original.push_back(1);
     original.push_back(2);
 
-    AtomicDeque<int> moved;
+    Atomic_deque<int> moved;
     moved = std::move(original);
 
     REQUIRE(moved.size() == 2);
@@ -122,7 +122,7 @@ TEST_CASE("AtomicDeque assignment operators", "[atomic_deque]") {
   }
 
   SECTION("Self assignment") {
-    AtomicDeque<int> deque;
+    Atomic_deque<int> deque;
     deque.push_back(1);
     deque.push_back(2);
 
@@ -135,7 +135,7 @@ TEST_CASE("AtomicDeque assignment operators", "[atomic_deque]") {
 }
 
 TEST_CASE("AtomicDeque exception safety", "[atomic_deque]") {
-  AtomicDeque<int> deque;
+  Atomic_deque<int> deque;
 
   SECTION("Front on empty deque throws") {
     REQUIRE_THROWS_AS(deque.front(), std::out_of_range);
@@ -158,7 +158,7 @@ TEST_CASE("AtomicDeque exception safety", "[atomic_deque]") {
 }
 
 TEST_CASE("AtomicDeque clear operation", "[atomic_deque]") {
-  AtomicDeque<int> deque;
+  Atomic_deque<int> deque;
   deque.push_back(1);
   deque.push_back(2);
   deque.push_back(3);
@@ -173,7 +173,7 @@ TEST_CASE("AtomicDeque clear operation", "[atomic_deque]") {
 }
 
 TEST_CASE("AtomicDeque move semantics", "[atomic_deque]") {
-  AtomicDeque<std::unique_ptr<int>> deque;
+  Atomic_deque<std::unique_ptr<int>> deque;
 
   auto ptr1 = std::make_unique<int>(42);
   auto ptr2 = std::make_unique<int>(24);
@@ -187,7 +187,7 @@ TEST_CASE("AtomicDeque move semantics", "[atomic_deque]") {
 }
 
 TEST_CASE("AtomicDeque thread safety", "[atomic_deque]") {
-  AtomicDeque<int> deque;
+  Atomic_deque<int> deque;
   const int num_threads = 4;
   const int items_per_thread = 100;
 
@@ -204,7 +204,7 @@ TEST_CASE("AtomicDeque thread safety", "[atomic_deque]") {
     }
 
     // Wait for all threads to complete
-    for (auto &thread : threads) {
+    for (auto& thread : threads) {
       thread.join();
     }
 
@@ -244,7 +244,7 @@ TEST_CASE("AtomicDeque thread safety", "[atomic_deque]") {
       });
     }
 
-    for (auto &thread : threads) {
+    for (auto& thread : threads) {
       thread.join();
     }
 
@@ -278,7 +278,7 @@ TEST_CASE("AtomicDeque thread safety", "[atomic_deque]") {
     }
 
     // Wait for all size checking threads to complete
-    for (auto &future : futures) {
+    for (auto& future : futures) {
       REQUIRE_NOTHROW(future.get());
     }
   }

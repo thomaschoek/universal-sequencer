@@ -2,19 +2,19 @@
 #include <catch2/catch_test_macros.hpp>
 #include <chrono>
 
-using namespace MicroComposer::timing_capabilities;
+using namespace Micro_composer::timing_capabilities;
 
 TEST_CASE("TimingCapabilities singleton behavior", "[timing_capabilities]") {
   SECTION("get_instance returns same instance") {
-    const auto &instance1 = TimingCapabilities::get_instance();
-    const auto &instance2 = TimingCapabilities::get_instance();
+    const auto& instance1 = TimingCapabilities::get_instance();
+    const auto& instance2 = TimingCapabilities::get_instance();
 
     REQUIRE(&instance1 == &instance2);
   }
 
   SECTION("singleton values are consistent") {
-    const auto &instance1 = TimingCapabilities::get_instance();
-    const auto &instance2 = TimingCapabilities::get_instance();
+    const auto& instance1 = TimingCapabilities::get_instance();
+    const auto& instance2 = TimingCapabilities::get_instance();
 
     REQUIRE(instance1.precision == instance2.precision);
     REQUIRE(instance1.min_interval == instance2.min_interval);
@@ -23,7 +23,7 @@ TEST_CASE("TimingCapabilities singleton behavior", "[timing_capabilities]") {
 }
 
 TEST_CASE("TimingCapabilities basic properties", "[timing_capabilities]") {
-  const auto &capabilities = TimingCapabilities::get_instance();
+  const auto& capabilities = TimingCapabilities::get_instance();
 
   SECTION("precision is positive") {
     REQUIRE(capabilities.precision.count() > 0);
@@ -57,7 +57,7 @@ TEST_CASE("TimingCapabilities basic properties", "[timing_capabilities]") {
 
 TEST_CASE("TimingCapabilities relationship between values",
           "[timing_capabilities]") {
-  const auto &capabilities = TimingCapabilities::get_instance();
+  const auto& capabilities = TimingCapabilities::get_instance();
 
   SECTION("min_interval is larger than precision") {
     // Convert to same units for comparison

@@ -6,7 +6,7 @@
 #include <cmath>
 #include <vector>
 
-namespace MicroComposer {
+namespace Micro_composer {
 namespace synth {
 
 class Synthesizer {
@@ -72,6 +72,6 @@ public:
 };
 
 } // namespace synth
-} // namespace MicroComposer
+} // namespace Micro_composer
 
 #endif

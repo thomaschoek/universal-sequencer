@@ -2,8 +2,8 @@
 #include <catch2/catch_test_macros.hpp>
 #include <chrono>
 
-using namespace MicroComposer;
-using namespace MicroComposer::clock;
+using namespace Micro_composer;
+using namespace Micro_composer::clock;
 
 TEST_CASE("Sequence_clock basic functionality", "[clock]") {
   Sequence_clock clock;

@@ -3,7 +3,7 @@
 
 #include "sequencable/concept.h"
 
-namespace MicroComposer {
+namespace Micro_composer {
 
 namespace sequencable {
 
@@ -16,6 +16,6 @@ static_assert(Sequencable<Event>, "Event does not satisfy Sequencable concept");
 
 } // namespace sequencable
 
-} // namespace MicroComposer
+} // namespace Micro_composer
 
 #endif // MICRO_COMPOSER_EVENT_H

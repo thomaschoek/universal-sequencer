@@ -3,7 +3,7 @@
 
 #include "sequencable/event.h"
 
-namespace MicroComposer {
+namespace Micro_composer {
 
 namespace sequencable {
 
@@ -30,6 +30,6 @@ static_assert(Sequencable<OscillationEvent>,
 
 } // namespace sequencable
 
-} // namespace MicroComposer
+} // namespace Micro_composer
 
 #endif

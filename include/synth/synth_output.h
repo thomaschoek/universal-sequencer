@@ -4,7 +4,7 @@
 #include <cstdio>
 #include <vector>
 
-namespace MicroComposer {
+namespace Micro_composer {
 
 namespace synth {
 
@@ -17,12 +17,12 @@ protected:
 
 public:
   const double get_sample_rate() const { return sample_rate_; }
-  virtual void write(const std::vector<double> &samples);
+  virtual void write(const std::vector<double>& samples);
 };
 
 class RealTimeAudioOutput : public SynthOutput {
 private:
-  FILE *pacat_pipe;
+  FILE* pacat_pipe;
   bool is_open;
 
 public:
@@ -30,13 +30,13 @@ public:
 
   ~RealTimeAudioOutput();
 
-  void write(const std::vector<double> &samples) override;
+  void write(const std::vector<double>& samples) override;
 
   bool isWorking() const { return is_open; }
 };
 
 } // namespace synth
 
-} // namespace MicroComposer
+} // namespace Micro_composer
 
 #endif // MICRO_COMPOSER_SYNTH_OUTPUT_H

@@ -4,7 +4,7 @@
 #include <chrono>
 #include <concepts>
 
-namespace MicroComposer {
+namespace Micro_composer {
 
 namespace sequencable {
 
@@ -16,6 +16,6 @@ concept Sequencable = requires(T t) {
 
 } // namespace sequencable
 
-} // namespace MicroComposer
+} // namespace Micro_composer
 
 #endif

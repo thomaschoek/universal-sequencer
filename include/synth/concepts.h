@@ -3,7 +3,7 @@
 
 #include <chrono>
 
-namespace MicroComposer {
+namespace Micro_composer {
 
 namespace synth {
 
@@ -15,6 +15,6 @@ concept Synthesizable = requires(T t) {
 
 } // namespace synth
 
-} // namespace MicroComposer
+} // namespace Micro_composer
 
 #endif

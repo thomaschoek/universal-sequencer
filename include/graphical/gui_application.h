@@ -6,46 +6,46 @@
 #include "synth/synth.h"
 #include "utils/atomic_deque.h"
 
-#include <memory>
 #include <functional>
+#include <memory>
 
-namespace MicroComposer {
+namespace Micro_composer {
 namespace gui {
 
 class GuiApplication {
 public:
-    using Event_t = sequencable::OscillationEvent;
-    using Handler_t = std::function<void(const Event_t&)>;
-    using Sequencer_t = sequencer::AtomicSequencer<Event_t, Handler_t>;
+  using Event_t = sequencable::OscillationEvent;
+  using Handler_t = std::function<void(const Event_t&)>;
+  using Sequencer_t = sequencer::Atomic_sequencer<Event_t, Handler_t>;
 
-    GuiApplication();
-    ~GuiApplication();
+  GuiApplication();
+  ~GuiApplication();
 
-    int run();
-    void shutdown();
+  int run();
+  void shutdown();
 
 private:
-    void initialize_sequencer();
-    void initialize_default_sequence();
+  void initialize_sequencer();
+  void initialize_default_sequence();
 
-    // GUI event handlers
-    void on_play_button_clicked();
-    void on_stop_button_clicked();
-    void on_tempo_changed(double bpm);
-    void on_note_changed(int step, double frequency);
+  // GUI event handlers
+  void on_play_button_clicked();
+  void on_stop_button_clicked();
+  void on_tempo_changed(double bpm);
+  void on_note_changed(int step, double frequency);
 
-    // Sequencer components
-    std::unique_ptr<atomic_deque::AtomicDeque<Event_t>> sequence_;
-    std::unique_ptr<synth::RealTimeAudioOutput> audio_output_;
-    std::unique_ptr<synth::Synthesizer> synthesizer_;
-    std::unique_ptr<Sequencer_t> sequencer_;
+  // Sequencer components
+  std::unique_ptr<atomic_deque::Atomic_deque<Event_t>> sequence_;
+  std::unique_ptr<synth::RealTimeAudioOutput> audio_output_;
+  std::unique_ptr<synth::Synthesizer> synthesizer_;
+  std::unique_ptr<Sequencer_t> sequencer_;
 
-    // GUI state
-    bool is_playing_;
-    double current_bpm_;
+  // GUI state
+  bool is_playing_;
+  double current_bpm_;
 };
 
 } // namespace gui
-} // namespace MicroComposer
+} // namespace Micro_composer
 
 #endif // MICRO_COMPOSER_GUI_APPLICATION_H

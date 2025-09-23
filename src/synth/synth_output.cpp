@@ -4,7 +4,7 @@
 #include <iostream>
 #endif
 
-namespace MicroComposer {
+namespace Micro_composer {
 
 namespace synth {
 
@@ -57,4 +57,4 @@ void RealTimeAudioOutput::write(const std::vector<double>& samples) {
 
 } // namespace synth
 
-} // namespace MicroComposer
+} // namespace Micro_composer

@@ -13,13 +13,13 @@
 
 #include "clock/timing_config.h"
 
-namespace MicroComposer {
+namespace Micro_composer {
 namespace clock {
 
 // Ensures a sequence's events are scheduled on time
 class Sequence_clock {
 public:
-  const timing_capabilities::TimingCapabilities &timing_capabilities =
+  const timing_capabilities::TimingCapabilities& timing_capabilities =
       timing_capabilities::TimingCapabilities::get_instance();
 
 private:
@@ -88,7 +88,7 @@ public:
     return interval.load(std::memory_order_relaxed);
   }
 
-  void set_interval(const std::chrono::milliseconds &new_interval) {
+  void set_interval(const std::chrono::milliseconds& new_interval) {
     // Check that the new interval is above the minimum allowed
     if (new_interval < timing_capabilities.min_interval) {
       throw std::runtime_error(
@@ -146,5 +146,5 @@ public:
 };
 
 } // namespace clock
-} // namespace MicroComposer
+} // namespace Micro_composer
 #endif
