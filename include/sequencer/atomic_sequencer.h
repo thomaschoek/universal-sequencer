@@ -14,14 +14,15 @@ namespace Micro_composer {
 
 namespace sequencer {
 
+using clock = std::chrono::steady_clock;
+typedef clock::time_point steady_time_point;
+
 template <sequencable::Sequencable Event_t, typename Handler_t>
 class Atomic_sequencer {
-  using clock = std::chrono::steady_clock;
-  typedef clock::time_point steady_time_point;
 
 public:
-  explicit Atomic_sequencer(Handler_t handler,
-                            atomic_deque::Atomic_deque<Event_t>& seq)
+  explicit Atomic_sequencer(Handler_t handler) : event_handler(handler) {}
+  Atomic_sequencer(Handler_t handler, atomic_deque::Atomic_deque<Event_t>& seq)
       : event_handler(handler), sequence(seq) {}
 
   void start(steady_time_point start_time = clock::now());
