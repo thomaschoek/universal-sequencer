@@ -3,98 +3,33 @@
 
 #include "sequencable/concept.h"
 #include "utils/atomic_deque.h"
+#include "utils/event_thread_pool.h"
+#include <concepts>
 #include <exception>
+#include <future>
 #include <iostream>
 #include <mutex>
 #include <thread>
-#include <future>
-#include <functional>
-#include <queue>
-#include <concepts>
-#include <type_traits>
 
 namespace MicroComposer {
 
 namespace sequencer {
 
 // Concept for async event handlers
-template<typename Handler_t, typename Event_t>
+template <typename Handler_t, typename Event_t>
 concept AsyncEventHandler = requires(Handler_t handler, Event_t&& event) {
   { handler(std::forward<Event_t>(event)) } -> std::same_as<void>;
 } || requires(Handler_t handler, Event_t&& event) {
   { handler(std::forward<Event_t>(event)) } -> std::same_as<std::future<void>>;
 };
 
-// Thread pool for async event processing
-class EventThreadPool {
-public:
-  explicit EventThreadPool(size_t num_threads = std::thread::hardware_concurrency())
-      : stop_flag_{false} {
-    for (size_t i = 0; i < num_threads; ++i) {
-      workers_.emplace_back([this] { worker_loop(); });
-    }
-  }
-
-  ~EventThreadPool() {
-    stop_flag_ = true;
-    condition_.notify_all();
-    for (auto& worker : workers_) {
-      if (worker.joinable()) {
-        worker.join();
-      }
-    }
-  }
-
-  template<typename F>
-  void submit(F&& task) {
-    {
-      std::lock_guard<std::mutex> lock(queue_mutex_);
-      tasks_.emplace(std::forward<F>(task));
-    }
-    condition_.notify_one();
-  }
-
-private:
-  void worker_loop() {
-    while (!stop_flag_) {
-      std::function<void()> task;
-      {
-        std::unique_lock<std::mutex> lock(queue_mutex_);
-        condition_.wait(lock, [this] { return stop_flag_ || !tasks_.empty(); });
-
-        if (stop_flag_ && tasks_.empty()) {
-          break;
-        }
-
-        if (!tasks_.empty()) {
-          task = std::move(tasks_.front());
-          tasks_.pop();
-        }
-      }
-
-      if (task) {
-        try {
-          task();
-        } catch (const std::exception& e) {
-          std::cerr << "[ERROR] Exception in event handler: " << e.what() << std::endl;
-        }
-      }
-    }
-  }
-
-  std::vector<std::jthread> workers_;
-  std::queue<std::function<void()>> tasks_;
-  std::mutex queue_mutex_;
-  std::condition_variable condition_;
-  std::atomic<bool> stop_flag_;
-};
-
-template <sequencable::Sequencable Event_t, AsyncEventHandler<Event_t> Handler_t>
+template <sequencable::Sequencable Event_t,
+          AsyncEventHandler<Event_t> Handler_t>
 class AtomicSequencer {
 public:
-  explicit AtomicSequencer(Handler_t handler,
-                           atomic_deque::AtomicDeque<Event_t>& seq,
-                           size_t thread_pool_size = std::thread::hardware_concurrency())
+  explicit AtomicSequencer(
+      Handler_t handler, atomic_deque::AtomicDeque<Event_t>& seq,
+      size_t thread_pool_size = std::thread::hardware_concurrency())
       : event_handler(handler), sequence(seq), thread_pool_(thread_pool_size) {}
 
   void start();
@@ -130,7 +65,8 @@ EVENT_T AtomicSequencer<EVENT_T, HandlerT>::next_event() {
 }
 
 template <sequencable::Sequencable EVENT_T, AsyncEventHandler<EVENT_T> HandlerT>
-void AtomicSequencer<EVENT_T, HandlerT>::schedule_event_handler(EVENT_T&& event) {
+void AtomicSequencer<EVENT_T, HandlerT>::schedule_event_handler(
+    EVENT_T&& event) {
   thread_pool_.submit([this, event = std::move(event)]() mutable {
     event_handler(std::move(event));
   });

@@ -64,7 +64,7 @@ TEST_CASE("AsyncEventHandler concept validation", "[async_sequencer]") {
 }
 
 TEST_CASE("EventThreadPool basic functionality", "[async_sequencer]") {
-    sequencer::EventThreadPool pool(2);
+    MicroComposer::EventThreadPool pool(2);
 
     std::atomic<int> counter{0};
     std::atomic<int> tasks_completed{0};
