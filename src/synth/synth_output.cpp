@@ -1,4 +1,5 @@
 #include "synth/synth_output.h"
+#include <cstdio>
 #ifndef NDEBUG
 #include <iostream>
 #endif
@@ -7,7 +8,7 @@ namespace MicroComposer {
 
 namespace synth {
 
-void SynthOutput::write(const std::vector<double> &samples) {
+void SynthOutput::write(const std::vector<double>& samples) {
   // Default implementation does nothing
   (void)samples; // Suppress unused parameter warning
 }
@@ -16,10 +17,8 @@ RealTimeAudioOutput::RealTimeAudioOutput(double sample_rate)
     : pacat_pipe(nullptr), is_open(false) {
   // Open pipe to pacat for real-time audio output
   char command[256];
-#ifndef NDEBUG
   snprintf(command, sizeof(command),
            "pacat --rate=%.0f --format=s16le --channels=1", sample_rate);
-#endif
 
   pacat_pipe = popen(command, "w");
   if (pacat_pipe) {
@@ -41,7 +40,7 @@ RealTimeAudioOutput::~RealTimeAudioOutput() {
   }
 }
 
-void RealTimeAudioOutput::write(const std::vector<double> &samples) {
+void RealTimeAudioOutput::write(const std::vector<double>& samples) {
   if (!is_open || !pacat_pipe)
     return;
 
