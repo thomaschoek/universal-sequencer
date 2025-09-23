@@ -79,14 +79,14 @@ void AtomicSequencer<Event_t, Handler_t>::run(std::stop_token st) {
                             std::chrono::duration<double>>
         event_time = std::chrono::steady_clock::now();
 
-    std::chrono::duration<double> stored_event_duration = event_buffer.duration;
+    std::chrono::duration<double> duration_cache = event_buffer.duration;
 
     while (!st.stop_requested()) {
       // Add the current step's offset to trigger time
       event_time += event_buffer.offset;
 
       // Store this event's duration before it's moved out of scope to handler
-      stored_event_duration = event_buffer.duration;
+      duration_cache = event_buffer.duration;
 
       // DO NOT put anything in between the following 3 statements as their
       // immediate succession is crucial for timing accuracy and to prevent
@@ -100,7 +100,7 @@ void AtomicSequencer<Event_t, Handler_t>::run(std::stop_token st) {
       event_buffer = next_event();
 
       // Next event should be scheduled after current event completes
-      event_time += stored_event_duration;
+      event_time += duration_cache;
     }
   } catch (const std::exception& e) {
     std::cerr << "[ERROR] In Sequencer::run: " << e.what() << std::endl;
