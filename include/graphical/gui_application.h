@@ -2,8 +2,8 @@
 #define MICRO_COMPOSER_GUI_APPLICATION_H
 
 #include "sequencable/oscillation_event.h"
-#include "sequencer/atomic_sequencer.h"
-#include "synth/synth.h"
+#include "sequencer/atomic_sequencer.tpp"
+#include "synth/synth.tpp"
 #include "utils/atomic_deque.h"
 
 #include <functional>
@@ -16,7 +16,7 @@ class GuiApplication {
 public:
   using Event_t = sequencable::OscillationEvent;
   using Handler_t = std::function<void(const Event_t&)>;
-  using Sequencer_t = sequencer::Atomic_sequencer<Event_t, Handler_t>;
+  using Sequencer_t = sequencer::Atomic_sequencer<Event_t>;
 
   GuiApplication();
   ~GuiApplication();

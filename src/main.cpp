@@ -1,10 +1,12 @@
 #include "sequencable/oscillation_event.h"
-#include "sequencer/atomic_sequencer.h"
-#include "synth/synth.h"
+#include "sequencer/multi_sequencer.tpp"
+#include "synth/synth.tpp"
 
 #include <chrono>
+#include <functional>
 #include <iostream>
 #include <thread>
+#include <vector>
 
 int main() {
   using namespace Micro_composer::sequencer;
@@ -24,10 +26,32 @@ int main() {
   steps.push_back(OscillationEvent{493.88}); // B4
   steps.push_back(OscillationEvent{523.25}); // C5
 
-  RealTimeAudioOutput synth_out;
-  Synthesizer synth{synth_out};
-  auto handler = [&synth](const OscillationEvent& event) { synth.play(event); };
-  Atomic_sequencer<OscillationEvent, decltype(handler)> seqr{handler, steps};
+  Atomic_deque<OscillationEvent> reverse_steps;
+  for (auto it = steps.rbegin(); it != steps.rend(); ++it) {
+    reverse_steps.push_back(*it);
+  }
+
+  RealTimeAudioOutput synth_out_1, synth_out_2;
+  Synthesizer synth_1{synth_out_1}, synth_2{synth_out_2};
+  std::function<void(OscillationEvent&&)> handler_1 =
+      [&synth_1](const OscillationEvent&& event) {
+        std::ignore = std::async(std::launch::async,
+                                 [&synth_1, event]() { synth_1.play(event); });
+      };
+  decltype(handler_1) handler_2 = [&synth_2](const OscillationEvent&& event) {
+    std::ignore = std::async(std::launch::async,
+                             [&synth_2, event]() { synth_2.play(event); });
+  };
+
+  std::vector<Atomic_deque<OscillationEvent>> sequences;
+  sequences.emplace_back(steps);
+  sequences.emplace_back(reverse_steps);
+
+  std::vector<decltype(handler_1)> handlers;
+  handlers.emplace_back(handler_1);
+  handlers.emplace_back(handler_2);
+
+  Multi_sequencer<OscillationEvent> seqr{handlers, sequences};
 
   auto t_start = std::chrono::steady_clock::now();
   seqr.start();
