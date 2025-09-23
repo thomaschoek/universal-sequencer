@@ -52,16 +52,6 @@ private:
     size_t call_count_{0};
 };
 
-TEST_CASE("AsyncEventHandler concept validation", "[async_sequencer]") {
-    SECTION("Lambda handler satisfies concept") {
-        auto lambda_handler = [](TestEvent&& event) { /* do something */ };
-        static_assert(sequencer::AsyncEventHandler<decltype(lambda_handler), TestEvent>);
-    }
-
-    SECTION("Callable class satisfies concept") {
-        static_assert(sequencer::AsyncEventHandler<AsyncTestHandler, TestEvent>);
-    }
-}
 
 
 TEST_CASE("Async AtomicSequencer timing precision", "[async_sequencer]") {

@@ -3,27 +3,20 @@
 
 #include "sequencable/concept.h"
 #include "utils/atomic_deque.h"
+#include <chrono>
 #include <concepts>
 #include <exception>
 #include <future>
 #include <iostream>
 #include <mutex>
+#include <optional>
 #include <thread>
 
 namespace MicroComposer {
 
 namespace sequencer {
 
-// Concept for async event handlers
-template <typename Handler_t, typename Event_t>
-concept AsyncEventHandler = requires(Handler_t handler, Event_t&& event) {
-  { handler(std::forward<Event_t>(event)) } -> std::same_as<void>;
-} || requires(Handler_t handler, Event_t&& event) {
-  { handler(std::forward<Event_t>(event)) } -> std::same_as<std::future<void>>;
-};
-
-template <sequencable::Sequencable Event_t,
-          AsyncEventHandler<Event_t> Handler_t>
+template <sequencable::Sequencable Event_t, typename Handler_t>
 class AtomicSequencer {
 public:
   explicit AtomicSequencer(Handler_t handler,
@@ -37,7 +30,6 @@ public:
 private:
   void run(std::stop_token st);
   Event_t next_event();
-  void schedule_event_handler(Event_t&& event);
 
   Handler_t event_handler;
   atomic_deque::AtomicDeque<Event_t>& sequence;
@@ -47,8 +39,8 @@ private:
   std::jthread thread_;
 };
 
-template <sequencable::Sequencable EVENT_T, AsyncEventHandler<EVENT_T> HandlerT>
-EVENT_T AtomicSequencer<EVENT_T, HandlerT>::next_event() {
+template <sequencable::Sequencable Event_t, typename Handler_t>
+Event_t AtomicSequencer<Event_t, Handler_t>::next_event() {
   std::scoped_lock{sequence.lock()};
   if (sequence.empty()) {
     throw std::out_of_range(
@@ -61,16 +53,8 @@ EVENT_T AtomicSequencer<EVENT_T, HandlerT>::next_event() {
   return *event_itr++;
 }
 
-template <sequencable::Sequencable EVENT_T, AsyncEventHandler<EVENT_T> HandlerT>
-void AtomicSequencer<EVENT_T, HandlerT>::schedule_event_handler(
-    EVENT_T&& event) {
-  [[maybe_unused]] auto future = std::async(std::launch::async, [this, event = std::move(event)]() mutable {
-    event_handler(std::move(event));
-  });
-}
-
-template <sequencable::Sequencable EVENT_T, AsyncEventHandler<EVENT_T> HandlerT>
-void AtomicSequencer<EVENT_T, HandlerT>::run(std::stop_token st) {
+template <sequencable::Sequencable Event_t, typename Handler_t>
+void AtomicSequencer<Event_t, Handler_t>::run(std::stop_token st) {
 
 #ifndef NDEBUG
   // Print debug message about the exact time the clock started
@@ -83,7 +67,7 @@ void AtomicSequencer<EVENT_T, HandlerT>::run(std::stop_token st) {
 
   try {
 
-    std::optional<EVENT_T> event_buffer;
+    std::optional<Event_t> event_buffer;
     event_buffer = next_event();
 
     std::chrono::time_point<std::chrono::steady_clock,
@@ -107,7 +91,8 @@ void AtomicSequencer<EVENT_T, HandlerT>::run(std::stop_token st) {
       // Sleep until the next trigger time
       std::this_thread::sleep_until(event_time);
       // Schedule event to handler asynchronously immediately after waking up
-      schedule_event_handler(std::move(event_buffer.value()));
+      [[maybe_unused]] auto future = std::async(std::launch::async, event_handler,
+                                                 std::move(event_buffer.value()));
       // Load next event into buffer
       event_buffer = next_event();
 
@@ -120,8 +105,8 @@ void AtomicSequencer<EVENT_T, HandlerT>::run(std::stop_token st) {
   }
 }
 
-template <sequencable::Sequencable EVENT_T, AsyncEventHandler<EVENT_T> HandlerT>
-void AtomicSequencer<EVENT_T, HandlerT>::start() {
+template <sequencable::Sequencable Event_t, typename Handler_t>
+void AtomicSequencer<Event_t, Handler_t>::start() {
 #ifndef NDEBUG
   // Print debug message about the exact time the clock started
   auto now = std::chrono::steady_clock::now();
@@ -144,8 +129,8 @@ void AtomicSequencer<EVENT_T, HandlerT>::start() {
   thread_ = std::jthread(&AtomicSequencer::run, this);
 }
 
-template <sequencable::Sequencable EVENT_T, AsyncEventHandler<EVENT_T> HandlerT>
-void AtomicSequencer<EVENT_T, HandlerT>::stop() {
+template <sequencable::Sequencable Event_t, typename Handler_t>
+void AtomicSequencer<Event_t, Handler_t>::stop() {
 #ifndef NDEBUG
   // Print debug message about the exact time the clock started
   auto now = std::chrono::steady_clock::now();
@@ -162,8 +147,8 @@ void AtomicSequencer<EVENT_T, HandlerT>::stop() {
   }
 }
 
-template <sequencable::Sequencable EVENT_T, AsyncEventHandler<EVENT_T> HandlerT>
-inline bool AtomicSequencer<EVENT_T, HandlerT>::is_running() const {
+template <sequencable::Sequencable Event_t, typename Handler_t>
+inline bool AtomicSequencer<Event_t, Handler_t>::is_running() const {
   return thread_.joinable();
 }
 
