@@ -14,6 +14,9 @@ struct OscillationEvent : public Event {
   double amplitude{0.5};   // Amplitude (0.0 to 1.0)
   double phase{0.0};       // Phase in radians
 
+  // Default constructor
+  OscillationEvent() = default;
+
   explicit OscillationEvent(double freq, double amp = 0.5, double ph = 0.0)
       : Event(), frequency(freq), amplitude(amp), phase(ph) {}
 
