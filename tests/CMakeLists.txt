@@ -13,6 +13,7 @@ add_executable(tests
     test_clock.cpp
     test_timing_capabilities.cpp
     test_atomic_deque.cpp
+    test_async_atomic_sequencer.cpp
 )
 
 # Link against Catch2 and project sources

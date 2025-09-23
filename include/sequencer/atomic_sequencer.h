@@ -7,17 +7,95 @@
 #include <iostream>
 #include <mutex>
 #include <thread>
+#include <future>
+#include <functional>
+#include <queue>
+#include <concepts>
+#include <type_traits>
 
 namespace MicroComposer {
 
 namespace sequencer {
 
-template <sequencable::Sequencable Event_t, typename Handler_t>
+// Concept for async event handlers
+template<typename Handler_t, typename Event_t>
+concept AsyncEventHandler = requires(Handler_t handler, Event_t&& event) {
+  { handler(std::forward<Event_t>(event)) } -> std::same_as<void>;
+} || requires(Handler_t handler, Event_t&& event) {
+  { handler(std::forward<Event_t>(event)) } -> std::same_as<std::future<void>>;
+};
+
+// Thread pool for async event processing
+class EventThreadPool {
+public:
+  explicit EventThreadPool(size_t num_threads = std::thread::hardware_concurrency())
+      : stop_flag_{false} {
+    for (size_t i = 0; i < num_threads; ++i) {
+      workers_.emplace_back([this] { worker_loop(); });
+    }
+  }
+
+  ~EventThreadPool() {
+    stop_flag_ = true;
+    condition_.notify_all();
+    for (auto& worker : workers_) {
+      if (worker.joinable()) {
+        worker.join();
+      }
+    }
+  }
+
+  template<typename F>
+  void submit(F&& task) {
+    {
+      std::lock_guard<std::mutex> lock(queue_mutex_);
+      tasks_.emplace(std::forward<F>(task));
+    }
+    condition_.notify_one();
+  }
+
+private:
+  void worker_loop() {
+    while (!stop_flag_) {
+      std::function<void()> task;
+      {
+        std::unique_lock<std::mutex> lock(queue_mutex_);
+        condition_.wait(lock, [this] { return stop_flag_ || !tasks_.empty(); });
+
+        if (stop_flag_ && tasks_.empty()) {
+          break;
+        }
+
+        if (!tasks_.empty()) {
+          task = std::move(tasks_.front());
+          tasks_.pop();
+        }
+      }
+
+      if (task) {
+        try {
+          task();
+        } catch (const std::exception& e) {
+          std::cerr << "[ERROR] Exception in event handler: " << e.what() << std::endl;
+        }
+      }
+    }
+  }
+
+  std::vector<std::jthread> workers_;
+  std::queue<std::function<void()>> tasks_;
+  std::mutex queue_mutex_;
+  std::condition_variable condition_;
+  std::atomic<bool> stop_flag_;
+};
+
+template <sequencable::Sequencable Event_t, AsyncEventHandler<Event_t> Handler_t>
 class AtomicSequencer {
 public:
   explicit AtomicSequencer(Handler_t handler,
-                           atomic_deque::AtomicDeque<Event_t>& seq)
-      : event_handler(handler), sequence(seq) {}
+                           atomic_deque::AtomicDeque<Event_t>& seq,
+                           size_t thread_pool_size = std::thread::hardware_concurrency())
+      : event_handler(handler), sequence(seq), thread_pool_(thread_pool_size) {}
 
   void start();
   void stop();
@@ -26,16 +104,18 @@ public:
 private:
   void run(std::stop_token st);
   Event_t next_event();
-  Handler_t event_handler;
+  void schedule_event_handler(Event_t&& event);
 
+  Handler_t event_handler;
   atomic_deque::AtomicDeque<Event_t>& sequence;
   atomic_deque::AtomicDeque<Event_t>::iterator event_itr;
+  EventThreadPool thread_pool_;
 
   std::mutex mutex_;
   std::jthread thread_;
 };
 
-template <sequencable::Sequencable EVENT_T, typename HandlerT>
+template <sequencable::Sequencable EVENT_T, AsyncEventHandler<EVENT_T> HandlerT>
 EVENT_T AtomicSequencer<EVENT_T, HandlerT>::next_event() {
   std::scoped_lock{sequence.lock()};
   if (sequence.empty()) {
@@ -49,7 +129,14 @@ EVENT_T AtomicSequencer<EVENT_T, HandlerT>::next_event() {
   return *event_itr++;
 }
 
-template <sequencable::Sequencable EVENT_T, typename HandlerT>
+template <sequencable::Sequencable EVENT_T, AsyncEventHandler<EVENT_T> HandlerT>
+void AtomicSequencer<EVENT_T, HandlerT>::schedule_event_handler(EVENT_T&& event) {
+  thread_pool_.submit([this, event = std::move(event)]() mutable {
+    event_handler(std::move(event));
+  });
+}
+
+template <sequencable::Sequencable EVENT_T, AsyncEventHandler<EVENT_T> HandlerT>
 void AtomicSequencer<EVENT_T, HandlerT>::run(std::stop_token st) {
 
 #ifndef NDEBUG
@@ -86,8 +173,8 @@ void AtomicSequencer<EVENT_T, HandlerT>::run(std::stop_token st) {
       //
       // Sleep until the next trigger time
       std::this_thread::sleep_until(event_time);
-      // Move event to handler immediately after waking up
-      event_handler(std::move(event_buffer.value()));
+      // Schedule event to handler asynchronously immediately after waking up
+      schedule_event_handler(std::move(event_buffer.value()));
       // Load next event into buffer
       event_buffer = next_event();
 
@@ -100,7 +187,7 @@ void AtomicSequencer<EVENT_T, HandlerT>::run(std::stop_token st) {
   }
 }
 
-template <sequencable::Sequencable EVENT_T, typename HandlerT>
+template <sequencable::Sequencable EVENT_T, AsyncEventHandler<EVENT_T> HandlerT>
 void AtomicSequencer<EVENT_T, HandlerT>::start() {
 #ifndef NDEBUG
   // Print debug message about the exact time the clock started
@@ -124,7 +211,7 @@ void AtomicSequencer<EVENT_T, HandlerT>::start() {
   thread_ = std::jthread(&AtomicSequencer::run, this);
 }
 
-template <sequencable::Sequencable EVENT_T, typename HandlerT>
+template <sequencable::Sequencable EVENT_T, AsyncEventHandler<EVENT_T> HandlerT>
 void AtomicSequencer<EVENT_T, HandlerT>::stop() {
 #ifndef NDEBUG
   // Print debug message about the exact time the clock started
@@ -142,7 +229,7 @@ void AtomicSequencer<EVENT_T, HandlerT>::stop() {
   }
 }
 
-template <sequencable::Sequencable EVENT_T, typename HandlerT>
+template <sequencable::Sequencable EVENT_T, AsyncEventHandler<EVENT_T> HandlerT>
 inline bool AtomicSequencer<EVENT_T, HandlerT>::is_running() const {
   return thread_.joinable();
 }
