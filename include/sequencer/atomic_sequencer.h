@@ -12,11 +12,11 @@ namespace MicroComposer {
 
 namespace sequencer {
 
-template <sequencable::Sequencable EVENT_T, typename HandlerT>
+template <sequencable::Sequencable Event_t, typename Handler_t>
 class AtomicSequencer {
 public:
-  explicit AtomicSequencer(HandlerT handler,
-                           atomic_deque::AtomicDeque<EVENT_T>& seq)
+  explicit AtomicSequencer(Handler_t handler,
+                           atomic_deque::AtomicDeque<Event_t>& seq)
       : event_handler(handler), sequence(seq) {}
 
   void start();
@@ -25,11 +25,11 @@ public:
 
 private:
   void run(std::stop_token st);
-  EVENT_T next_event();
-  HandlerT event_handler;
+  Event_t next_event();
+  Handler_t event_handler;
 
-  atomic_deque::AtomicDeque<EVENT_T>& sequence;
-  atomic_deque::AtomicDeque<EVENT_T>::iterator step_itr;
+  atomic_deque::AtomicDeque<Event_t>& sequence;
+  atomic_deque::AtomicDeque<Event_t>::iterator event_itr;
 
   std::mutex mutex_;
   std::jthread thread_;
@@ -42,11 +42,11 @@ EVENT_T AtomicSequencer<EVENT_T, HandlerT>::next_event() {
     throw std::out_of_range(
         "Attempted to get next event from an empty sequence");
   }
-  if (step_itr >= sequence.end() || step_itr < sequence.begin()) {
-    step_itr = sequence.begin();
+  if (event_itr >= sequence.end() || event_itr < sequence.begin()) {
+    event_itr = sequence.begin();
   }
   // Return a copy of the current step's value, then increment the step iterator
-  return *step_itr++;
+  return *event_itr++;
 }
 
 template <sequencable::Sequencable EVENT_T, typename HandlerT>
@@ -80,9 +80,9 @@ void AtomicSequencer<EVENT_T, HandlerT>::run(std::stop_token st) {
       // Store this event's duration before it's moved out of scope to handler
       stored_event_duration = event_buffer->duration;
 
-      // IMPORTANT! DO NOT put anything in between the following 3 statements
-      // crucial for timing accuracy and to prevent undefined behaviour due to
-      // moved out event buffer
+      // DO NOT put anything in between the following 3 statements as their
+      // immediate succession is crucial for timing accuracy and to prevent
+      // undefined behaviour due to moved out event buffer
       //
       // Sleep until the next trigger time
       std::this_thread::sleep_until(event_time);
