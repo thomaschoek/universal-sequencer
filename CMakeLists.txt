@@ -14,10 +14,19 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Include directories
 include_directories(include)
 
-# Add executable
+# Add original console executable
 add_executable(MicroComposer
     src/main.cpp
     src/synth/synth_output.cpp
+)
+
+# Add GUI executable
+add_executable(MicroComposerGUI
+    src/main_gui.cpp
+    src/synth/synth_output.cpp
+    src/graphical/gui_application.cpp
+    src/graphical/main_window.cpp
+    src/client/gui_client.cpp
 )
 
 # Enable testing
