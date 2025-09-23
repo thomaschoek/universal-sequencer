@@ -1,5 +1,6 @@
 #include "sequencable/oscillation_event.h"
 #include "sequencer/atomic_sequencer.h"
+#include "sequencer/parallel_sequencer.tpp"
 #include "synth/synth.h"
 
 #include <chrono>
@@ -24,10 +25,27 @@ int main() {
   steps.push_back(OscillationEvent{493.88}); // B4
   steps.push_back(OscillationEvent{523.25}); // C5
 
-  RealTimeAudioOutput synth_out;
-  Synthesizer synth{synth_out};
-  auto handler = [&synth](const OscillationEvent& event) { synth.play(event); };
-  Atomic_sequencer<OscillationEvent, decltype(handler)> seqr{handler, steps};
+  Atomic_deque<OscillationEvent> reverse_steps;
+  for (auto it = steps.rbegin(); it != steps.rend(); ++it) {
+    reverse_steps.push_back(*it);
+  }
+
+  RealTimeAudioOutput synth_out_1, synth_out_2;
+  Synthesizer synth_1{synth_out_1}, synth_2{synth_out_2};
+  auto handler_1 = [&synth_1](const OscillationEvent& event) {
+    synth_1.play(event);
+  };
+  Atomic_sequencer<OscillationEvent, decltype(handler_1)> seqr_1{handler_1,
+                                                                 steps};
+  Atomic_sequencer<OscillationEvent, decltype(handler_1)> seqr_2{handler_1,
+                                                                 reverse_steps};
+
+  Atomic_deque<Atomic_sequencer<OscillationEvent, decltype(handler_1)>>
+      sequencers;
+  sequencers.push_back(seqr_1);
+  sequencers.push_back(seqr_2);
+
+  Parallel_sequencer<OscillationEvent, decltype(handler_1)> seqr{sequencers};
 
   auto t_start = std::chrono::steady_clock::now();
   seqr.start();
