@@ -16,17 +16,20 @@ namespace sequencer {
 
 template <sequencable::Sequencable Event_t, typename Handler_t>
 class Atomic_sequencer {
+  using clock = std::chrono::steady_clock;
+  typedef clock::time_point steady_time_point;
+
 public:
   explicit Atomic_sequencer(Handler_t handler,
                             atomic_deque::Atomic_deque<Event_t>& seq)
       : event_handler(handler), sequence(seq) {}
 
-  void start();
+  void start(steady_time_point start_time = clock::now());
   void stop();
   bool is_running() const;
 
 private:
-  void run(std::stop_token st);
+  void run(std::stop_token st, steady_time_point start_time);
   Event_t next_event();
   Handler_t event_handler;
   void fire_and_forget(Event_t&& event) const;
@@ -59,15 +62,21 @@ Atomic_sequencer<Event_t, Handler_t>::fire_and_forget(Event_t&& event) const {
 }
 
 template <sequencable::Sequencable Event_t, typename Handler_t>
-void Atomic_sequencer<Event_t, Handler_t>::run(std::stop_token st) {
+void Atomic_sequencer<Event_t, Handler_t>::run(std::stop_token st,
+                                               steady_time_point start_time) {
 
 #ifndef NDEBUG
   // Print debug message about the exact time the clock started
-  auto now = std::chrono::steady_clock::now();
+  auto now = clock::now();
   auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
       now.time_since_epoch());
   std::cout << "[DEBUG] in Sequencer::run at " << now_ms.count() << " ms..."
-            << std::endl;
+            << std::endl
+            << "[DEBUG] thread " << std::this_thread::get_id()
+            << " got start_time "
+            << std::chrono::duration_cast<std::chrono::milliseconds>(
+                   start_time.time_since_epoch())
+            << " since epoch." << std::endl;
 #endif
 
   try {
@@ -75,9 +84,8 @@ void Atomic_sequencer<Event_t, Handler_t>::run(std::stop_token st) {
     Event_t event_buffer;
     event_buffer = next_event();
 
-    std::chrono::time_point<std::chrono::steady_clock,
-                            std::chrono::duration<double>>
-        event_time = std::chrono::steady_clock::now();
+    std::chrono::time_point<clock, std::chrono::duration<double>> event_time =
+        start_time;
 
     std::chrono::duration<double> duration_cache = event_buffer.duration;
 
@@ -109,18 +117,18 @@ void Atomic_sequencer<Event_t, Handler_t>::run(std::stop_token st) {
 }
 
 template <sequencable::Sequencable Event_t, typename Handler_t>
-void Atomic_sequencer<Event_t, Handler_t>::start() {
+void Atomic_sequencer<Event_t, Handler_t>::start(
+    std::chrono::time_point<clock> start_time) {
 #ifndef NDEBUG
   // Print debug message about the exact time the clock started
-  auto now = std::chrono::steady_clock::now();
+  auto now = clock::now();
   auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
       now.time_since_epoch());
   std::cout << "[DEBUG] In Sequencer::start at " << now_ms.count() << " ms..."
             << std::endl;
 #endif
   std::scoped_lock lck{mutex_};
-  if (thread_.joinable()) {
-    // Already running
+  if (is_running()) {
     return;
   }
 
@@ -129,14 +137,14 @@ void Atomic_sequencer<Event_t, Handler_t>::start() {
     std::this_thread::sleep_for(std::chrono::seconds{1});
   }
 
-  thread_ = std::jthread(&Atomic_sequencer::run, this);
+  thread_ = std::jthread(&Atomic_sequencer::run, this, start_time);
 }
 
 template <sequencable::Sequencable Event_t, typename Handler_t>
 void Atomic_sequencer<Event_t, Handler_t>::stop() {
 #ifndef NDEBUG
   // Print debug message about the exact time the clock started
-  auto now = std::chrono::steady_clock::now();
+  auto now = clock::now();
   auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
       now.time_since_epoch());
   std::cout << "[DEBUG] In Sequencer::stop at " << now_ms.count() << " ms..."
@@ -144,9 +152,11 @@ void Atomic_sequencer<Event_t, Handler_t>::stop() {
 #endif
   std::scoped_lock lck{mutex_};
 
-  if (thread_.joinable()) {
+  if (is_running()) {
     thread_.request_stop();
-    thread_.join();
+    if (thread_.joinable()) {
+      thread_.join();
+    }
   }
 }
 
