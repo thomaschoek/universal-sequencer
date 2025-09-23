@@ -3,7 +3,6 @@
 
 #include "sequencable/concept.h"
 #include "utils/atomic_deque.h"
-#include "utils/event_thread_pool.h"
 #include <concepts>
 #include <exception>
 #include <future>
@@ -27,10 +26,9 @@ template <sequencable::Sequencable Event_t,
           AsyncEventHandler<Event_t> Handler_t>
 class AtomicSequencer {
 public:
-  explicit AtomicSequencer(
-      Handler_t handler, atomic_deque::AtomicDeque<Event_t>& seq,
-      size_t thread_pool_size = std::thread::hardware_concurrency())
-      : event_handler(handler), sequence(seq), thread_pool_(thread_pool_size) {}
+  explicit AtomicSequencer(Handler_t handler,
+                           atomic_deque::AtomicDeque<Event_t>& seq)
+      : event_handler(handler), sequence(seq) {}
 
   void start();
   void stop();
@@ -44,7 +42,6 @@ private:
   Handler_t event_handler;
   atomic_deque::AtomicDeque<Event_t>& sequence;
   atomic_deque::AtomicDeque<Event_t>::iterator event_itr;
-  EventThreadPool thread_pool_;
 
   std::mutex mutex_;
   std::jthread thread_;
@@ -67,7 +64,7 @@ EVENT_T AtomicSequencer<EVENT_T, HandlerT>::next_event() {
 template <sequencable::Sequencable EVENT_T, AsyncEventHandler<EVENT_T> HandlerT>
 void AtomicSequencer<EVENT_T, HandlerT>::schedule_event_handler(
     EVENT_T&& event) {
-  thread_pool_.submit([this, event = std::move(event)]() mutable {
+  [[maybe_unused]] auto future = std::async(std::launch::async, [this, event = std::move(event)]() mutable {
     event_handler(std::move(event));
   });
 }
