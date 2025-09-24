@@ -13,7 +13,8 @@ Multi_sequencer<Event_t>::Multi_sequencer(std::vector<Handler_t> handlers,
         "Number of handlers must match number of sequences");
   }
   for (std::size_t i = 0; i < handlers.size(); ++i) {
-    parallel_sequencers.emplace_back(handlers[i], sequences[i]);
+    parallel_sequencers.emplace_back(
+        std::make_unique<Sequencer_t>(handlers[i], sequences[i]));
   }
 }
 
@@ -25,7 +26,7 @@ void Multi_sequencer<Event_t>::start(Sequencer_time_point common_start_time) {
 
   for (auto& sequencer : parallel_sequencers) {
     futures.emplace_back(std::async(std::launch::async, &Sequencer_t::start,
-                                    &sequencer, common_start_time));
+                                    sequencer.get(), common_start_time));
   }
 
   // Wait for all to complete startup
@@ -40,7 +41,7 @@ template <Sequencable Event_t> void Multi_sequencer<Event_t>::stop() {
 
   for (auto& sequencer : parallel_sequencers) {
     futures.emplace_back(
-        std::async(std::launch::async, &Sequencer_t::stop, &sequencer));
+        std::async(std::launch::async, &Sequencer_t::stop, sequencer.get()));
   }
 
   // Wait for all to complete startup

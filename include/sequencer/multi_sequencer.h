@@ -2,6 +2,7 @@
 #define MICRO_COMPOSER_MULTI_SEQUENCER_H
 
 #include "sequencer/atomic_sequencer.tpp"
+#include <memory>
 
 namespace Micro_composer {
 
@@ -16,7 +17,7 @@ template <Sequencable Event_t> class Multi_sequencer {
   using Sequencer_t = Atomic_sequencer<Event_t>;
   using Sequencer_clock = Atomic_sequencer<Event_t>::clock;
   using Sequencer_time_point = Atomic_sequencer<Event_t>::time_point;
-  using Sequencer_deque = atomic_deque::Atomic_deque<Sequencer_t>;
+  using Sequencer_vec = std::vector<std::unique_ptr<Sequencer_t>>;
 
 public:
   explicit Multi_sequencer(std::vector<Handler_t>, std::vector<Sequence_t>);
@@ -24,7 +25,7 @@ public:
   void stop();
 
 private:
-  Sequencer_deque parallel_sequencers;
+  Sequencer_vec parallel_sequencers;
 };
 
 } // namespace sequencer
