@@ -2,7 +2,7 @@
 #define MICRO_COMPOSER_GUI_APPLICATION_H
 
 #include "sequencable/oscillation_event.h"
-#include "sequencer/atomic_sequencer.h"
+#include "sequencer/atomic_sequencer.tpp"
 #include "synth/synth.h"
 #include "utils/atomic_deque.h"
 

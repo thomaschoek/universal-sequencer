@@ -1,6 +1,5 @@
-#include "sequencer/atomic_sequencer.h"
+#include "sequencer/atomic_sequencer.tpp"
 #include "utils/atomic_deque.h"
-#include <atomic>
 #include <catch2/catch_test_macros.hpp>
 #include <chrono>
 #include <thread>
@@ -77,7 +76,7 @@ TEST_CASE("Async AtomicSequencer timing precision", "[async_sequencer]") {
     }
   };
 
-  sequencer::Atomic_sequencer seq(handler, sequence);
+  sequencer::Atomic_sequencer<TestEvent> seq(handler, sequence);
 
   auto start_time = std::chrono::steady_clock::now();
   seq.start();
@@ -140,7 +139,7 @@ TEST_CASE("Async processing doesn't block sequencer timing",
     }
   };
 
-  sequencer::Atomic_sequencer seq(handler, sequence);
+  sequencer::Atomic_sequencer<TestEvent> seq(handler, sequence);
 
   auto start_time = std::chrono::steady_clock::now();
   seq.start();
