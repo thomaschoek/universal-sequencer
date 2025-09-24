@@ -109,6 +109,13 @@ void SequencerController::start() {
     // Recreate sequence with current step states
     create_default_sequence();
 
+    // Don't start if sequence is empty - this would cause the sequencer to freeze
+    // waiting for steps to be added
+    if (m_sequence->empty()) {
+        std::cout << "[INFO] Cannot start sequencer - no active steps" << std::endl;
+        return;
+    }
+
     m_sequencer->start();
 }
 
