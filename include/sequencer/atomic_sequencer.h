@@ -16,7 +16,7 @@ using sequencable::Sequencable;
 
 template <Sequencable Event_t> class Atomic_sequencer {
 public:
-  using Handler_t = std::function<void(Event_t)>;
+  using Handler_t = std::function<void(Event_t&&)>;
   using clock = std::chrono::steady_clock;
   using time_point = clock::time_point;
 
@@ -32,7 +32,6 @@ private:
   void run(std::stop_token st, time_point start_time);
   Event_t next_event();
   Handler_t event_handler;
-  void fire_and_forget(Event_t&& event) const;
 
   atomic_deque::Atomic_deque<Event_t>& sequence;
   atomic_deque::Atomic_deque<Event_t>::iterator event_itr;

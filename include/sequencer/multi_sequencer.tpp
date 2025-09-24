@@ -1,4 +1,5 @@
 #include "sequencer/multi_sequencer.h"
+#include <future>
 
 namespace Micro_composer {
 

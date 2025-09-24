@@ -1,7 +1,6 @@
 #include "sequencer/atomic_sequencer.h"
 
 #include <exception>
-#include <future>
 #include <iostream>
 
 namespace Micro_composer {
@@ -19,11 +18,6 @@ template <Sequencable Event_t> Event_t Atomic_sequencer<Event_t>::next_event() {
   }
   // Return a copy of the current step's value, then increment the step iterator
   return *event_itr++;
-}
-
-template <Sequencable Event_t>
-inline void Atomic_sequencer<Event_t>::fire_and_forget(Event_t&& event) const {
-  std::ignore = std::async(std::launch::async, event_handler, std::move(event));
 }
 
 template <Sequencable Event_t>
@@ -56,21 +50,18 @@ void Atomic_sequencer<Event_t>::run(std::stop_token st, time_point start_time) {
     while (!st.stop_requested()) {
       // Add the current step's offset to trigger time
       event_time += event_buffer.offset;
-
       // Store this event's duration before it's moved out of scope to handler
       duration_cache = event_buffer.duration;
-
       // DO NOT put anything in between the following 3 statements as their
       // immediate succession is crucial for timing accuracy and to prevent
       // undefined behaviour due to moved out event buffer
       //
       // Sleep until the next trigger time
       std::this_thread::sleep_until(event_time);
-      // Schedule event to handler asynchronously immediately after waking up
-      fire_and_forget(std::move(event_buffer));
+      // Move current event buffer to event handler
+      event_handler(std::move(event_buffer));
       // Load next event into buffer
       event_buffer = next_event();
-
       // Next event should be scheduled after current event completes
       event_time += duration_cache;
     }
