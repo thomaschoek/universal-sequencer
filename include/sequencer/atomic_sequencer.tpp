@@ -1,4 +1,5 @@
 #include "sequencer/atomic_sequencer.h"
+#include "utils/atomic_deque.tpp"
 
 #include <exception>
 #include <iostream>
@@ -7,18 +8,122 @@ namespace Micro_composer {
 
 namespace sequencer {
 
-template <Sequencable Event_t> Event_t Atomic_sequencer<Event_t>::next_event() {
+// PUBLIC:
+// Control
+
+template <Sequencable Event_t>
+void Atomic_sequencer<Event_t>::start(time_point start_time) {
+#ifndef NDEBUG
+  // Print debug message about the exact time the clock started
+  auto now = clock::now();
+  auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+      now.time_since_epoch());
+  std::cout << "[DEBUG] In Sequencer::start at " << now_ms.count() << " ms..."
+            << std::endl;
+#endif
+  std::scoped_lock lck{mutex_};
+  if (is_running()) {
+    return;
+  }
+
+  while (sequence.empty()) {
+    // Wait until user adds something to the sequence
+    std::this_thread::sleep_for(std::chrono::seconds{1});
+  }
+
+  thread_ = std::jthread(&Atomic_sequencer::run, this, start_time);
+}
+
+template <Sequencable Event_t> void Atomic_sequencer<Event_t>::stop() {
+#ifndef NDEBUG
+  // Print debug message about the exact time the clock started
+  auto now = clock::now();
+  auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+      now.time_since_epoch());
+  std::cout << "[DEBUG] In Sequencer::stop at " << now_ms.count() << " ms..."
+            << std::endl;
+#endif
+  std::scoped_lock lck{mutex_};
+
+  if (is_running()) {
+    thread_.request_stop();
+    if (thread_.joinable()) {
+      thread_.join();
+    }
+  }
+}
+
+template <Sequencable Event_t>
+inline bool Atomic_sequencer<Event_t>::is_running() const {
+  return thread_.joinable();
+}
+
+// CRUD
+
+template <Sequencable Event_t>
+inline void Atomic_sequencer<Event_t>::push_back(Event_t&& step) {
+  sequence.push_back(std::move(step));
+}
+
+template <Sequencable Event_t>
+inline void Atomic_sequencer<Event_t>::push_front(Event_t&& step) {
+  sequence.push_front(std::move(step));
+}
+
+template <Sequencable Event_t>
+inline void Atomic_sequencer<Event_t>::insert(std::size_t index,
+                                              Event_t&& step) {
+  if (index > sequence.size()) {
+    throw std::out_of_range("Index out of range in insert_step");
+  }
+  sequence.insert(sequence.begin() + index, std::move(step));
+}
+
+template <Sequencable Event_t>
+Event_t Atomic_sequencer<Event_t>::get(std::size_t index) const {
+  if (index >= sequence.size()) {
+    throw std::out_of_range("Index out of range in get_step");
+  }
+  return sequence[index];
+}
+
+template <Sequencable Event_t>
+void Atomic_sequencer<Event_t>::update(std::size_t index, Event_t&& step) {
+  if (index >= sequence.size()) {
+    throw std::out_of_range("Index out of range in update_step");
+  }
+  sequence[index] = std::move(step);
+}
+
+template <Sequencable Event_t>
+void Atomic_sequencer<Event_t>::remove(std::size_t index) {
+  if (index >= sequence.size()) {
+    throw std::out_of_range("Index out of range in remove_step");
+  }
+  sequence.erase(sequence.begin() + index);
+}
+
+template <Sequencable Event_t> Event_t Atomic_sequencer<Event_t>::pop_back() {
   std::scoped_lock{sequence.lock()};
   if (sequence.empty()) {
-    throw std::out_of_range(
-        "Attempted to get next event from an empty sequence");
+    throw std::out_of_range("Attempted to pop_back from an empty sequence");
   }
-  if (event_itr >= sequence.end() || event_itr < sequence.begin()) {
-    event_itr = sequence.begin();
-  }
-  // Return a copy of the current step's value, then increment the step iterator
-  return *event_itr++;
+  Event_t step = std::move(sequence.back());
+  sequence.pop_back();
+  return step;
 }
+
+template <Sequencable Event_t> Event_t Atomic_sequencer<Event_t>::pop_front() {
+  std::scoped_lock{sequence.lock()};
+  if (sequence.empty()) {
+    throw std::out_of_range("Attempted to pop_front from an empty sequence");
+  }
+  Event_t step = std::move(sequence.front());
+  sequence.pop_front();
+  return step;
+}
+
+// PRIVATE:
 
 template <Sequencable Event_t>
 void Atomic_sequencer<Event_t>::run(std::stop_token st, time_point start_time) {
@@ -71,51 +176,17 @@ void Atomic_sequencer<Event_t>::run(std::stop_token st, time_point start_time) {
   }
 }
 
-template <Sequencable Event_t>
-void Atomic_sequencer<Event_t>::start(time_point start_time) {
-#ifndef NDEBUG
-  // Print debug message about the exact time the clock started
-  auto now = clock::now();
-  auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-      now.time_since_epoch());
-  std::cout << "[DEBUG] In Sequencer::start at " << now_ms.count() << " ms..."
-            << std::endl;
-#endif
-  std::scoped_lock lck{mutex_};
-  if (is_running()) {
-    return;
+template <Sequencable Event_t> Event_t Atomic_sequencer<Event_t>::next_event() {
+  std::scoped_lock{sequence.lock()};
+  if (sequence.empty()) {
+    throw std::out_of_range(
+        "Attempted to get next event from an empty sequence");
   }
-
-  while (sequence.empty()) {
-    // Wait until user adds something to the sequence
-    std::this_thread::sleep_for(std::chrono::seconds{1});
+  if (event_itr >= sequence.end() || event_itr < sequence.begin()) {
+    event_itr = sequence.begin();
   }
-
-  thread_ = std::jthread(&Atomic_sequencer::run, this, start_time);
-}
-
-template <Sequencable Event_t> void Atomic_sequencer<Event_t>::stop() {
-#ifndef NDEBUG
-  // Print debug message about the exact time the clock started
-  auto now = clock::now();
-  auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-      now.time_since_epoch());
-  std::cout << "[DEBUG] In Sequencer::stop at " << now_ms.count() << " ms..."
-            << std::endl;
-#endif
-  std::scoped_lock lck{mutex_};
-
-  if (is_running()) {
-    thread_.request_stop();
-    if (thread_.joinable()) {
-      thread_.join();
-    }
-  }
-}
-
-template <Sequencable Event_t>
-inline bool Atomic_sequencer<Event_t>::is_running() const {
-  return thread_.joinable();
+  // Return a copy of the current step's value, then increment the step iterator
+  return *event_itr++;
 }
 
 } // namespace sequencer

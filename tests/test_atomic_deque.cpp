@@ -1,4 +1,4 @@
-#include "utils/atomic_deque.h"
+#include "utils/atomic_deque.tpp"
 #include <catch2/catch_test_macros.hpp>
 #include <future>
 #include <thread>

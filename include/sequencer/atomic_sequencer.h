@@ -28,6 +28,15 @@ public:
   void stop();
   bool is_running() const;
 
+  void push_back(Event_t&& step);
+  void push_front(Event_t&& step);
+  void insert(std::size_t step_idx, Event_t&& step);
+  Event_t get(std::size_t step_idx) const;
+  void update(std::size_t step_idx, Event_t&& step_params);
+  void remove(std::size_t step_idx);
+  Event_t pop_back();
+  Event_t pop_front();
+
 private:
   void run(std::stop_token st, time_point start_time);
   Event_t next_event();

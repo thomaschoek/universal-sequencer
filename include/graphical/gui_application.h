@@ -4,7 +4,7 @@
 #include "sequencable/oscillation_event.h"
 #include "sequencer/atomic_sequencer.tpp"
 #include "synth/synth.tpp"
-#include "utils/atomic_deque.h"
+#include "utils/atomic_deque.tpp"
 
 #include <functional>
 #include <memory>
