@@ -96,12 +96,16 @@ bool MainWindow::process_events() {
   case 3: {
     std::cout << "Enter new tempo (BPM): ";
     double tempo;
-    if (std::scanf("%lf", &tempo) == 1 && tempo > 0) {
-      if (on_tempo_changed) {
-        on_tempo_changed(tempo);
+    if (std::scanf("%lf", &tempo) == 1) {
+      if (tempo > 0) {
+        if (on_tempo_changed) {
+          on_tempo_changed(tempo);
+        }
+      } else {
+        std::cout << "Invalid tempo value (must be > 0)\n";
       }
     } else {
-      std::cout << "Invalid tempo value\n";
+      std::cout << "Invalid input for tempo\n";
     }
     pimpl_->clear_input_buffer();
     break;
@@ -110,38 +114,50 @@ bool MainWindow::process_events() {
   case 4: {
     std::cout << "Enter step number (0-7): ";
     int step;
-    if (std::scanf("%d", &step) == 1 && step >= 0 && step <= 7) {
-      std::cout << "Enter frequency (Hz): ";
-      double freq;
-      if (std::scanf("%lf", &freq) == 1 && freq > 0) {
-        if (on_note_changed) {
-          on_note_changed(step, freq);
+    if (std::scanf("%d", &step) == 1) {
+      if (step >= 0 && step <= 7) {
+        std::cout << "Enter frequency (Hz): ";
+        double freq;
+        if (std::scanf("%lf", &freq) == 1 && freq > 0) {
+          if (on_note_changed) {
+            on_note_changed(step, freq);
+          }
+        } else {
+          std::cout << "Invalid frequency value\n";
         }
       } else {
-        std::cout << "Invalid frequency value\n";
+        std::cout << "Invalid step number\n";
       }
     } else {
-      std::cout << "Invalid step number\n";
+      std::cout << "Invalid input for step number\n";
     }
-    pimpl_->clear_input_buffer();
+    pimpl_->clear_input_buffer(); // Clear at the end only
     break;
   }
 
   case 5: {
     std::cout << "Enter frequency (Hz): ";
     double freq;
-    std::cout << "Enter amplitude (0.0-1.0): ";
-    double amp;
-    std::cout << "Enter phase (0.0-1.0): ";
-    double phase;
-    if (std::scanf("%lf", &freq) == 1 && freq > 0 &&
-        std::scanf("%lf", &amp) == 1 && amp >= 0 && amp <= 1 &&
-        std::scanf("%lf", &phase) == 1 && phase >= 0 && phase <= 1) {
-      if (on_add_event) {
-        on_add_event(freq, amp, phase);
+    if (std::scanf("%lf", &freq) == 1 && freq > 0) {
+      pimpl_->clear_input_buffer();
+      std::cout << "Enter amplitude (0.0-1.0): ";
+      double amp;
+      if (std::scanf("%lf", &amp) == 1 && amp >= 0 && amp <= 1) {
+        pimpl_->clear_input_buffer();
+        std::cout << "Enter phase (0.0-1.0): ";
+        double phase;
+        if (std::scanf("%lf", &phase) == 1 && phase >= 0 && phase <= 1) {
+          if (on_add_event) {
+            on_add_event(freq, amp, phase);
+          }
+        } else {
+          std::cout << "Invalid phase value\n";
+        }
+      } else {
+        std::cout << "Invalid amplitude value\n";
       }
     } else {
-      std::cout << "Invalid values\n";
+      std::cout << "Invalid frequency value\n";
     }
     pimpl_->clear_input_buffer();
     break;

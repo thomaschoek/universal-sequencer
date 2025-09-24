@@ -20,6 +20,7 @@ public:
   using clock = std::chrono::steady_clock;
   using time_point = typename clock::time_point;
   using Sequence_t = typename atomic_deque::Atomic_deque<Event_t>;
+  using size_type = typename Sequence_t::size_type;
   using Sequence_itr_t = typename Sequence_t::iterator;
 
   explicit Atomic_sequencer(Handler_t handler) : event_handler(handler) {}
@@ -32,10 +33,10 @@ public:
 
   void push_back(Event_t&& step);
   void push_front(Event_t&& step);
-  Sequence_itr_t insert(const Sequence_itr_t step_idx, Event_t&& step);
-  Event_t at(const Sequence_itr_t step_idx) const;
-  void update(const Sequence_itr_t step_idx, Event_t&& step_params);
-  void erase(const Sequence_itr_t step_idx);
+  Sequence_itr_t insert(const size_type step_idx, Event_t&& step);
+  Event_t at(const size_type step_idx) const;
+  void update(const size_type step_idx, Event_t&& step_params);
+  void erase(const size_type step_idx);
   void erase(const Sequence_itr_t first, const Sequence_itr_t last);
   void pop_back();
   void pop_front();

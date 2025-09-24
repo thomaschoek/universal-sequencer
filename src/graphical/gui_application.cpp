@@ -40,7 +40,8 @@ void GuiApplication::initialize_default_sequence() {
   std::chrono::duration<double> duration{beat_duration};
   std::chrono::duration<double> offset{0.0};
 
-  // Add a simple C major scale using CRUD interface (now that sequencer_ is initialized)
+  // Add a simple C major scale using CRUD interface (now that sequencer_ is
+  // initialized)
   sequencer_->push_back(Event_t{261.63, 0.5, 0.0, offset, duration}); // C4
   sequencer_->push_back(Event_t{293.66, 0.5, 0.0, offset, duration}); // D4
   sequencer_->push_back(Event_t{329.63, 0.5, 0.0, offset, duration}); // E4
@@ -64,10 +65,14 @@ int GuiApplication::run() {
 
   // Set up CRUD operation callbacks
   main_window.on_add_event = [this](double freq, double amp, double phase) {
-    add_event(Event_t{freq, amp, phase, std::chrono::duration<double>{0.0}, std::chrono::duration<double>{60.0 / current_bpm_}});
+    add_event(Event_t{freq, amp, phase, std::chrono::duration<double>{0.0},
+                      std::chrono::duration<double>{60.0 / current_bpm_}});
   };
-  main_window.on_insert_event = [this](int pos, double freq, double amp, double phase) {
-    insert_event_at(pos, Event_t{freq, amp, phase, std::chrono::duration<double>{0.0}, std::chrono::duration<double>{60.0 / current_bpm_}});
+  main_window.on_insert_event = [this](int pos, double freq, double amp,
+                                       double phase) {
+    insert_event_at(
+        pos, Event_t{freq, amp, phase, std::chrono::duration<double>{0.0},
+                     std::chrono::duration<double>{60.0 / current_bpm_}});
   };
   main_window.on_remove_event = [this](int pos) { remove_event_at(pos); };
   main_window.on_remove_events_range = [this](int first, int last) {
@@ -110,13 +115,11 @@ void GuiApplication::on_tempo_changed(double bpm) {
   double beat_duration = 60.0 / bpm; // seconds per beat
   std::chrono::duration<double> new_duration{beat_duration};
 
-  // Update all events in the sequence with new duration using CRUD interface
+  // Update all events in the sequence with a single lock to prevent deadlock
   try {
-    size_t sequence_size = get_sequence_size();
-    for (size_t i = 0; i < sequence_size; ++i) {
-      Event_t event = get_event_at(i);
-      event.duration = new_duration;
-      update_event_at(i, std::move(event));
+    std::scoped_lock lock(sequence_->lock());
+    for (auto it = sequence_->begin(); it != sequence_->end(); ++it) {
+      it->duration = new_duration;
     }
     std::cout << "Updated event durations to " << beat_duration
               << " seconds per beat\n";
@@ -127,19 +130,10 @@ void GuiApplication::on_tempo_changed(double bpm) {
 
 void GuiApplication::on_note_changed(int step, double frequency) {
   try {
-    size_t sequence_size = get_sequence_size();
-    if (step >= 0 && step < static_cast<int>(sequence_size)) {
-      std::cout << "Step " << step << " frequency changed to: " << frequency
-                << " Hz\n";
+    sequencer_->update(
+        step, Event_t{frequency, 0.5, 0.0, std::chrono::duration<double>{0.0},
+                      std::chrono::duration<double>{60.0 / current_bpm_}});
 
-      // Update the frequency of the specified step using CRUD interface
-      Event_t event = get_event_at(step);
-      event.frequency = frequency;
-      update_event_at(step, std::move(event));
-      std::cout << "Successfully updated step " << step << " frequency\n";
-    } else {
-      std::cout << "Invalid step number: " << step << std::endl;
-    }
   } catch (const std::exception& e) {
     std::cerr << "Error updating note: " << e.what() << std::endl;
   }
@@ -157,9 +151,12 @@ void GuiApplication::add_event(Event_t&& event) {
 
 void GuiApplication::insert_event_at(size_t position, Event_t&& event) {
   try {
-    // For now, just use push_back - proper insert with iterator would need more work
+    // For now, just use push_back - proper insert with iterator would need more
+    // work
     sequencer_->push_back(std::move(event));
-    std::cout << "Event added to end of sequence (insert at position not yet implemented)" << std::endl;
+    std::cout << "Event added to end of sequence (insert at position not yet "
+                 "implemented)"
+              << std::endl;
   } catch (const std::exception& e) {
     std::cerr << "Error inserting event: " << e.what() << std::endl;
   }
@@ -167,16 +164,17 @@ void GuiApplication::insert_event_at(size_t position, Event_t&& event) {
 
 void GuiApplication::update_event_at(size_t position, Event_t&& event) {
   try {
-    // For now, use the old approach since the CRUD interface needs iterators
-    if (position < get_sequence_size()) {
-      std::scoped_lock lock(sequence_->lock());
+    std::scoped_lock lock(sequence_->lock());
+    if (position < sequence_->size()) {
       auto it = sequence_->begin() + position;
       if (it != sequence_->end()) {
         *it = std::move(event);
-        std::cout << "Event at position " << position << " updated" << std::endl;
+        std::cout << "Event at position " << position << " updated"
+                  << std::endl;
       }
     } else {
-      std::cout << "Invalid position: " << position << std::endl;
+      std::cout << "Invalid position: " << position
+                << " (sequence size: " << sequence_->size() << ")" << std::endl;
     }
   } catch (const std::exception& e) {
     std::cerr << "Error updating event: " << e.what() << std::endl;
@@ -192,7 +190,8 @@ void GuiApplication::remove_event_at(size_t position) {
       sequencer_->pop_back();
       std::cout << "Last event removed" << std::endl;
     } else {
-      std::cout << "Remove at arbitrary position not yet implemented" << std::endl;
+      std::cout << "Remove at arbitrary position not yet implemented"
+                << std::endl;
     }
   } catch (const std::exception& e) {
     std::cerr << "Error removing event: " << e.what() << std::endl;
@@ -208,7 +207,8 @@ void GuiApplication::remove_events_range(size_t first, size_t last) {
       }
       std::cout << "Events from front removed" << std::endl;
     } else {
-      std::cout << "Remove range at arbitrary positions not yet implemented" << std::endl;
+      std::cout << "Remove range at arbitrary positions not yet implemented"
+                << std::endl;
     }
   } catch (const std::exception& e) {
     std::cerr << "Error removing events: " << e.what() << std::endl;
@@ -217,8 +217,8 @@ void GuiApplication::remove_events_range(size_t first, size_t last) {
 
 GuiApplication::Event_t GuiApplication::get_event_at(size_t position) const {
   try {
-    if (position < get_sequence_size()) {
-      std::scoped_lock lock(sequence_->lock());
+    std::scoped_lock lock(sequence_->lock());
+    if (position < sequence_->size()) {
       auto it = sequence_->begin() + position;
       if (it != sequence_->end()) {
         return *it;

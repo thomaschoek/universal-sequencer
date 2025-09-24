@@ -72,23 +72,22 @@ inline void Atomic_sequencer<Event_t>::push_front(Event_t&& step) {
 
 template <Sequencable Event_t>
 inline Atomic_sequencer<Event_t>::Sequence_itr_t
-Atomic_sequencer<Event_t>::insert(const Sequence_itr_t idx, Event_t&& step) {
+Atomic_sequencer<Event_t>::insert(const size_type idx, Event_t&& step) {
   sequence.insert(sequence.cbegin() + idx, std::move(step));
 }
 
 template <Sequencable Event_t>
-Event_t Atomic_sequencer<Event_t>::at(const Sequence_itr_t idx) const {
+Event_t Atomic_sequencer<Event_t>::at(const size_type idx) const {
   return sequence.at(idx);
 }
 
 template <Sequencable Event_t>
-void Atomic_sequencer<Event_t>::update(const Sequence_itr_t idx,
-                                       Event_t&& step) {
+void Atomic_sequencer<Event_t>::update(const size_type idx, Event_t&& step) {
   sequence.at(idx) = std::move(step);
 }
 
 template <Sequencable Event_t>
-void Atomic_sequencer<Event_t>::erase(const Sequence_itr_t idx) {
+void Atomic_sequencer<Event_t>::erase(const size_type idx) {
   if (idx < sequence.cbegin() || idx >= sequence.cend()) {
     throw std::out_of_range("Attempted to erase at an invalid index");
   }
