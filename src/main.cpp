@@ -1,6 +1,5 @@
 #include "sequencable/oscillation_event.h"
-#include "sequencer/atomic_sequencer.h"
-#include "sequencer/parallel_sequencer.tpp"
+#include "sequencer/multi_sequencer.tpp"
 #include "synth/synth.h"
 
 #include <chrono>
@@ -35,17 +34,12 @@ int main() {
   auto handler_1 = [&synth_1](const OscillationEvent& event) {
     synth_1.play(event);
   };
-  Atomic_sequencer<OscillationEvent, decltype(handler_1)> seqr_1{handler_1,
-                                                                 steps};
-  Atomic_sequencer<OscillationEvent, decltype(handler_1)> seqr_2{handler_1,
-                                                                 reverse_steps};
 
-  Atomic_deque<Atomic_sequencer<OscillationEvent, decltype(handler_1)>>
-      sequencers;
-  sequencers.push_back(seqr_1);
-  sequencers.push_back(seqr_2);
+  Atomic_deque<Atomic_deque<OscillationEvent>> sequences;
+  sequences.emplace_back(steps);
+  sequences.emplace_back(reverse_steps);
 
-  Parallel_sequencer<OscillationEvent, decltype(handler_1)> seqr{sequencers};
+  Multi_sequencer<OscillationEvent> seqr{handler_1, sequences};
 
   auto t_start = std::chrono::steady_clock::now();
   seqr.start();
