@@ -32,6 +32,7 @@ if(GTKMM_FOUND)
         src/graphical/sequencer_controller.cpp
         src/graphical/step_box_widget.cpp
         src/graphical/step_grid_widget.cpp
+        src/graphical/step_parameter_menu.cpp
         src/graphical/main_window.cpp
     )
 

@@ -28,9 +28,14 @@ void StepGridWidget::create_step_boxes() {
     for (std::size_t i = 0; i < m_num_steps; ++i) {
         auto step_box = std::make_unique<StepBoxWidget>(i);
 
-        // Connect to the step toggled signal
+        // Set controller for each step box
+        step_box->set_controller(m_controller);
+
+        // Connect to the step signals
         step_box->signal_step_toggled().connect(
             sigc::mem_fun(*this, &StepGridWidget::on_step_toggled));
+        step_box->signal_right_click().connect(
+            sigc::mem_fun(*this, &StepGridWidget::on_step_right_click));
 
         // Attach to grid
         attach(*step_box, static_cast<int>(i), 0, 1, 1);
@@ -96,6 +101,27 @@ void StepGridWidget::clear_current_step() {
         m_step_boxes[m_current_step]->set_current(false);
         m_has_current_step = false;
     }
+}
+
+void StepGridWidget::on_step_right_click(std::size_t step_index, int x, int y) {
+    show_parameter_menu_for_step(step_index, x, y);
+}
+
+void StepGridWidget::show_parameter_menu_for_step(std::size_t step_index, int x, int y) {
+    if (!m_controller) {
+        return;
+    }
+
+    // Close any existing menu
+    if (m_parameter_menu) {
+        m_parameter_menu->close_menu();
+    }
+
+    // Create new parameter menu for this step
+    m_parameter_menu = std::make_unique<StepParameterMenu>(m_controller, step_index);
+
+    // Show menu at the clicked position
+    m_parameter_menu->show_at_position(x, y);
 }
 
 } // namespace gui

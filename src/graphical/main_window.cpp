@@ -220,6 +220,21 @@ bool MainWindow::on_key_press_event(GdkEventKey* key_event) {
         return true; // Event handled
     }
 
+    // Handle Shift+Down to open parameter menu for step 1
+    if (key_event->keyval == GDK_KEY_Down && (key_event->state & GDK_SHIFT_MASK)) {
+        // For keyboard shortcut, open menu for the first step (index 0)
+        // Position it near the first step box
+        if (m_step_grid) {
+            // Get the position of the main window to position the menu
+            int win_x, win_y;
+            get_position(win_x, win_y);
+
+            // Show parameter menu for step 1 at a reasonable position
+            m_step_grid->show_parameter_menu_for_step(0, win_x + 100, win_y + 100);
+        }
+        return true; // Event handled
+    }
+
     // Let the base class handle other keys
     return Gtk::Window::on_key_press_event(key_event);
 }

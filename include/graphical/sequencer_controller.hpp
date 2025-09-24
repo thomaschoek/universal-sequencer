@@ -44,6 +44,14 @@ public:
     void clear_all_steps();
     std::size_t get_num_steps() const { return m_notes.size(); }
 
+    // Step parameter access
+    double get_step_frequency(std::size_t step_index) const;
+    void set_step_frequency(std::size_t step_index, double frequency);
+    double get_step_amplitude(std::size_t step_index) const;
+    void set_step_amplitude(std::size_t step_index, double amplitude);
+    double get_step_phase(std::size_t step_index) const;
+    void set_step_phase(std::size_t step_index, double phase);
+
     // Status
     bool is_sequencer_initialized() const { return m_sequencer != nullptr; }
 
@@ -63,6 +71,8 @@ private:
     // Step data
     std::vector<double> m_notes; // Musical notes (frequencies)
     std::array<bool, DEFAULT_NUM_STEPS> m_step_states; // Active/inactive states
+    std::array<double, DEFAULT_NUM_STEPS> m_amplitudes; // Step amplitudes
+    std::array<double, DEFAULT_NUM_STEPS> m_phases; // Step phases
 
     // Thread synchronization
     mutable std::mutex m_mutex;

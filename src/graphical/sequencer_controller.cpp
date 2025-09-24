@@ -26,6 +26,10 @@ SequencerController::SequencerController()
     // Initialize step states (all inactive by default)
     m_step_states.fill(false);
 
+    // Initialize amplitudes and phases with default values
+    m_amplitudes.fill(DEFAULT_AMPLITUDE);
+    m_phases.fill(DEFAULT_PHASE);
+
     initialize_sequencer();
 }
 
@@ -91,7 +95,7 @@ void SequencerController::create_default_sequence() {
     // Add active steps to the sequence
     for (std::size_t i = 0; i < m_step_states.size(); ++i) {
         if (m_step_states[i]) {
-            OscillationEvent event(m_notes[i], DEFAULT_AMPLITUDE, DEFAULT_PHASE);
+            OscillationEvent event(m_notes[i], m_amplitudes[i], m_phases[i]);
             m_sequence->push_back(std::move(event));
         }
     }
@@ -181,6 +185,87 @@ void SequencerController::clear_all_steps() {
     // Stop the sequencer outside of the lock to avoid deadlock
     if (was_running) {
         stop();
+    }
+}
+
+double SequencerController::get_step_frequency(std::size_t step_index) const {
+    if (step_index >= m_notes.size()) {
+        throw std::out_of_range("Step index out of range");
+    }
+    return m_notes[step_index];
+}
+
+void SequencerController::set_step_frequency(std::size_t step_index, double frequency) {
+    if (step_index >= m_notes.size()) {
+        throw std::out_of_range("Step index out of range");
+    }
+
+    bool was_running = false;
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_notes[step_index] = frequency;
+        was_running = is_running();
+    }
+
+    // Restart sequencer if it was running to apply changes
+    if (was_running) {
+        stop();
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        start();
+    }
+}
+
+double SequencerController::get_step_amplitude(std::size_t step_index) const {
+    if (step_index >= m_amplitudes.size()) {
+        throw std::out_of_range("Step index out of range");
+    }
+    return m_amplitudes[step_index];
+}
+
+void SequencerController::set_step_amplitude(std::size_t step_index, double amplitude) {
+    if (step_index >= m_amplitudes.size()) {
+        throw std::out_of_range("Step index out of range");
+    }
+
+    bool was_running = false;
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_amplitudes[step_index] = amplitude;
+        was_running = is_running();
+    }
+
+    // Restart sequencer if it was running to apply changes
+    if (was_running) {
+        stop();
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        start();
+    }
+}
+
+double SequencerController::get_step_phase(std::size_t step_index) const {
+    if (step_index >= m_phases.size()) {
+        throw std::out_of_range("Step index out of range");
+    }
+    return m_phases[step_index];
+}
+
+void SequencerController::set_step_phase(std::size_t step_index, double phase) {
+    if (step_index >= m_phases.size()) {
+        throw std::out_of_range("Step index out of range");
+    }
+
+    bool was_running = false;
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_phases[step_index] = phase;
+        was_running = is_running();
+    }
+
+    // Restart sequencer if it was running to apply changes
+    if (was_running) {
+        stop();
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        start();
     }
 }
 
