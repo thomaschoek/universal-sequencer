@@ -31,8 +31,12 @@ struct MainWindow::Impl {
     std::cout << "2. Stop Sequencer\n";
     std::cout << "3. Change Tempo\n";
     std::cout << "4. Edit Note Frequencies (0-7)\n";
-    std::cout << "5. Exit\n\n";
-    std::cout << "Enter your choice (1-5): ";
+    std::cout << "5. Add New Event\n";
+    std::cout << "6. Insert Event at Position\n";
+    std::cout << "7. Remove Event\n";
+    std::cout << "8. Remove Events Range\n";
+    std::cout << "9. Exit\n\n";
+    std::cout << "Enter your choice (1-9): ";
     std::cout.flush();
 
     needs_refresh = false;
@@ -123,12 +127,86 @@ bool MainWindow::process_events() {
     break;
   }
 
-  case 5:
+  case 5: {
+    std::cout << "Enter frequency (Hz): ";
+    double freq;
+    std::cout << "Enter amplitude (0.0-1.0): ";
+    double amp;
+    std::cout << "Enter phase (0.0-1.0): ";
+    double phase;
+    if (std::scanf("%lf", &freq) == 1 && freq > 0 &&
+        std::scanf("%lf", &amp) == 1 && amp >= 0 && amp <= 1 &&
+        std::scanf("%lf", &phase) == 1 && phase >= 0 && phase <= 1) {
+      if (on_add_event) {
+        on_add_event(freq, amp, phase);
+      }
+    } else {
+      std::cout << "Invalid values\n";
+    }
+    pimpl_->clear_input_buffer();
+    break;
+  }
+
+  case 6: {
+    std::cout << "Enter position to insert at: ";
+    int pos;
+    std::cout << "Enter frequency (Hz): ";
+    double freq;
+    std::cout << "Enter amplitude (0.0-1.0): ";
+    double amp;
+    std::cout << "Enter phase (0.0-1.0): ";
+    double phase;
+    if (std::scanf("%d", &pos) == 1 && pos >= 0 &&
+        std::scanf("%lf", &freq) == 1 && freq > 0 &&
+        std::scanf("%lf", &amp) == 1 && amp >= 0 && amp <= 1 &&
+        std::scanf("%lf", &phase) == 1 && phase >= 0 && phase <= 1) {
+      if (on_insert_event) {
+        on_insert_event(pos, freq, amp, phase);
+      }
+    } else {
+      std::cout << "Invalid values\n";
+    }
+    pimpl_->clear_input_buffer();
+    break;
+  }
+
+  case 7: {
+    std::cout << "Enter position to remove: ";
+    int pos;
+    if (std::scanf("%d", &pos) == 1 && pos >= 0) {
+      if (on_remove_event) {
+        on_remove_event(pos);
+      }
+    } else {
+      std::cout << "Invalid position\n";
+    }
+    pimpl_->clear_input_buffer();
+    break;
+  }
+
+  case 8: {
+    std::cout << "Enter first position: ";
+    int first;
+    std::cout << "Enter last position: ";
+    int last;
+    if (std::scanf("%d", &first) == 1 && first >= 0 &&
+        std::scanf("%d", &last) == 1 && last > first) {
+      if (on_remove_events_range) {
+        on_remove_events_range(first, last);
+      }
+    } else {
+      std::cout << "Invalid range\n";
+    }
+    pimpl_->clear_input_buffer();
+    break;
+  }
+
+  case 9:
     std::cout << "Exiting Micro_composer...\n";
     return false;
 
   default:
-    std::cout << "Invalid choice. Please select 1-5.\n";
+    std::cout << "Invalid choice. Please select 1-9.\n";
     break;
   }
 

@@ -109,9 +109,7 @@ template <Sequencable Event_t> void Atomic_sequencer<Event_t>::pop_back() {
   if (sequence.empty()) {
     throw std::out_of_range("Attempted to pop_back from an empty sequence");
   }
-  Event_t step = std::move(sequence.back());
   sequence.pop_back();
-  return step;
 }
 
 template <Sequencable Event_t> void Atomic_sequencer<Event_t>::pop_front() {
@@ -119,9 +117,7 @@ template <Sequencable Event_t> void Atomic_sequencer<Event_t>::pop_front() {
   if (sequence.empty()) {
     throw std::out_of_range("Attempted to pop_front from an empty sequence");
   }
-  Event_t step = std::move(sequence.front());
   sequence.pop_front();
-  return step;
 }
 
 // PRIVATE:
