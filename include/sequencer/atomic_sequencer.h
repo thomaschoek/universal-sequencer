@@ -16,9 +16,11 @@ using sequencable::Sequencable;
 
 template <Sequencable Event_t> class Atomic_sequencer {
 public:
-  using Handler_t = std::function<void(Event_t&&)>;
+  using Handler_t = typename std::function<void(Event_t&&)>;
   using clock = std::chrono::steady_clock;
-  using time_point = clock::time_point;
+  using time_point = typename clock::time_point;
+  using Sequence_t = typename atomic_deque::Atomic_deque<Event_t>;
+  using Sequence_itr_t = typename Sequence_t::iterator;
 
   explicit Atomic_sequencer(Handler_t handler) : event_handler(handler) {}
   Atomic_sequencer(Handler_t handler, atomic_deque::Atomic_deque<Event_t>& seq)
@@ -30,20 +32,21 @@ public:
 
   void push_back(Event_t&& step);
   void push_front(Event_t&& step);
-  void insert(std::size_t step_idx, Event_t&& step);
-  Event_t get(std::size_t step_idx) const;
-  void update(std::size_t step_idx, Event_t&& step_params);
-  void remove(std::size_t step_idx);
-  Event_t pop_back();
-  Event_t pop_front();
+  Sequence_itr_t insert(const Sequence_itr_t step_idx, Event_t&& step);
+  Event_t at(const Sequence_itr_t step_idx) const;
+  void update(const Sequence_itr_t step_idx, Event_t&& step_params);
+  void erase(const Sequence_itr_t step_idx);
+  void erase(const Sequence_itr_t first, const Sequence_itr_t last);
+  void pop_back();
+  void pop_front();
 
 private:
   void run(std::stop_token st, time_point start_time);
   Event_t next_event();
   Handler_t event_handler;
 
-  atomic_deque::Atomic_deque<Event_t>& sequence;
-  atomic_deque::Atomic_deque<Event_t>::iterator event_itr;
+  Sequence_t& sequence;
+  Sequence_itr_t event_itr;
 
   std::mutex mutex_;
   std::jthread thread_;

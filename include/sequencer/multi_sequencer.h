@@ -11,6 +11,7 @@ namespace sequencer {
 using sequencable::Sequencable;
 
 template <Sequencable Event_t> class Multi_sequencer {
+public:
   using Handler_t = Atomic_sequencer<Event_t>::Handler_t;
   using Sequence_t = atomic_deque::Atomic_deque<Event_t>;
   using Sequence_deque = atomic_deque::Atomic_deque<Sequence_t>;
@@ -19,8 +20,8 @@ template <Sequencable Event_t> class Multi_sequencer {
   using Sequencer_time_point = Atomic_sequencer<Event_t>::time_point;
   using Sequencer_vec = std::vector<std::unique_ptr<Sequencer_t>>;
 
-public:
-  explicit Multi_sequencer(std::vector<Handler_t>, std::vector<Sequence_t>);
+  explicit Multi_sequencer(Sequencer_vec);
+  Multi_sequencer(std::vector<Handler_t>, std::vector<Sequence_t>);
   void start(Sequencer_time_point = Sequencer_clock::now());
   void stop();
 

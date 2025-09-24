@@ -6,6 +6,10 @@ namespace Micro_composer {
 namespace sequencer {
 
 template <Sequencable Event_t>
+Multi_sequencer<Event_t>::Multi_sequencer(Sequencer_vec s_vec)
+    : parallel_sequencers{s_vec} {}
+
+template <Sequencable Event_t>
 Multi_sequencer<Event_t>::Multi_sequencer(std::vector<Handler_t> handlers,
                                           std::vector<Sequence_t> sequences) {
   if (handlers.size() != sequences.size()) {

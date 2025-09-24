@@ -10,16 +10,12 @@ namespace atomic_deque {
 
 template <typename T> class Atomic_deque : public std::deque<T> {
 public:
-  using base_type = std::deque<T>;
+  using base_type = typename std::deque<T>;
   using value_type = typename base_type::value_type;
   using size_type = typename base_type::size_type;
   using iterator = typename base_type::iterator;
   using const_iterator = typename base_type::const_iterator;
 
-protected:
-  mutable std::mutex mutex_;
-
-public:
   // Constructors
   Atomic_deque() = default;
   explicit Atomic_deque(size_type count);
@@ -58,6 +54,9 @@ public:
   const T& operator[](size_type pos) const;
 
   std::scoped_lock<std::mutex> lock() const;
+
+private:
+  mutable std::mutex mutex_;
 };
 
 } // namespace atomic_deque

@@ -1,5 +1,4 @@
 #include "sequencer/atomic_sequencer.tpp"
-#include "utils/atomic_deque.tpp"
 #include <catch2/catch_test_macros.hpp>
 #include <chrono>
 #include <thread>

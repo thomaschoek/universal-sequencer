@@ -71,39 +71,40 @@ inline void Atomic_sequencer<Event_t>::push_front(Event_t&& step) {
 }
 
 template <Sequencable Event_t>
-inline void Atomic_sequencer<Event_t>::insert(std::size_t index,
-                                              Event_t&& step) {
-  if (index > sequence.size()) {
-    throw std::out_of_range("Index out of range in insert_step");
-  }
-  sequence.insert(sequence.begin() + index, std::move(step));
+inline Atomic_sequencer<Event_t>::Sequence_itr_t
+Atomic_sequencer<Event_t>::insert(const Sequence_itr_t idx, Event_t&& step) {
+  sequence.insert(sequence.cbegin() + idx, std::move(step));
 }
 
 template <Sequencable Event_t>
-Event_t Atomic_sequencer<Event_t>::get(std::size_t index) const {
-  if (index >= sequence.size()) {
-    throw std::out_of_range("Index out of range in get_step");
-  }
-  return sequence[index];
+Event_t Atomic_sequencer<Event_t>::at(const Sequence_itr_t idx) const {
+  return sequence.at(idx);
 }
 
 template <Sequencable Event_t>
-void Atomic_sequencer<Event_t>::update(std::size_t index, Event_t&& step) {
-  if (index >= sequence.size()) {
-    throw std::out_of_range("Index out of range in update_step");
-  }
-  sequence[index] = std::move(step);
+void Atomic_sequencer<Event_t>::update(const Sequence_itr_t idx,
+                                       Event_t&& step) {
+  sequence.at(idx) = std::move(step);
 }
 
 template <Sequencable Event_t>
-void Atomic_sequencer<Event_t>::remove(std::size_t index) {
-  if (index >= sequence.size()) {
-    throw std::out_of_range("Index out of range in remove_step");
+void Atomic_sequencer<Event_t>::erase(const Sequence_itr_t idx) {
+  if (idx < sequence.cbegin() || idx >= sequence.cend()) {
+    throw std::out_of_range("Attempted to erase at an invalid index");
   }
-  sequence.erase(sequence.begin() + index);
+  sequence.erase(sequence.cbegin() + idx);
 }
 
-template <Sequencable Event_t> Event_t Atomic_sequencer<Event_t>::pop_back() {
+template <Sequencable Event_t>
+void Atomic_sequencer<Event_t>::erase(const Sequence_itr_t first,
+                                      const Sequence_itr_t last) {
+  if (first < sequence.cbegin() || last > sequence.cend() || first >= last) {
+    throw std::out_of_range("Attempted to erase at an invalid range");
+  }
+  sequence.erase(sequence.cbegin() + first, sequence.cbegin() + last);
+}
+
+template <Sequencable Event_t> void Atomic_sequencer<Event_t>::pop_back() {
   std::scoped_lock{sequence.lock()};
   if (sequence.empty()) {
     throw std::out_of_range("Attempted to pop_back from an empty sequence");
@@ -113,7 +114,7 @@ template <Sequencable Event_t> Event_t Atomic_sequencer<Event_t>::pop_back() {
   return step;
 }
 
-template <Sequencable Event_t> Event_t Atomic_sequencer<Event_t>::pop_front() {
+template <Sequencable Event_t> void Atomic_sequencer<Event_t>::pop_front() {
   std::scoped_lock{sequence.lock()};
   if (sequence.empty()) {
     throw std::out_of_range("Attempted to pop_front from an empty sequence");
@@ -182,7 +183,7 @@ template <Sequencable Event_t> Event_t Atomic_sequencer<Event_t>::next_event() {
     throw std::out_of_range(
         "Attempted to get next event from an empty sequence");
   }
-  if (event_itr >= sequence.end() || event_itr < sequence.begin()) {
+  if (event_itr >= sequence.cend() || event_itr < sequence.cbegin()) {
     event_itr = sequence.begin();
   }
   // Return a copy of the current step's value, then increment the step iterator
