@@ -162,11 +162,17 @@ bool SequencerController::has_current_step() const {
 }
 
 void SequencerController::clear_all_steps() {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    bool was_running = false;
 
-    m_step_states.fill(false);
+    // Clear step states and check if sequencer was running
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_step_states.fill(false);
+        was_running = is_running();
+    }
 
-    if (is_running()) {
+    // Stop the sequencer outside of the lock to avoid deadlock
+    if (was_running) {
         stop();
     }
 }
