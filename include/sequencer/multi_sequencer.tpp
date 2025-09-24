@@ -5,17 +5,16 @@ namespace Micro_composer {
 namespace sequencer {
 
 template <Sequencable Event_t>
-Multi_sequencer<Event_t>::Multi_sequencer(Handler_t handler,
-                                          Sequence_deque sequences) {
-  for (auto& seq : sequences) {
-    parallel_sequencers.emplace_back(handler, seq);
+Multi_sequencer<Event_t>::Multi_sequencer(std::vector<Handler_t> handlers,
+                                          std::vector<Sequence_t> sequences) {
+  if (handlers.size() != sequences.size()) {
+    throw std::invalid_argument(
+        "Number of handlers must match number of sequences");
+  }
+  for (std::size_t i = 0; i < handlers.size(); ++i) {
+    parallel_sequencers.emplace_back(handlers[i], sequences[i]);
   }
 }
-
-template <Sequencable Event_t>
-Multi_sequencer<Event_t>::Multi_sequencer(Handler_t handler,
-                                          unsigned int n_parallel)
-    : parallel_sequencers{n_parallel, Sequencer_t{handler}} {}
 
 template <Sequencable Event_t>
 void Multi_sequencer<Event_t>::start(Sequencer_time_point common_start_time) {

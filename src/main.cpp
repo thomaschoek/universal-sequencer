@@ -3,8 +3,10 @@
 #include "synth/synth.h"
 
 #include <chrono>
+#include <functional>
 #include <iostream>
 #include <thread>
+#include <vector>
 
 int main() {
   using namespace Micro_composer::sequencer;
@@ -31,15 +33,21 @@ int main() {
 
   RealTimeAudioOutput synth_out_1, synth_out_2;
   Synthesizer synth_1{synth_out_1}, synth_2{synth_out_2};
-  auto handler_1 = [&synth_1](const OscillationEvent& event) {
-    synth_1.play(event);
+  std::function<void(OscillationEvent)> handler_1 =
+      [&synth_1](const OscillationEvent& event) { synth_1.play(event); };
+  decltype(handler_1) handler_2 = [&synth_2](const OscillationEvent& event) {
+    synth_2.play(event);
   };
 
-  Atomic_deque<Atomic_deque<OscillationEvent>> sequences;
+  std::vector<Atomic_deque<OscillationEvent>> sequences;
   sequences.emplace_back(steps);
   sequences.emplace_back(reverse_steps);
 
-  Multi_sequencer<OscillationEvent> seqr{handler_1, sequences};
+  std::vector<decltype(handler_1)> handlers;
+  handlers.emplace_back(handler_1);
+  handlers.emplace_back(handler_2);
+
+  Multi_sequencer<OscillationEvent> seqr{handlers, sequences};
 
   auto t_start = std::chrono::steady_clock::now();
   seqr.start();
