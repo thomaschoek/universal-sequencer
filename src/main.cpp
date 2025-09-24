@@ -1,6 +1,6 @@
 #include "sequencable/oscillation_event.h"
 #include "sequencer/multi_sequencer.tpp"
-#include "synth/synth.h"
+#include "synth/synth.tpp"
 
 #include <chrono>
 #include <functional>
@@ -35,10 +35,12 @@ int main() {
   Synthesizer synth_1{synth_out_1}, synth_2{synth_out_2};
   std::function<void(OscillationEvent&&)> handler_1 =
       [&synth_1](const OscillationEvent&& event) {
-        synth_1.play(std::move(event));
+        std::ignore = std::async(std::launch::async,
+                                 [&synth_1, event]() { synth_1.play(event); });
       };
   decltype(handler_1) handler_2 = [&synth_2](const OscillationEvent&& event) {
-    synth_2.play(std::move(event));
+    std::ignore = std::async(std::launch::async,
+                             [&synth_2, event]() { synth_2.play(event); });
   };
 
   std::vector<Atomic_deque<OscillationEvent>> sequences;
