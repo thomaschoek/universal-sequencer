@@ -25,6 +25,9 @@ protected:
     void on_clear_clicked();
     void update_status();
 
+    // Keyboard event handlers
+    bool on_key_press_event(GdkEventKey* key_event) override;
+
     // Child widgets
     Gtk::Box m_main_box;
     Gtk::Box m_control_box;

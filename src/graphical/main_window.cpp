@@ -3,6 +3,7 @@
 #include <gtkmm/settings.h>
 #include <gtkmm/cssprovider.h>
 #include <gdkmm/screen.h>
+#include <gdk/gdkkeysyms.h>
 #include <glibmm/main.h>
 #include <iostream>
 
@@ -21,6 +22,11 @@ MainWindow::MainWindow(std::shared_ptr<SequencerController> controller)
     set_title("Micro Composer - Step Sequencer");
     set_default_size(600, 200);
     set_resizable(true);
+
+    // Enable keyboard events
+    set_can_focus(true);
+    grab_focus();
+    add_events(Gdk::KEY_PRESS_MASK);
 
     // Create step grid
     m_step_grid = std::make_unique<StepGridWidget>(m_controller);
@@ -173,6 +179,49 @@ bool MainWindow::on_timeout() {
     update_status();
 
     return true; // Continue calling this function
+}
+
+bool MainWindow::on_key_press_event(GdkEventKey* key_event) {
+    if (!m_controller) {
+        return Gtk::Window::on_key_press_event(key_event);
+    }
+
+    // Handle number keys 1-8 for step toggling
+    if (key_event->keyval >= GDK_KEY_1 && key_event->keyval <= GDK_KEY_8) {
+        std::size_t step_index = key_event->keyval - GDK_KEY_1; // Convert to 0-based index
+
+        if (step_index < m_controller->get_num_steps()) {
+            try {
+                bool current_state = m_controller->is_step_active(step_index);
+                m_controller->set_step_active(step_index, !current_state);
+
+                // Update the visual display
+                if (m_step_grid) {
+                    m_step_grid->update_display();
+                }
+            } catch (const std::exception& e) {
+                std::cerr << "Error toggling step " << (step_index + 1) << ": " << e.what() << std::endl;
+            }
+        }
+        return true; // Event handled
+    }
+
+    // Handle spacebar for play/stop
+    if (key_event->keyval == GDK_KEY_space) {
+        try {
+            if (m_controller->is_running()) {
+                on_stop_clicked();
+            } else {
+                on_play_clicked();
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "Error handling play/stop: " << e.what() << std::endl;
+        }
+        return true; // Event handled
+    }
+
+    // Let the base class handle other keys
+    return Gtk::Window::on_key_press_event(key_event);
 }
 
 } // namespace gui
