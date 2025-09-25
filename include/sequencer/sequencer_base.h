@@ -13,7 +13,7 @@ public:
   using time_point = typename clock::time_point;
 
   virtual ~Sequencer_base() noexcept = default;
-  virtual void start() = 0;
+  virtual void start(time_point) = 0;
   virtual void stop() = 0;
   virtual bool is_running() const = 0;
 };
