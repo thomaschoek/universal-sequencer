@@ -8,15 +8,20 @@ namespace sequencer {
 
 // CRUD
 template <Sequencable Event_t>
-void Multi_sequencer<Event_t>::add_sequence(Handler_t handler,
-                                            Sequence_t&& seq) {
-  sequencers_.emplace_back(
-      std::make_unique<Sequencer_t>(handler, std::move(seq)));
+void Multi_sequencer::add_sequence(
+    std::function<void(Event_t&&)> handler,
+    sequence::Atomic_step_sequence<Event_t>&& seq) {
+  using Sequencer_t = Atomic_sequencer<Event_t>;
+  auto sequencer = std::make_unique<Sequencer_t>(handler, std::move(seq));
+  sequencers_.emplace_back(std::move(sequencer));
+}
+
+void Multi_sequencer::add_sequence(std::unique_ptr<Sequencer_base>&& seqr) {
+  sequencers_.emplace_back(std::move(seqr));
 }
 
 // Control
-template <Sequencable Event_t>
-void Multi_sequencer<Event_t>::start(Sequencer_time_point common_start_time) {
+void Multi_sequencer::start(Sequencer_time_point common_start_time) {
   // Launch all sequencers asynchronously with the same start time
   std::vector<std::future<void>> futures;
   futures.reserve(sequencers_.size());
@@ -32,7 +37,7 @@ void Multi_sequencer<Event_t>::start(Sequencer_time_point common_start_time) {
   }
 }
 
-template <Sequencable Event_t> void Multi_sequencer<Event_t>::stop() {
+template <Sequencable Event_t> void Multi_sequencer::stop() {
   std::vector<std::future<void>> futures;
   futures.reserve(sequencers_.size());
 
