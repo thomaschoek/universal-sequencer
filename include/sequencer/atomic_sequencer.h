@@ -23,10 +23,9 @@ public:
   using size_type = typename Sequence_t::size_type;
   using Sequence_itr_t = typename Sequence_t::iterator;
 
-  Atomic_sequencer();
-  explicit Atomic_sequencer(Handler_t handler) : event_handler(handler) {}
-  Atomic_sequencer(Handler_t handler, Sequence_t& seq)
-      : event_handler(handler), sequence_(std::make_unique<Sequence_t>(seq)) {}
+  Atomic_sequencer() = default;
+  explicit Atomic_sequencer(Handler_t handler);
+  Atomic_sequencer(Handler_t handler, Sequence_t&& seq);
 
   void start(time_point start_time = clock::now());
   void stop();
@@ -46,7 +45,7 @@ private:
   void run(std::stop_token st, time_point start_time);
   Handler_t event_handler;
 
-  std::unique_ptr<Sequence_t> sequence_;
+  std::unique_ptr<Sequence_t> sequence_{std::make_unique<Sequence_t>()};
 
   std::mutex mutex_;
   std::jthread thread_;

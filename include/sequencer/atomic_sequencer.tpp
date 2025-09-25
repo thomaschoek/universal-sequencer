@@ -11,7 +11,13 @@ namespace sequencer {
 // PUBLIC:
 // Constructors
 
-template <Sequencable Event_t> Atomic_sequencer<Event_t>::Atomic_sequencer() {}
+template <Sequencable Event_t>
+Atomic_sequencer<Event_t>::Atomic_sequencer(Handler_t handler)
+    : event_handler(handler) {}
+
+template <Sequencable Event_t>
+Atomic_sequencer<Event_t>::Atomic_sequencer(Handler_t handler, Sequence_t&& seq)
+    : event_handler(handler), sequence_(std::make_unique<Sequence_t>(seq)) {}
 
 // Control
 
