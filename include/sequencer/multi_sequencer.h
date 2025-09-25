@@ -1,32 +1,27 @@
 #ifndef MICRO_COMPOSER_MULTI_SEQUENCER_H
 #define MICRO_COMPOSER_MULTI_SEQUENCER_H
 
-#include "sequencer/atomic_sequencer.h"
+#include "sequencer/sequencer_base.h"
 #include <memory>
 
 namespace Micro_composer {
 
 namespace sequencer {
 
-using sequencable::Sequencable;
-
-template <Sequencable Event_t> class Multi_sequencer {
+class Multi_sequencer {
 public:
-  using Handler_t = Atomic_sequencer<Event_t>::Handler_t;
-  using Sequence_t = sequence::Atomic_step_sequence<Event_t>;
-  using Sequence_deque = atomic_deque::Atomic_deque<Sequence_t>;
-  using Sequencer_t = Atomic_sequencer<Event_t>;
-  using Sequencer_clock = Atomic_sequencer<Event_t>::clock;
-  using Sequencer_time_point = Atomic_sequencer<Event_t>::time_point;
-  using Sequencer_vec = std::vector<std::unique_ptr<Sequencer_t>>;
+  using Sequencer_clock = Sequencer_base::clock;
+  using Sequencer_time_point = Sequencer_base::time_point;
+  using Sequencer_vec = std::vector<std::unique_ptr<Sequencer_base>>;
 
-  explicit Multi_sequencer(Sequencer_vec);
-  Multi_sequencer(std::vector<Handler_t>, std::vector<Sequence_t>);
   void start(Sequencer_time_point = Sequencer_clock::now());
   void stop();
 
+  void add_sequence(std::unique_ptr<Sequencer_base>&& seq);
+
 private:
-  Sequencer_vec parallel_sequencers;
+  // Sequencers managed by this multi-sequencer that run in parallel
+  Sequencer_vec sequencers_;
 };
 
 } // namespace sequencer

@@ -3,7 +3,7 @@
 
 #include "sequencable/concept.h"
 #include "sequence/atomic_step_sequence.h"
-#include <chrono>
+#include "sequencer_base.h"
 #include <functional>
 #include <mutex>
 #include <thread>
@@ -12,13 +12,10 @@ namespace Micro_composer {
 
 namespace sequencer {
 
-using sequencable::Sequencable;
-
-template <Sequencable Event_t> class Atomic_sequencer {
+template <sequencable::Sequencable Event_t>
+class Atomic_sequencer : public Sequencer_base {
 public:
   using Handler_t = typename std::function<void(Event_t&&)>;
-  using clock = std::chrono::steady_clock;
-  using time_point = typename clock::time_point;
   using Sequence_t = typename sequence::Atomic_step_sequence<Event_t>;
   using size_type = typename Sequence_t::size_type;
   using Sequence_itr_t = typename Sequence_t::iterator;

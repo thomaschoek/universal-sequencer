@@ -8,7 +8,7 @@ namespace Micro_composer {
 
 namespace controller {
 
-template <Sequencer Sequencer_t> class Sequencer_controller {
+template <Sequencer Sequencer_ct> class Sequencer_controller {
 public:
   Sequencer_controller();
 
@@ -18,7 +18,7 @@ public:
   // etc.
 
 private:
-  std::unique_ptr<Sequencer_t> sequencer_;
+  std::unique_ptr<Sequencer_ct> sequencer_;
   // Audio components, UI state, etc.
 };
 

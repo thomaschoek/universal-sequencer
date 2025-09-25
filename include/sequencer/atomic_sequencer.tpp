@@ -8,6 +8,8 @@ namespace Micro_composer {
 
 namespace sequencer {
 
+using sequencable::Sequencable;
+
 // PUBLIC:
 // Constructors
 
