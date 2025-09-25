@@ -1,4 +1,0 @@
-- rename Sequencer to StepSequencer
-- make simple methods inline
-- add an output to the Sequencer
-- write to the output during trigger
