@@ -14,6 +14,8 @@ int main() {
   using namespace Micro_composer::sequence;
 
   Multi_sequencer seqr;
+  RealTimeAudioOutput synth_out_1, synth_out_2;
+  Synthesizer synth_1{synth_out_1}, synth_2{synth_out_2};
   {
     Atomic_step_sequence<OscillationEvent> steps;
 
@@ -32,9 +34,6 @@ int main() {
     for (auto it = steps.rbegin(); it != steps.rend(); ++it) {
       reverse_steps.push_back(*it);
     }
-
-    RealTimeAudioOutput synth_out_1, synth_out_2;
-    Synthesizer synth_1{synth_out_1}, synth_2{synth_out_2};
     std::function<void(OscillationEvent&&)> handler_1 =
         [&synth_1](const OscillationEvent&& event) {
           std::ignore = std::async(

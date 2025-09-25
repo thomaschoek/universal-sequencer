@@ -20,12 +20,13 @@ public:
   using handler_t = typename std::function<void(Step_t&&)>;
 
   Atomic_step_sequence() = default;
-  Atomic_step_sequence(const Atomic_deque<Step_t>& deque) : base_t(deque) {}
+  explicit Atomic_step_sequence(const Atomic_deque<Step_t>& deque)
+      : base_t(deque) {}
 
   Step_t next();
 
 private:
-  step_itr_t iterator_;
+  step_itr_t iterator_{base_t::begin()};
 };
 
 } // namespace sequence

@@ -43,7 +43,8 @@ void Atomic_sequencer<Event_t>::start(time_point start_time) {
     std::this_thread::sleep_for(std::chrono::seconds{1});
   }
 
-  thread_ = std::jthread(&Atomic_sequencer::run, this, start_time);
+  thread_ = std::jthread(
+      [this, start_time](std::stop_token st) { this->run(st, start_time); });
 }
 
 template <Sequencable Event_t> void Atomic_sequencer<Event_t>::stop() {
@@ -85,7 +86,7 @@ inline void Atomic_sequencer<Event_t>::push_front(Event_t&& step) {
 template <Sequencable Event_t>
 inline Atomic_sequencer<Event_t>::Sequence_itr_t
 Atomic_sequencer<Event_t>::insert(const size_type idx, Event_t&& step) {
-  sequence_->insert(sequence_->cbegin() + idx, std::move(step));
+  return sequence_->insert(sequence_->cbegin() + idx, std::move(step));
 }
 
 template <Sequencable Event_t>
@@ -100,7 +101,7 @@ void Atomic_sequencer<Event_t>::update(const size_type idx, Event_t&& step) {
 
 template <Sequencable Event_t>
 void Atomic_sequencer<Event_t>::erase(const size_type idx) {
-  if (idx < sequence_->cbegin() || idx >= sequence_->cend()) {
+  if (idx >= sequence_->size()) {
     throw std::out_of_range("Attempted to erase at an invalid index");
   }
   sequence_->erase(sequence_->cbegin() + idx);
@@ -113,7 +114,7 @@ void Atomic_sequencer<Event_t>::erase(const Sequence_itr_t first,
       first >= last) {
     throw std::out_of_range("Attempted to erase at an invalid range");
   }
-  sequence_->erase(sequence_->cbegin() + first, sequence_->cbegin() + last);
+  sequence_->erase(first, last);
 }
 
 template <Sequencable Event_t> void Atomic_sequencer<Event_t>::pop_back() {
