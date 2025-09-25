@@ -66,7 +66,7 @@ private:
     std::unique_ptr<Atomic_sequencer<OscillationEvent>> m_sequencer;
 
     // Sequencer data
-    std::unique_ptr<atomic_deque::Atomic_deque<OscillationEvent>> m_sequence;
+    std::unique_ptr<sequence::Atomic_step_sequence<OscillationEvent>> m_sequence;
 
     // Step data
     std::vector<double> m_notes; // Musical notes (frequencies)

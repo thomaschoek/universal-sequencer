@@ -45,7 +45,7 @@ void SequencerController::initialize_sequencer() {
         m_synthesizer = std::make_unique<Synthesizer>(*m_synth_output);
 
         // Create the sequence first
-        m_sequence = std::make_unique<atomic_deque::Atomic_deque<OscillationEvent>>();
+        m_sequence = std::make_unique<sequence::Atomic_step_sequence<OscillationEvent>>();
 
         auto handler = create_event_handler();
         m_sequencer = std::make_unique<Atomic_sequencer<OscillationEvent>>(handler, *m_sequence);

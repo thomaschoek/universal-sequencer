@@ -53,7 +53,7 @@ private:
 };
 
 TEST_CASE("Async AtomicSequencer timing precision", "[async_sequencer]") {
-  atomic_deque::Atomic_deque<TestEvent> sequence;
+  sequence::Atomic_step_sequence<TestEvent> sequence;
 
   // Add test events with specific IDs
   sequence.push_back({1});
@@ -113,7 +113,7 @@ TEST_CASE("Async AtomicSequencer timing precision", "[async_sequencer]") {
 
 TEST_CASE("Async processing doesn't block sequencer timing",
           "[async_sequencer]") {
-  atomic_deque::Atomic_deque<TestEvent> sequence;
+  sequence::Atomic_step_sequence<TestEvent> sequence;
 
   // Add events with short intervals
   for (int i = 0; i < 10; ++i) {
