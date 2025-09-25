@@ -1,3 +1,4 @@
+#include "sequencer/atomic_sequencer.tpp"
 #include "sequencer/multi_sequencer.h"
 #include <future>
 

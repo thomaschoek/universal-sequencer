@@ -16,10 +16,14 @@ class Atomic_step_sequence : public Atomic_deque<Step_t> {
 public:
   using base_t = Atomic_deque<Step_t>;
   using step_itr_t = typename Atomic_deque<Step_t>::iterator;
+
+  Atomic_step_sequence() = default;
+  Atomic_step_sequence(const Atomic_deque<Step_t>& deque) : base_t(deque) {}
+
   Step_t next();
 
 private:
-  const step_itr_t iterator_;
+  step_itr_t iterator_;
 };
 
 } // namespace sequence

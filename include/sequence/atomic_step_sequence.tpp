@@ -1,4 +1,5 @@
 #include "atomic_step_sequence.h"
+#include "utils/atomic_deque.tpp"
 
 namespace Micro_composer {
 
@@ -11,7 +12,7 @@ template <Sequencable Step_t> Step_t Atomic_step_sequence<Step_t>::next() {
   }
   base_t::lock();
   if (iterator_ >= base_t::cend() || iterator_ < base_t::cbegin()) {
-    iterator_ = base_t::cbegin();
+    iterator_ = base_t::begin();
   }
   // Return a copy of the current step's value, then increment the step iterator
   return *iterator_++;

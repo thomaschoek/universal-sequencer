@@ -2,7 +2,7 @@
 #define MICRO_COMPOSER_ATOMIC_EVENT_SEQUENCER_H
 
 #include "sequencable/concept.h"
-#include "utils/atomic_deque.h"
+#include "sequence/atomic_step_sequence.h"
 #include <chrono>
 #include <functional>
 #include <mutex>
@@ -19,13 +19,14 @@ public:
   using Handler_t = typename std::function<void(Event_t&&)>;
   using clock = std::chrono::steady_clock;
   using time_point = typename clock::time_point;
-  using Sequence_t = typename atomic_deque::Atomic_deque<Event_t>;
+  using Sequence_t = typename sequence::Atomic_step_sequence<Event_t>;
   using size_type = typename Sequence_t::size_type;
   using Sequence_itr_t = typename Sequence_t::iterator;
 
+  Atomic_sequencer();
   explicit Atomic_sequencer(Handler_t handler) : event_handler(handler) {}
-  Atomic_sequencer(Handler_t handler, atomic_deque::Atomic_deque<Event_t>& seq)
-      : event_handler(handler), sequence(seq) {}
+  Atomic_sequencer(Handler_t handler, Sequence_t& seq)
+      : event_handler(handler), sequence_(std::make_unique<Sequence_t>(seq)) {}
 
   void start(time_point start_time = clock::now());
   void stop();
@@ -43,11 +44,9 @@ public:
 
 private:
   void run(std::stop_token st, time_point start_time);
-  Event_t next_event();
   Handler_t event_handler;
 
-  Sequence_t& sequence;
-  Sequence_itr_t event_itr;
+  std::unique_ptr<Sequence_t> sequence_;
 
   std::mutex mutex_;
   std::jthread thread_;

@@ -11,9 +11,9 @@
 int main() {
   using namespace Micro_composer::sequencer;
   using namespace Micro_composer::synth;
-  using namespace Micro_composer::atomic_deque;
   using namespace Micro_composer::sequencable;
-  Atomic_deque<OscillationEvent> steps;
+  using namespace Micro_composer::sequence;
+  Atomic_step_sequence<OscillationEvent> steps;
 
   // Add some steps with different frequencies (musical notes)
   // Each step: offset, duration, {frequency, amplitude, phase}
@@ -26,7 +26,7 @@ int main() {
   steps.push_back(OscillationEvent{493.88}); // B4
   steps.push_back(OscillationEvent{523.25}); // C5
 
-  Atomic_deque<OscillationEvent> reverse_steps;
+  Atomic_step_sequence<OscillationEvent> reverse_steps;
   for (auto it = steps.rbegin(); it != steps.rend(); ++it) {
     reverse_steps.push_back(*it);
   }
@@ -43,7 +43,8 @@ int main() {
                              [&synth_2, event]() { synth_2.play(event); });
   };
 
-  std::vector<Atomic_deque<OscillationEvent>> sequences;
+  std::vector<Micro_composer::sequence::Atomic_step_sequence<OscillationEvent>>
+      sequences;
   sequences.emplace_back(steps);
   sequences.emplace_back(reverse_steps);
 
