@@ -16,22 +16,22 @@ void Multi_sequencer::add_seq(std::function<void(Event_t&&)> handler,
       std::make_unique<Atomic_sequencer<Event_t>>(handler, std::move(seq)));
 }
 
-void Multi_sequencer::add_seq(std::unique_ptr<Sequencer_base>&& seqr) {
+void Multi_sequencer::add_seq(Seq_ptr_t&& seqr) {
   sequencers_.emplace_back(std::move(seqr));
 }
 
-void Multi_sequencer::drop_seq(Seqr_idx idx) {
+void Multi_sequencer::drop_seq(const Seq_idx idx) {
   if (idx >= sequencers_.size()) {
     throw std::out_of_range(
         "Attempted to remove a sequencer at an invalid index");
   }
-  sequencers_.erase(sequencers_.begin() + idx);
+  sequencers_.erase(sequencers_.cbegin() + idx);
 }
 
 // Steps
 
 template <Sequencable Event_t>
-void Multi_sequencer::push_back(Seqr_idx idx, Event_t&& event) {
+void Multi_sequencer::push_step_back(const Seq_idx idx, Event_t&& event) {
   auto seqr =
       static_cast<Atomic_sequencer<Event_t>*>(sequencers_.at(idx).get());
 
@@ -42,7 +42,7 @@ void Multi_sequencer::push_back(Seqr_idx idx, Event_t&& event) {
 }
 
 template <Sequencable Event_t>
-void Multi_sequencer::push_front(Seqr_idx idx, Event_t&& event) {
+void Multi_sequencer::push_step_front(const Seq_idx idx, Event_t&& event) {
   auto seqr =
       static_cast<Atomic_sequencer<Event_t>*>(sequencers_.at(idx).get());
 
@@ -52,7 +52,8 @@ void Multi_sequencer::push_front(Seqr_idx idx, Event_t&& event) {
   seqr->push_front(std::move(event));
 }
 
-template <Sequencable Event_t> void Multi_sequencer::pop_back(Seqr_idx idx) {
+template <Sequencable Event_t>
+void Multi_sequencer::pop_step_back(const Seq_idx idx) {
   auto seqr =
       static_cast<Atomic_sequencer<Event_t>*>(sequencers_.at(idx).get());
 
@@ -62,7 +63,8 @@ template <Sequencable Event_t> void Multi_sequencer::pop_back(Seqr_idx idx) {
   seqr->pop_back();
 }
 
-template <Sequencable Event_t> void Multi_sequencer::pop_front(Seqr_idx idx) {
+template <Sequencable Event_t>
+void Multi_sequencer::pop_step_front(const Seq_idx idx) {
   auto seqr =
       static_cast<Atomic_sequencer<Event_t>*>(sequencers_.at(idx).get());
 
@@ -73,8 +75,8 @@ template <Sequencable Event_t> void Multi_sequencer::pop_front(Seqr_idx idx) {
 }
 
 template <Sequencable Event_t>
-void Multi_sequencer::insert(Seqr_idx idx, Step_idx step_index,
-                             Event_t&& event) {
+void Multi_sequencer::insert_step(const Seq_idx idx, const Step_idx step_index,
+                                  Event_t&& event) {
   auto seqr =
       static_cast<Atomic_sequencer<Event_t>*>(sequencers_.at(idx).get());
 
@@ -85,8 +87,8 @@ void Multi_sequencer::insert(Seqr_idx idx, Step_idx step_index,
 }
 
 template <Sequencable Event_t>
-void Multi_sequencer::update(Seqr_idx idx, Step_idx step_index,
-                             Event_t&& event) {
+void Multi_sequencer::set_step(const Seq_idx idx, const Step_idx step_index,
+                               Event_t&& event) {
   auto seqr =
       static_cast<Atomic_sequencer<Event_t>*>(sequencers_.at(idx).get());
 
@@ -97,7 +99,7 @@ void Multi_sequencer::update(Seqr_idx idx, Step_idx step_index,
 }
 
 template <Sequencable Event_t>
-void Multi_sequencer::erase(Seqr_idx idx, Step_idx step_index) {
+void Multi_sequencer::erase_step(const Seq_idx idx, const Step_idx step_index) {
   auto seqr =
       static_cast<Atomic_sequencer<Event_t>*>(sequencers_.at(idx).get());
 
@@ -107,8 +109,22 @@ void Multi_sequencer::erase(Seqr_idx idx, Step_idx step_index) {
   seqr->erase(step_index);
 }
 
+template <Sequencable Event_t>
+void Multi_sequencer::erase_steps(const Seq_idx seq_idx, const Step_idx first,
+                                  const Step_idx last) {
+  auto seqr =
+      static_cast<Atomic_sequencer<Event_t>*>(sequencers_.at(seq_idx).get());
+
+  assert(dynamic_cast<Atomic_sequencer<Event_t>*>(
+             sequencers_.at(seq_idx).get()) == seqr);
+
+  auto begin_itr = seqr->cbegin();
+
+  seqr->erase(begin_itr + first, begin_itr + last);
+}
+
 // Control
-void Multi_sequencer::start_all(Sequencer_time_point common_start_time) {
+void Multi_sequencer::start_all(const Sequencer_time_point common_start_time) {
   // Launch all sequencers asynchronously with the same start time
   std::vector<std::future<void>> futures;
   futures.reserve(sequencers_.size());
@@ -141,12 +157,14 @@ void Multi_sequencer::stop_all() {
   }
 }
 
-inline void Multi_sequencer::start(Seqr_idx idx,
-                                   Sequencer_time_point start_time) {
+inline void Multi_sequencer::start(const Seq_idx idx,
+                                   const Sequencer_time_point start_time) {
   sequencers_.at(idx)->start(start_time);
 }
 
-inline void Multi_sequencer::stop(Seqr_idx idx) { sequencers_.at(idx)->stop(); }
+inline void Multi_sequencer::stop(const Seq_idx idx) {
+  sequencers_.at(idx)->stop();
+}
 
 } // namespace sequencer
 
