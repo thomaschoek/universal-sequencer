@@ -20,7 +20,7 @@ void Multi_sequencer::add_seq(std::unique_ptr<Sequencer_base>&& seqr) {
   sequencers_.emplace_back(std::move(seqr));
 }
 
-void Multi_sequencer::remove_seq(Seqr_idx idx) {
+void Multi_sequencer::drop_seq(Seqr_idx idx) {
   if (idx >= sequencers_.size()) {
     throw std::out_of_range(
         "Attempted to remove a sequencer at an invalid index");
@@ -73,7 +73,7 @@ template <Sequencable Event_t> void Multi_sequencer::pop_front(Seqr_idx idx) {
 }
 
 template <Sequencable Event_t>
-void Multi_sequencer::insert(Seqr_idx idx, std::size_t step_index,
+void Multi_sequencer::insert(Seqr_idx idx, Step_idx step_index,
                              Event_t&& event) {
   auto seqr =
       static_cast<Atomic_sequencer<Event_t>*>(sequencers_.at(idx).get());
@@ -85,7 +85,7 @@ void Multi_sequencer::insert(Seqr_idx idx, std::size_t step_index,
 }
 
 template <Sequencable Event_t>
-void Multi_sequencer::update(Seqr_idx idx, std::size_t step_index,
+void Multi_sequencer::update(Seqr_idx idx, Step_idx step_index,
                              Event_t&& event) {
   auto seqr =
       static_cast<Atomic_sequencer<Event_t>*>(sequencers_.at(idx).get());
@@ -97,7 +97,7 @@ void Multi_sequencer::update(Seqr_idx idx, std::size_t step_index,
 }
 
 template <Sequencable Event_t>
-void Multi_sequencer::erase(Seqr_idx idx, std::size_t step_index) {
+void Multi_sequencer::erase(Seqr_idx idx, Step_idx step_index) {
   auto seqr =
       static_cast<Atomic_sequencer<Event_t>*>(sequencers_.at(idx).get());
 
