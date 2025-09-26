@@ -22,29 +22,29 @@ public:
   void add_seq(std::function<void(Event_t&&)>,
                sequence::Atomic_step_sequence<Event_t>&& = {});
   void add_seq(Seq_ptr_t&&);
-  void select_seq(Seq_idx);
+  void select_seq(const Seq_idx);
   void select_seq_next();
   void select_seq_prev();
   void toggle_seq_current();
-  void drop_seq(Seq_idx);
+  void drop_seq(const Seq_idx);
   void drop_seq_current();
 
-  void push_step_back(Seq_idx, Sequencable auto&&);
-  void push_step_front(Seq_idx, Sequencable auto&&);
-  template <Sequencable Event_t> void pop_step_back(Seq_idx);
-  template <Sequencable Event_t> void pop_step_front(Seq_idx);
+  template <Sequencable Event_t> void push_step_back(const Seq_idx, Event_t&&);
+  template <Sequencable Event_t> void push_step_front(const Seq_idx, Event_t&&);
+  template <Sequencable Event_t> void pop_step_back(const Seq_idx);
+  template <Sequencable Event_t> void pop_step_front(const Seq_idx);
   void select_step(Step_idx);
   void select_step_next();
   void select_step_prev();
-  void set_step(Seq_idx, Step_idx, Sequencable auto&&);
+  void set_step(const Seq_idx, Step_idx, Sequencable auto&&);
   void set_step_current(sequencable::Sequencable auto&&);
   void toggle_step_current();
   void drop_step_current();
 
-  void start_all(Sequencer_time_point = Sequencer_clock::now());
+  void start_all(Seq_time_point = Sequencer_clock::now());
   void stop_all();
-  void start(Seq_idx, Sequencer_time_point = Sequencer_clock::now());
-  void stop(Seq_idx);
+  void start(const Seq_idx, Seq_time_point = Sequencer_clock::now());
+  void stop(const Seq_idx);
 
 private:
   Seq_idx seq_idx_{0};

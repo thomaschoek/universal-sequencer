@@ -10,6 +10,7 @@ namespace sequencable {
 struct Event {
   std::chrono::duration<double> offset{std::chrono::duration<double>(0.0)};
   std::chrono::duration<double> duration{std::chrono::duration<double>(0.25)};
+  bool enabled;
 };
 
 static_assert(Sequencable<Event>, "Event does not satisfy Sequencable concept");

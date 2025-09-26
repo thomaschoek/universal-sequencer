@@ -19,7 +19,7 @@ Atomic_sequencer<Event_t>::Atomic_sequencer(Handler_t handler)
 
 template <Sequencable Event_t>
 Atomic_sequencer<Event_t>::Atomic_sequencer(Handler_t handler, Sequence_t&& seq)
-    : event_handler(handler), sequence_(std::make_unique<Sequence_t>(seq)) {}
+    : event_handler(handler), sequence_(seq) {}
 
 // Control
 
@@ -38,7 +38,7 @@ void Atomic_sequencer<Event_t>::start(time_point start_time) {
     return;
   }
 
-  while (sequence_->empty()) {
+  while (sequence_.empty()) {
     // Wait until user adds something to the sequence
     std::this_thread::sleep_for(std::chrono::seconds{1});
   }
@@ -71,64 +71,82 @@ inline bool Atomic_sequencer<Event_t>::is_running() const {
   return thread_.joinable();
 }
 
+template <Sequencable Event_t>
+Atomic_sequencer<Event_t>::size_type
+Atomic_sequencer<Event_t>::size() const noexcept {
+  return sequence_.size();
+}
+
 // CRUD
 
 template <Sequencable Event_t>
 inline void Atomic_sequencer<Event_t>::push_back(Event_t&& step) {
-  sequence_->push_back(std::move(step));
+  sequence_.push_back(std::move(step));
 }
 
 template <Sequencable Event_t>
 inline void Atomic_sequencer<Event_t>::push_front(Event_t&& step) {
-  sequence_->push_front(std::move(step));
+  sequence_.push_front(std::move(step));
 }
 
 template <Sequencable Event_t>
 inline Atomic_sequencer<Event_t>::Sequence_itr_t
 Atomic_sequencer<Event_t>::insert(const size_type idx, Event_t&& step) {
-  return sequence_->insert(sequence_->cbegin() + idx, std::move(step));
+  return sequence_.insert(sequence_.cbegin() + idx, std::move(step));
 }
 
 template <Sequencable Event_t>
-Event_t Atomic_sequencer<Event_t>::at(const size_type idx) const {
-  return sequence_->at(idx);
+const Atomic_sequencer<Event_t>::Base_event_t*
+Atomic_sequencer<Event_t>::at(const size_type idx) const {
+  return &sequence_.at(idx);
 }
 
 template <Sequencable Event_t>
 void Atomic_sequencer<Event_t>::update(const size_type idx, Event_t&& step) {
-  sequence_->at(idx) = std::move(step);
+  sequence_.at(idx) = std::move(step);
 }
 
 template <Sequencable Event_t>
 void Atomic_sequencer<Event_t>::erase(const size_type idx) {
-  if (idx >= sequence_->size()) {
+  if (idx >= sequence_.size()) {
     throw std::out_of_range("Attempted to erase at an invalid index");
   }
-  sequence_->erase(sequence_->cbegin() + idx);
+  sequence_.erase(sequence_.cbegin() + idx);
 }
 
 template <Sequencable Event_t>
 void Atomic_sequencer<Event_t>::erase(const Sequence_itr_t first,
                                       const Sequence_itr_t last) {
-  if (first < sequence_->cbegin() || last > sequence_->cend() ||
-      first >= last) {
+  if (first < sequence_.cbegin() || last > sequence_.cend() || first >= last) {
     throw std::out_of_range("Attempted to erase at an invalid range");
   }
-  sequence_->erase(first, last);
+  sequence_.erase(first, last);
 }
 
 template <Sequencable Event_t> void Atomic_sequencer<Event_t>::pop_back() {
-  if (sequence_->empty()) {
+  if (sequence_.empty()) {
     throw std::out_of_range("Attempted to pop_back from an empty sequence");
   }
-  sequence_->pop_back();
+  sequence_.pop_back();
 }
 
 template <Sequencable Event_t> void Atomic_sequencer<Event_t>::pop_front() {
-  if (sequence_->empty()) {
+  if (sequence_.empty()) {
     throw std::out_of_range("Attempted to pop_front from an empty sequence");
   }
-  sequence_->pop_front();
+  sequence_.pop_front();
+}
+
+template <Sequencable Event_t>
+void Atomic_sequencer<Event_t>::toggle(Step_idx idx) {
+  Event_t& step = sequence_.at(idx);
+  step.enabled = !step.enabled;
+}
+
+template <Sequencable Event_t> void Atomic_sequencer<Event_t>::toggle_all() {
+  for (Event_t& step : sequence_) {
+    step.enabled = !step.enabled;
+  }
 }
 
 // PRIVATE:
@@ -153,7 +171,7 @@ void Atomic_sequencer<Event_t>::run(std::stop_token st, time_point start_time) {
   try {
 
     Event_t event_buffer;
-    event_buffer = sequence_->next();
+    event_buffer = sequence_.next();
 
     std::chrono::time_point<clock, std::chrono::duration<double>> event_time =
         start_time;
@@ -174,7 +192,7 @@ void Atomic_sequencer<Event_t>::run(std::stop_token st, time_point start_time) {
       // Move current event buffer to event handler
       event_handler(std::move(event_buffer));
       // Load next event into buffer
-      event_buffer = sequence_->next();
+      event_buffer = sequence_.next();
       // Next event should be scheduled after current event completes
       event_time += duration_cache;
     }

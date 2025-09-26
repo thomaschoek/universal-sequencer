@@ -16,17 +16,21 @@ using sequencable::Sequencable;
 
 class Multi_sequencer {
 public:
-  using Sequencer_clock = Sequencer_base::clock;
-  using Sequencer_time_point = Sequencer_base::time_point;
-  using Seq_ptr_t = std::unique_ptr<Sequencer_base>;
-  using Sequencer_vec = std::vector<Seq_ptr_t>;
-  using Seq_idx = Sequencer_vec::size_type;
+  using Sequencer_clock = Controllable_sequencer::clock;
+  using Seq_time_point = Controllable_sequencer::time_point;
+  using Base_sequencer_t = Controllable_sequencer;
+  using Seq_ptr_t = std::unique_ptr<Base_sequencer_t>;
+  using Sequence_vec = std::vector<Seq_ptr_t>;
+  using Seq_idx = Sequence_vec::size_type;
   using Step_idx = std::size_t;
 
   template <Sequencable Event_t>
   void add_seq(std::function<void(Event_t&&)>,
                sequence::Atomic_step_sequence<Event_t>&& = {});
-  void add_seq(std::unique_ptr<Sequencer_base>&&);
+  void add_seq(std::unique_ptr<Controllable_sequencer>&&);
+  const Sequence_vec::size_type n_seqs() const noexcept;
+  const Seq_ptr_t& get_seq(const Seq_idx) const;
+  const Sequence_vec& get_all_seqs() const noexcept;
   void drop_seq(const Seq_idx);
 
   void push_step_back(const Seq_idx, Sequencable auto&&);
@@ -37,18 +41,19 @@ public:
   void set_step(const Seq_idx, const Step_idx, Sequencable auto&&);
   template <Sequencable Event_t> void erase_step(const Seq_idx, const Step_idx);
   template <Sequencable Event_t>
-  void erase_steps(Seq_idx, const Step_idx first, const Step_idx last);
+  void erase_steps(const Seq_idx, const Step_idx first, const Step_idx last);
+  void toggle_step(const Seq_idx, const Step_idx);
+  void toggle_steps(const Seq_idx, const Step_idx);
 
-  void start_all(const Sequencer_time_point = Sequencer_clock::now());
+  void start_all(const Seq_time_point = Sequencer_clock::now());
   void stop_all();
 
-  void start(const Seq_idx,
-             const Sequencer_time_point = Sequencer_clock::now());
+  void start(const Seq_idx, const Seq_time_point = Sequencer_clock::now());
   void stop(const Seq_idx);
 
 private:
   // Sequencers managed by this multi-sequencer that run in parallel
-  Sequencer_vec sequencers_;
+  Sequence_vec sequences_;
 };
 
 } // namespace sequencer
