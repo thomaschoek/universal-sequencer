@@ -2,7 +2,7 @@
 #define MICRO_COMPOSER_ATOMIC_EVENT_SEQUENCER_H
 
 #include "sequencable/concept.h"
-#include "utils/atomic_deque.h"
+#include "sequence/atomic_ring_deque.h"
 #include <chrono>
 #include <functional>
 #include <mutex>
@@ -13,44 +13,33 @@ namespace Micro_composer {
 namespace sequencer {
 
 using sequencable::Sequencable;
+using sequence::Atomic_ring_deque;
 
-template <Sequencable Event_t> class Atomic_sequencer {
+template <Sequencable Event_t>
+class Atomic_sequencer : public Atomic_ring_deque<Event_t> {
 public:
+  using Base_t = Atomic_ring_deque<Event_t>;
   using Handler_t = typename std::function<void(Event_t&&)>;
-  using clock = std::chrono::steady_clock;
-  using time_point = typename clock::time_point;
+  using Clock = std::chrono::steady_clock;
+  using Time_point = typename Clock::time_point;
   using Sequence_t = typename atomic_deque::Atomic_deque<Event_t>;
-  using size_type = typename Sequence_t::size_type;
-  using Sequence_itr_t = typename Sequence_t::iterator;
+  using Size_t = typename Sequence_t::size_type;
+  using Itr_t = typename Sequence_t::iterator;
 
-  explicit Atomic_sequencer(Handler_t handler) : event_handler(handler) {}
+  explicit Atomic_sequencer(Handler_t handler) : handler_(handler) {}
   Atomic_sequencer(Handler_t handler, atomic_deque::Atomic_deque<Event_t>& seq)
-      : event_handler(handler), sequence(seq) {}
+      : handler_(handler), Base_t(seq) {}
 
-  void start(time_point start_time = clock::now());
-  void stop();
   bool is_running() const;
-
-  void push_back(Event_t&& step);
-  void push_front(Event_t&& step);
-  Sequence_itr_t insert(const size_type step_idx, Event_t&& step);
-  Event_t at(const size_type step_idx) const;
-  void update(const size_type step_idx, Event_t&& step_params);
-  void erase(const size_type step_idx);
-  void erase(const Sequence_itr_t first, const Sequence_itr_t last);
-  void pop_back();
-  void pop_front();
+  void start(Time_point start_time = Clock::now());
+  void stop();
 
 private:
-  void run(std::stop_token st, time_point start_time);
-  Event_t next_event();
-  Handler_t event_handler;
+  void run(std::stop_token st, Time_point start_time);
+  std::jthread runner_thread_;
+  Handler_t handler_;
 
-  Sequence_t& sequence;
-  Sequence_itr_t event_itr;
-
-  std::mutex mutex_;
-  std::jthread thread_;
+  std::mutex transport_mutex_;
 };
 
 } // namespace sequencer
