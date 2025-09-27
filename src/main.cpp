@@ -1,5 +1,5 @@
 #include "sequencable/oscillation_event.h"
-#include "sequencer/multi_sequencer.tpp"
+#include "sequencer/matrix_sequencer.tpp"
 #include "synth/synth.tpp"
 
 #include <chrono>
@@ -51,13 +51,13 @@ int main() {
   handlers.emplace_back(handler_1);
   handlers.emplace_back(handler_2);
 
-  Multi_sequencer<OscillationEvent> seqr{handlers, sequences};
+  Matrix_sequencer seqr;
 
   auto t_start = std::chrono::steady_clock::now();
-  seqr.start();
+  seqr.start_all();
 
   std::this_thread::sleep_for(std::chrono::seconds(30));
-  seqr.stop();
+  seqr.stop_all();
 
   auto t_end = std::chrono::steady_clock::now();
 
