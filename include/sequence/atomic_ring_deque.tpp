@@ -1,17 +1,17 @@
-#include "atomic_step_sequence.h"
+#include "atomic_ring_deque.h"
 
 namespace Micro_composer {
 
 namespace sequence {
 
-template <Sequencable Step_t> Step_t Atomic_step_sequence<Step_t>::next() {
-  if (base_t::empty()) {
+template <Sequencable Step_t> Step_t Atomic_ring_deque<Step_t>::next() {
+  if (Base_t::empty()) {
     throw std::out_of_range(
         "Attempted to get next event from an empty sequence");
   }
-  base_t::lock();
-  if (iterator_ >= base_t::cend() || iterator_ < base_t::cbegin()) {
-    iterator_ = base_t::cbegin();
+  Base_t::lock();
+  if (iterator_ >= Base_t::cend() || iterator_ < Base_t::cbegin()) {
+    iterator_ = Base_t::cbegin();
   }
   // Return a copy of the current step's value, then increment the step iterator
   return *iterator_++;
