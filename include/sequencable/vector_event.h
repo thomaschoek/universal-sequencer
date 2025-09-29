@@ -7,12 +7,10 @@ namespace Micro_composer {
 
 namespace sequencable {
 
-struct Vector_event : public Event {
-  std::vector<double> parameters;
+template <typename T> struct Vector_event : public Event {
+  std::vector<T> parameters;
+  void update(size_t idx, T&& value) { parameters.at(idx, std::move(value)); };
 };
-
-static_assert(Sequencable<Vector_event>,
-              "VectorEvent does not satisfy Sequencable concept");
 
 } // namespace sequencable
 

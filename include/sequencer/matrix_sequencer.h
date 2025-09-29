@@ -16,7 +16,7 @@ public:
   using Vector_event = sequencable::Vector_event;
   using Sequencer = Atomic_sequencer<Vector_event>;
   using Sequencer_vector = std::vector<Sequencer>;
-  using Sequence = Sequencer::Sequence;
+  using Steps = Sequencer::Base_steps;
   using Seq_idx = Sequencer_vector::size_type;
   using Handler = Sequencer::Handler;
   using Sequence_initializer_list = Sequencer::Initializer_list;
@@ -33,7 +33,7 @@ public:
   void add_sequence(Sequence_initializer_list);
   void add_sequence(Sequence_initializer_list, Handler);
 
-  const Sequence& get(Seq_idx) const;
+  const Steps& get(Seq_idx) const;
 
   void assign(Seq_idx, std::initializer_list<Vector_event>);
 

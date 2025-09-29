@@ -1,7 +1,7 @@
 #ifndef MICRO_COMPOSER_EVENT_H
 #define MICRO_COMPOSER_EVENT_H
 
-#include "sequencable/concept.h"
+#include "sequencable/concepts.h"
 
 namespace Micro_composer {
 
