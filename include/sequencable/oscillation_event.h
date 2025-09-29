@@ -7,7 +7,7 @@ namespace Micro_composer {
 
 namespace sequencable {
 
-struct OscillationEvent : public Event {
+struct Oscillation_event : public Event {
   using Event_offset_t = decltype(Event::offset);
   using Event_duration_t = decltype(Event::duration);
   double frequency{440.0}; // Frequency in Hz
@@ -15,18 +15,24 @@ struct OscillationEvent : public Event {
   double phase{0.0};       // Phase in radians
 
   // Default constructor
-  OscillationEvent() = default;
+  Oscillation_event() = default;
 
-  explicit OscillationEvent(double freq, double amp = 0.5, double ph = 0.0)
+  explicit Oscillation_event(double freq, double amp = 0.5, double ph = 0.0)
       : Event(), frequency(freq), amplitude(amp), phase(ph) {}
 
-  explicit OscillationEvent(double freq, double amp, double ph,
-                            Event_offset_t offset, Event_duration_t duration)
+  explicit Oscillation_event(double freq, double amp, double ph,
+                             Event_offset_t offset, Event_duration_t duration)
       : Event{offset, duration}, frequency(freq), amplitude(amp), phase(ph) {}
+
+  void update(double freq = 440.0, double amp = 0.5, double ph = 0.0) {
+    frequency = freq;
+    amplitude = amp;
+    phase = ph;
+  }
 };
 
-static_assert(Sequencable<OscillationEvent>,
-              "OscillationEvent does not satisfy Sequencable concept");
+static_assert(Sequencable_updatable<Oscillation_event>,
+              "Oscillation_event does not satisfy Sequencable concept");
 
 } // namespace sequencable
 
