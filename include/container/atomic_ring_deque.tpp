@@ -1,12 +1,14 @@
-#include "ring_deque.h"
+#include "container/atomic_deque.tpp"
+#include "container/atomic_ring_deque.h"
 #include <stdexcept>
 
 namespace Micro_composer {
 
 namespace container {
 
-template <typename Step_t> Step_t Ring_deque<Step_t>::next() {
-  if (Base_deque::empty()) {
+template <typename T> T Atomic_ring_deque<T>::next() {
+  std::scoped_lock lck = Atomic_deque<T>::get_lock();
+  if (Base_deque::Base_deque::empty()) {
     throw std::out_of_range(
         "Attempted to get next event from an empty sequence");
   }
@@ -18,5 +20,4 @@ template <typename Step_t> Step_t Ring_deque<Step_t>::next() {
 }
 
 } // namespace container
-
 } // namespace Micro_composer

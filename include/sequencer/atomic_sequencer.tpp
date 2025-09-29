@@ -1,4 +1,4 @@
-#include "container/ring_deque.tpp"
+#include "container/atomic_ring_deque.tpp"
 #include "sequencer/atomic_sequencer.h"
 
 #include <exception>
@@ -13,20 +13,20 @@ namespace sequencer {
 
 template <Sequencable_updatable Event_t>
 Atomic_sequencer<Event_t>::Atomic_sequencer(const Atomic_sequencer& other)
-    : handler_(other.handler_), Base_steps(other.steps_) {}
+    : handler_(other.handler_), Base_deque(other.steps_) {}
 
 template <Sequencable_updatable Event_t>
 Atomic_sequencer<Event_t>::Atomic_sequencer(Atomic_sequencer&& other) noexcept
-    : handler_(std::move(other.handler_)), Base_steps(std::move(other)) {}
+    : handler_(std::move(other.handler_)), Base_deque(std::move(other)) {}
 
 template <Sequencable_updatable Event_t>
 Atomic_sequencer<Event_t>::Atomic_sequencer(Handler handler)
-    : handler_(handler), Base_steps() {}
+    : handler_(handler), Base_deque() {}
 
 template <Sequencable_updatable Event_t>
 Atomic_sequencer<Event_t>::Atomic_sequencer(Initializer_list seq,
                                             Handler handler)
-    : handler_(handler), Base_steps(seq) {}
+    : handler_(handler), Base_deque(seq) {}
 
 // Assignment
 template <Sequencable_updatable Event_t>
@@ -35,7 +35,7 @@ Atomic_sequencer<Event_t>::operator=(const Atomic_sequencer& other) {
   if (this != &other) {
     std::scoped_lock lck{mutex_};
     handler_ = other.handler_;
-    Base_steps::operator=(other);
+    Base_deque::operator=(other);
   }
   return *this;
 }
@@ -62,7 +62,7 @@ void Atomic_sequencer<Event_t>::start(Time_point start_time) {
     return;
   }
 
-  while (Base_steps::empty()) {
+  while (Base_deque::empty()) {
     // Wait until user adds something to the sequence
     std::this_thread::sleep_for(std::chrono::seconds{1});
   }
@@ -97,154 +97,6 @@ void Atomic_sequencer<Event_t>::set_handler(const Handler handler) {
   handler_ = handler;
 }
 
-template <Sequencable_updatable Event_t>
-void Atomic_sequencer<Event_t>::assign(Initializer_list seq) {
-  std::scoped_lock lck{mutex_};
-  Base_steps::assign(seq);
-}
-
-// CRUD Operations
-
-template <Sequencable_updatable Event_t>
-void Atomic_sequencer<Event_t>::push_back(const Event_t& value) {
-  std::scoped_lock lck{mutex_};
-  Base_steps::push_back(value);
-}
-
-template <Sequencable_updatable Event_t>
-void Atomic_sequencer<Event_t>::push_back(Event_t&& value) {
-  std::scoped_lock lck{mutex_};
-  Base_steps::push_back(std::move(value));
-}
-
-template <Sequencable_updatable Event_t>
-void Atomic_sequencer<Event_t>::push_front(const Event_t& value) {
-  std::scoped_lock lck{mutex_};
-  Base_steps::push_front(value);
-}
-
-template <Sequencable_updatable Event_t>
-void Atomic_sequencer<Event_t>::push_front(Event_t&& value) {
-  std::scoped_lock lck{mutex_};
-  Base_steps::push_front(std::move(value));
-}
-
-template <Sequencable_updatable Event_t>
-void Atomic_sequencer<Event_t>::insert(Step_idx pos, const Event_t& value) {
-  std::scoped_lock lck{mutex_};
-  if (pos > Base_steps::size()) {
-    throw std::out_of_range(
-        "[ERROR] In Atomic_sequencer::insert: Position out of range.");
-  }
-  Base_steps::insert(pos, value);
-}
-
-template <Sequencable_updatable Event_t>
-void Atomic_sequencer<Event_t>::insert(Step_idx pos, Event_t&& value) {
-  std::scoped_lock lck{mutex_};
-  if (pos > Base_steps::size()) {
-    throw std::out_of_range(
-        "[ERROR] In Atomic_sequencer::insert: Position out of range.");
-  }
-  Base_steps::insert(pos, std::move(value));
-}
-
-template <Sequencable_updatable Event_t>
-void Atomic_sequencer<Event_t>::replace(Step_idx pos, const Event_t& value) {
-  std::scoped_lock lck{mutex_};
-  if (pos >= Base_steps::size()) {
-    throw std::out_of_range(
-        "[ERROR] In Atomic_sequencer::replace: Position out of range.");
-  }
-  this[pos] = value;
-}
-
-template <Sequencable_updatable Event_t>
-void Atomic_sequencer<Event_t>::replace(Step_idx pos, Event_t&& value) {
-  std::scoped_lock lck{mutex_};
-  if (pos >= Base_steps::size()) {
-    throw std::out_of_range(
-        "[ERROR] In Atomic_sequencer::replace: Position out of range.");
-  }
-  this[pos] = std::move(value);
-}
-
-template <Sequencable_updatable Event_t>
-template <typename... Args>
-void Atomic_sequencer<Event_t>::update(Step_idx pos, Args... args) {
-  std::scoped_lock lck{mutex_};
-  Base_steps::at(pos).update(args...);
-}
-
-template <Sequencable_updatable Event_t>
-void Atomic_sequencer<Event_t>::pop_back() {
-  std::scoped_lock lck{mutex_};
-  Base_steps::pop_back();
-}
-
-template <Sequencable_updatable Event_t>
-void Atomic_sequencer<Event_t>::pop_front() {
-  std::scoped_lock lck{mutex_};
-  Base_steps::pop_front();
-}
-
-template <Sequencable_updatable Event_t>
-void Atomic_sequencer<Event_t>::erase(Step_idx pos) {
-  std::scoped_lock lck{mutex_};
-  if (pos >= Base_steps::size()) {
-    throw std::out_of_range(
-        "[ERROR] In Atomic_sequencer::erase: Position out of range.");
-  }
-  Base_steps::erase(pos);
-}
-
-template <Sequencable_updatable Event_t>
-void Atomic_sequencer<Event_t>::clear() noexcept {
-  std::scoped_lock lck{mutex_};
-  Base_steps::clear();
-}
-
-template <Sequencable_updatable Event_t>
-inline Atomic_sequencer<Event_t>::Step_idx
-Atomic_sequencer<Event_t>::size() const noexcept {
-  std::scoped_lock lck{mutex_};
-  return Base_steps::size();
-}
-
-template <Sequencable_updatable Event_t>
-inline bool Atomic_sequencer<Event_t>::empty() const noexcept {
-  std::scoped_lock lck{mutex_};
-  return Base_steps::empty();
-}
-
-template <Sequencable_updatable Event_t>
-inline Event_t Atomic_sequencer<Event_t>::front() {
-  std::scoped_lock lck{mutex_};
-  return Base_steps::front();
-}
-
-template <Sequencable_updatable Event_t>
-inline Event_t Atomic_sequencer<Event_t>::back() {
-  std::scoped_lock lck{mutex_};
-  return Base_steps::back();
-}
-
-template <Sequencable_updatable Event_t>
-inline Event_t Atomic_sequencer<Event_t>::at(Step_idx pos) {
-  // Thread-safe at; rather than Event_t&, return a copy of Base_steps::at(pos)
-  // to prevent exposing a reference whose value might be deleted by another
-  // thread.
-  std::scoped_lock lck{mutex_};
-  return Base_steps::at(pos);
-}
-
-template <Sequencable_updatable Event_t>
-inline const Atomic_sequencer<Event_t>::Base_steps&
-Atomic_sequencer<Event_t>::steps() const {
-  std::scoped_lock lck{mutex_};
-  return *this;
-}
-
 // PRIVATE:
 
 template <Sequencable_updatable Event_t>
@@ -267,7 +119,7 @@ void Atomic_sequencer<Event_t>::run(std::stop_token st, Time_point start_time) {
   try {
 
     Event_t event_buffer;
-    event_buffer = Base_steps::next();
+    event_buffer = Base_deque::next();
 
     std::chrono::time_point<Clock, std::chrono::duration<double>> event_time =
         start_time;
@@ -288,7 +140,7 @@ void Atomic_sequencer<Event_t>::run(std::stop_token st, Time_point start_time) {
       // Move current event buffer to event handler
       handler_(std::move(event_buffer));
       // Load next event into buffer
-      event_buffer = Base_steps::next();
+      event_buffer = Base_deque::next();
       // Next event should be scheduled after current event completes
       event_time += duration_cache;
     }

@@ -16,7 +16,7 @@ public:
   using Vector_event = sequencable::Vector_event<T_event_params>;
   using Sequencer = Atomic_sequencer<Vector_event>;
   using Sequencer_vector = std::vector<Sequencer>;
-  using Steps = Sequencer::Base_steps;
+  using Steps = Sequencer::Base_deque;
   using Seq_idx = Sequencer_vector::size_type;
   using Step_idx = Sequencer::Step_idx;
   using Handler = Sequencer::Handler;
