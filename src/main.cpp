@@ -83,6 +83,9 @@ int main() {
   });
   std::this_thread::sleep_for(std::chrono::seconds(4));
   seqr.update(7, 100, 1.0, 0.1);
+  std::this_thread::sleep_for(std::chrono::seconds(3));
+
+  seqr.set_duration(std::chrono::milliseconds(100));
   std::this_thread::sleep_for(std::chrono::seconds(10));
 
   seqr.stop();
