@@ -59,11 +59,17 @@ void Atomic_sequencer<Event_t>::start(Time_point start_time) {
 #endif
   std::scoped_lock lck{mutex_};
   if (is_running()) {
+#ifndef NDEBUG
+    std::cout << "ALREADY RUNNING BRO!" << std::endl;
+#endif
     return;
   }
 
   while (Base_deque::empty()) {
-    // Wait until user adds something to the sequence
+// Wait until user adds something to the sequence
+#ifndef NDEBUG
+    std::cout << "I CAN HAZ STEPS? NO! IS EMPTY!" << std::endl;
+#endif
     std::this_thread::sleep_for(std::chrono::seconds{1});
   }
 

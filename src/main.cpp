@@ -55,9 +55,36 @@ int main() {
   Atomic_sequencer<Oscillation_event> seqr;
 
   auto t_start = std::chrono::steady_clock::now();
+
+  seqr.assign({
+      Oscillation_event{261.63}, // C4
+      Oscillation_event{293.66}, // D4
+      Oscillation_event{329.63}, // E4
+      Oscillation_event{349.23}, // F4
+      Oscillation_event{392.00}, // G4
+      Oscillation_event{440.00}, // A4
+      Oscillation_event{493.88}, // B4
+      Oscillation_event{523.25}, // C5
+  });
+
+  seqr.set_handler(handler_1);
   seqr.start();
 
-  std::this_thread::sleep_for(std::chrono::seconds(30));
+  std::this_thread::sleep_for(std::chrono::seconds(4));
+  seqr.assign({
+      Oscillation_event{320.63}, // C4
+      Oscillation_event{293.66}, // D4
+      Oscillation_event{329.63}, // E4
+      Oscillation_event{349.23}, // F4
+      Oscillation_event{800.00}, // G4
+      Oscillation_event{440.00}, // A4
+      Oscillation_event{493.88}, // B4
+      Oscillation_event{523.25}, // C5
+  });
+  std::this_thread::sleep_for(std::chrono::seconds(4));
+  seqr.update(7, 100, 1.0, 0.1);
+  std::this_thread::sleep_for(std::chrono::seconds(10));
+
   seqr.stop();
 
   auto t_end = std::chrono::steady_clock::now();
