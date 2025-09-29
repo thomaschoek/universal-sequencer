@@ -2,8 +2,8 @@
 #define MICRO_COMPOSER_ATOMIC_EVENT_SEQUENCER_H
 
 #include "abstract.h"
-#include "sequencable/concept.h"
-#include "sequence/atomic_ring_deque.h"
+#include "container/ring_deque.h"
+#include "sequencable/concepts.h"
 #include <chrono>
 #include <functional>
 #include <initializer_list>
@@ -14,20 +14,21 @@ namespace Micro_composer {
 
 namespace sequencer {
 
-using sequencable::Sequencable;
-using sequence::Atomic_ring_deque;
+using sequencable::Sequencable_updatable;
 
-template <Sequencable Event_t>
-class Atomic_sequencer : public abstract::Sequencer {
+template <Sequencable_updatable Event_t>
+class Atomic_sequencer : public abstract::Sequencer,
+                         private container::Ring_deque<Event_t> {
 public:
-  using Sequence = Atomic_ring_deque<Event_t>;
+  using Base_steps = container::Ring_deque<Event_t>;
   using Handler = std::function<void(Event_t&&)>;
   using Clock = std::chrono::steady_clock;
   using Time_point = Clock::time_point;
-  using Step_idx = Sequence::size_type;
-  using Step_iterator = Sequence::iterator;
+  using Step_idx = Base_steps::size_type;
+  using Step_iterator = Base_steps::iterator;
   using Initializer_list = std::initializer_list<Event_t>;
 
+  // Constructors
   Atomic_sequencer() = default;
   Atomic_sequencer(const Atomic_sequencer&);
   Atomic_sequencer& operator=(const Atomic_sequencer&);
@@ -36,48 +37,49 @@ public:
   explicit Atomic_sequencer(Handler);
   Atomic_sequencer(Initializer_list, Handler);
 
+  // Thread-safe transport control
   bool is_running() const override;
   void start(Time_point start_time = Clock::now()) override;
   void stop() override;
 
+  // Thread-safe CRUD operations
   void set_handler(const Handler);
   void assign(Initializer_list);
 
-  // Thread-safe operations
   void push_back(const Event_t&);
   void push_back(Event_t&&);
   void push_front(const Event_t&);
   void push_front(Event_t&&);
 
-  Step_iterator insert(Step_idx, const Event_t&);
-  Step_iterator insert(Step_idx, Event_t&&);
+  void insert(Step_idx, const Event_t&);
+  void insert(Step_idx, Event_t&&);
+
+  template <typename... Args> void update(Step_idx, Args...);
+  void replace(Step_idx, const Event_t&);
+  void replace(Step_idx, Event_t&&);
 
   void pop_back();
   void pop_front();
 
-  void clear();
-  Step_idx size() const;
-  bool empty() const;
+  void erase(Step_idx);
 
-  Event_t& front();
-  const Event_t& front() const;
-  Event_t& back();
-  const Event_t& back() const;
+  void clear() noexcept;
+  Step_idx size() const noexcept;
+  bool empty() const noexcept;
 
-  Event_t& at(Step_idx);
-  const Event_t& at(Step_idx) const;
-  Event_t& operator[](Step_idx);
-  const Event_t& operator[](Step_idx) const;
+  Event_t front();
+  Event_t back();
 
-  const Sequence& steps() const;
+  Event_t at(Step_idx);
+
+  const Base_steps& steps() const;
 
 private:
   void run(std::stop_token st, Time_point start_time);
-  Sequence steps_;
   std::jthread runner_thread_;
   Handler handler_ = [](Event_t&&) {};
 
-  std::mutex transport_mutex_;
+  std::mutex mutex_;
 };
 
 } // namespace sequencer
