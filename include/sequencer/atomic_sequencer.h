@@ -20,7 +20,8 @@ template <Sequencable_updatable Event_t>
 class Atomic_sequencer : public abstract::Sequencer,
                          public container::Atomic_ring_deque<Event_t> {
 public:
-  using Base_deque = container::Atomic_ring_deque<Event_t>;
+  using Ring_deque = container::Atomic_ring_deque<Event_t>;
+  using Base_deque = Ring_deque::Base_deque;
   using Handler = std::function<void(Event_t&&)>;
   using Clock = std::chrono::steady_clock;
   using Time_point = Clock::time_point;
@@ -44,6 +45,12 @@ public:
   void stop() override;
 
   void set_handler(const Handler);
+
+  void set_duration(const Duration);
+  void set_duration(const Step_idx, const Duration);
+
+  void set_offset(const Duration);
+  void set_offset(const Step_idx, const Duration);
 
 private:
   void run(std::stop_token st, Time_point start_time);

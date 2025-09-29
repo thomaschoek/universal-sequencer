@@ -103,6 +103,40 @@ void Atomic_sequencer<Event_t>::set_handler(const Handler handler) {
   handler_ = handler;
 }
 
+template <Sequencable_updatable Event_t>
+void Atomic_sequencer<Event_t>::set_duration(const Duration duration) {
+  std::scoped_lock lck{mutex_};
+  for (auto& event : *this) {
+    event.duration = duration;
+  }
+}
+
+template <Sequencable_updatable Event_t>
+void Atomic_sequencer<Event_t>::set_duration(const Step_idx idx,
+                                             const Duration duration) {
+  std::scoped_lock lck{mutex_};
+  if (idx < Base_deque::size()) {
+    this[idx].duration = duration;
+  }
+}
+
+template <Sequencable_updatable Event_t>
+void Atomic_sequencer<Event_t>::set_offset(const Duration offset) {
+  std::scoped_lock lck{mutex_};
+  for (auto& event : *this) {
+    event.offset = offset;
+  }
+}
+
+template <Sequencable_updatable Event_t>
+void Atomic_sequencer<Event_t>::set_offset(const Step_idx idx,
+                                           const Duration offset) {
+  std::scoped_lock lck{mutex_};
+  if (idx < Base_deque::steps_.size()) {
+    this[idx].offset = offset;
+  }
+}
+
 // PRIVATE:
 
 template <Sequencable_updatable Event_t>
@@ -125,7 +159,7 @@ void Atomic_sequencer<Event_t>::run(std::stop_token st, Time_point start_time) {
   try {
 
     Event_t event_buffer;
-    event_buffer = Base_deque::next();
+    event_buffer = Ring_deque::next();
 
     std::chrono::time_point<Clock, std::chrono::duration<double>> event_time =
         start_time;
@@ -146,7 +180,7 @@ void Atomic_sequencer<Event_t>::run(std::stop_token st, Time_point start_time) {
       // Move current event buffer to event handler
       handler_(std::move(event_buffer));
       // Load next event into buffer
-      event_buffer = Base_deque::next();
+      event_buffer = Ring_deque::next();
       // Next event should be scheduled after current event completes
       event_time += duration_cache;
     }
