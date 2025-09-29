@@ -81,12 +81,23 @@ int main() {
       Oscillation_event{493.88}, // B4
       Oscillation_event{523.25}, // C5
   });
-  std::this_thread::sleep_for(std::chrono::seconds(4));
+  std::this_thread::sleep_for(std::chrono::seconds(1));
   seqr.update(7, 100, 1.0, 0.1);
+  // seqr.set_offset(std::chrono::milliseconds(500));
   std::this_thread::sleep_for(std::chrono::seconds(3));
 
   seqr.set_duration(std::chrono::milliseconds(100));
-  std::this_thread::sleep_for(std::chrono::seconds(10));
+  std::this_thread::sleep_for(std::chrono::seconds(3));
+  seqr.set_duration(std::chrono::milliseconds(50));
+  std::this_thread::sleep_for(std::chrono::seconds(3));
+  seqr.set_duration(std::chrono::milliseconds(10));
+  std::this_thread::sleep_for(std::chrono::seconds(5));
+  seqr.set_duration(std::chrono::milliseconds(300));
+  std::this_thread::sleep_for(std::chrono::seconds(2));
+  seqr.set_duration(std::chrono::milliseconds(600));
+  std::this_thread::sleep_for(std::chrono::seconds(5));
+  seqr.set_offset(std::chrono::seconds(1));
+  std::this_thread::sleep_for(std::chrono::seconds(5));
 
   seqr.stop();
 
