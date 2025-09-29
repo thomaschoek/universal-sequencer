@@ -11,13 +11,14 @@ namespace Micro_composer {
 
 namespace sequencer {
 
-class Matrix_sequencer {
+template <typename T_event_params> class Matrix_sequencer {
 public:
-  using Vector_event = sequencable::Vector_event;
+  using Vector_event = sequencable::Vector_event<T_event_params>;
   using Sequencer = Atomic_sequencer<Vector_event>;
   using Sequencer_vector = std::vector<Sequencer>;
   using Steps = Sequencer::Base_steps;
   using Seq_idx = Sequencer_vector::size_type;
+  using Step_idx = Sequencer::Step_idx;
   using Handler = Sequencer::Handler;
   using Sequence_initializer_list = Sequencer::Initializer_list;
   using Clock = Sequencer::Clock;
@@ -48,20 +49,21 @@ public:
   void push_front(Seq_idx, const Vector_event&);
   void push_front(Seq_idx, Sequence_initializer_list);
 
-  Step_iterator insert(Seq_idx, Sequencer::Step_idx, const Vector_event&);
-  Step_iterator insert(Seq_idx, Sequencer::Step_idx, Vector_event&&);
+  Step_idx insert(Seq_idx, Step_idx, const Vector_event&);
+  Step_idx insert(Seq_idx, Step_idx, Vector_event&&);
 
-  Vector_event& front(Seq_idx);
-  const Vector_event& front(Seq_idx) const;
-  Vector_event& back(Seq_idx);
-  const Vector_event& back(Seq_idx) const;
-  Vector_event& at(Seq_idx, Sequencer::Step_idx);
-  const Vector_event& at(Seq_idx, Sequencer::Step_idx) const;
+  void update(Seq_idx, Step_idx, size_t, T_event_params&&);
+  void replace(Seq_idx, Step_idx, const Vector_event&);
+  void replace(Seq_idx, Step_idx, Vector_event&&);
+
+  const Vector_event front(Seq_idx) const;
+  const Vector_event back(Seq_idx) const;
+  const Vector_event at(Seq_idx, Step_idx) const;
 
   void pop_back(Seq_idx);
   void pop_front(Seq_idx);
 
-  void erase(Seq_idx, Sequencer::Step_idx);
+  void erase(Seq_idx, Step_idx);
 
   // Clear all
   void clear();

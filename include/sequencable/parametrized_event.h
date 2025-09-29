@@ -8,7 +8,7 @@ namespace Micro_composer {
 namespace sequencable {
 
 template <typename Parameters> struct Parametrized_event : public Event {
-  Parameters parameters;
+  Parameters params;
 };
 
 } // namespace sequencable
