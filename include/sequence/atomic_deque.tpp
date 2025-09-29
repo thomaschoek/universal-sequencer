@@ -41,6 +41,18 @@ Atomic_deque<T>& Atomic_deque<T>::operator=(Atomic_deque&& other) noexcept {
   return *this;
 }
 
+template <typename T>
+void Atomic_deque<T>::assign(size_type count, const T& value) {
+  std::scoped_lock<std::mutex> lock(mutex_);
+  base_type::assign(count, value);
+}
+
+template <typename T>
+void Atomic_deque<T>::assign(std::initializer_list<T> ilist) {
+  std::scoped_lock<std::mutex> lock(mutex_);
+  base_type::assign(ilist);
+}
+
 template <typename T> void Atomic_deque<T>::push_back(const T& value) {
   std::scoped_lock<std::mutex> lock(mutex_);
   base_type::push_back(value);
@@ -75,13 +87,34 @@ template <typename T> void Atomic_deque<T>::pop_front() {
   }
 }
 
+template <typename T>
+Atomic_deque<T>::iterator Atomic_deque<T>::insert(const size_type pos,
+                                                  const T& value) {
+  std::scoped_lock<std::mutex> lock(mutex_);
+  const_iterator it_pos = base_type::cbegin() + pos;
+  if (it_pos < base_type::cbegin() || it_pos > base_type::cend()) {
+    throw std::out_of_range("atomic_deque::insert() iterator out of range");
+  }
+  return base_type::insert(it_pos, value);
+}
+
+template <typename T>
+Atomic_deque<T>::iterator Atomic_deque<T>::insert(const size_type pos,
+                                                  T&& value) {
+  std::scoped_lock<std::mutex> lock(mutex_);
+  const_iterator it_pos = base_type::cbegin() + pos;
+  if (it_pos < base_type::cbegin() || it_pos > base_type::cend()) {
+    throw std::out_of_range("atomic_deque::insert() iterator out of range");
+  }
+  return base_type::insert(it_pos, value);
+}
+
 template <typename T> void Atomic_deque<T>::clear() {
   std::scoped_lock<std::mutex> lock(mutex_);
   base_type::clear();
 }
 
-template <typename T>
-typename Atomic_deque<T>::size_type Atomic_deque<T>::size() const {
+template <typename T> Atomic_deque<T>::size_type Atomic_deque<T>::size() const {
   std::scoped_lock<std::mutex> lock(mutex_);
   return base_type::size();
 }
@@ -89,6 +122,18 @@ typename Atomic_deque<T>::size_type Atomic_deque<T>::size() const {
 template <typename T> bool Atomic_deque<T>::empty() const {
   std::scoped_lock<std::mutex> lock(mutex_);
   return base_type::empty();
+}
+
+template <typename T>
+typename Atomic_deque<T>::iterator Atomic_deque<T>::begin() {
+  std::scoped_lock<std::mutex> lock(mutex_);
+  return base_type::begin();
+}
+
+template <typename T>
+typename Atomic_deque<T>::const_iterator Atomic_deque<T>::cbegin() const {
+  std::scoped_lock<std::mutex> lock(mutex_);
+  return base_type::cbegin();
 }
 
 template <typename T> T& Atomic_deque<T>::front() {
@@ -105,6 +150,18 @@ template <typename T> const T& Atomic_deque<T>::front() const {
     throw std::out_of_range("atomic_deque::front() called on empty deque");
   }
   return base_type::front();
+}
+
+template <typename T>
+typename Atomic_deque<T>::iterator Atomic_deque<T>::end() {
+  std::scoped_lock<std::mutex> lock(mutex_);
+  return base_type::end();
+}
+
+template <typename T>
+typename Atomic_deque<T>::const_iterator Atomic_deque<T>::cend() const {
+  std::scoped_lock<std::mutex> lock(mutex_);
+  return base_type::cend();
 }
 
 template <typename T> T& Atomic_deque<T>::back() {

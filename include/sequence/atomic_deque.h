@@ -8,7 +8,7 @@ namespace Micro_composer {
 
 namespace atomic_deque {
 
-template <typename T> class Atomic_deque : public std::deque<T> {
+template <typename T> class Atomic_deque : private std::deque<T> {
 public:
   using base_type = typename std::deque<T>;
   using value_type = typename base_type::value_type;
@@ -27,6 +27,9 @@ public:
   Atomic_deque& operator=(const Atomic_deque& other);
   Atomic_deque& operator=(Atomic_deque&& other) noexcept;
 
+  void assign(size_type count, const T& value);
+  void assign(std::initializer_list<T>);
+
   // Destructor
   ~Atomic_deque() = default;
 
@@ -36,15 +39,26 @@ public:
   void push_front(const T& value);
   void push_front(T&& value);
 
+  iterator insert(const size_type pos, const T& value);
+  iterator insert(const size_type pos, T&& value);
+
   void pop_back();
   void pop_front();
+
+  iterator erase(const_iterator pos);
+  iterator erase(const_iterator first, const_iterator last);
 
   void clear();
   size_type size() const;
   bool empty() const;
 
+  iterator begin();
+  const_iterator cbegin() const;
   T& front();
   const T& front() const;
+
+  iterator end();
+  const_iterator cend() const;
   T& back();
   const T& back() const;
 

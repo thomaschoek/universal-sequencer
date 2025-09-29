@@ -9,6 +9,37 @@ namespace Micro_composer {
 namespace sequencer {
 
 // PUBLIC:
+// Constructors
+
+template <Sequencable Event_t>
+Atomic_sequencer<Event_t>::Atomic_sequencer(const Atomic_sequencer& other)
+    : handler_(other.handler_), steps_(other.steps_) {}
+
+template <Sequencable Event_t>
+Atomic_sequencer<Event_t>::Atomic_sequencer(Atomic_sequencer&& other) noexcept
+    : handler_(std::move(other.handler_)), Sequence(std::move(other)) {}
+
+template <Sequencable Event_t>
+Atomic_sequencer<Event_t>::Atomic_sequencer(Handler handler)
+    : handler_(handler), Sequence() {}
+
+template <Sequencable Event_t>
+Atomic_sequencer<Event_t>::Atomic_sequencer(Initializer_list seq,
+                                            Handler handler)
+    : handler_(handler), Sequence(seq) {}
+
+// Assignment
+template <Sequencable Event_t>
+Atomic_sequencer<Event_t>&
+Atomic_sequencer<Event_t>::operator=(const Atomic_sequencer& other) {
+  if (this != &other) {
+    std::scoped_lock lck{transport_mutex_};
+    handler_ = other.handler_;
+    steps_.operator=(other);
+  }
+  return *this;
+}
+
 // Control
 
 template <Sequencable Event_t>
@@ -31,7 +62,7 @@ void Atomic_sequencer<Event_t>::start(Time_point start_time) {
     return;
   }
 
-  while (Base_t::empty()) {
+  while (steps_.empty()) {
     // Wait until user adds something to the sequence
     std::this_thread::sleep_for(std::chrono::seconds{1});
   }
@@ -59,6 +90,142 @@ template <Sequencable Event_t> void Atomic_sequencer<Event_t>::stop() {
   }
 }
 
+template <Sequencable Event_t>
+void Atomic_sequencer<Event_t>::set_handler(const Handler handler) {
+  std::scoped_lock lck{transport_mutex_};
+  handler_ = handler;
+}
+
+template <Sequencable Event_t>
+void Atomic_sequencer<Event_t>::assign(Initializer_list seq) {
+  std::scoped_lock lck{transport_mutex_};
+  steps_.assign(seq);
+}
+
+// CRUD Operations
+
+template <Sequencable Event_t>
+void Atomic_sequencer<Event_t>::push_back(const Event_t& value) {
+  std::scoped_lock lck{transport_mutex_};
+  steps_.push_back(value);
+}
+
+template <Sequencable Event_t>
+void Atomic_sequencer<Event_t>::push_back(Event_t&& value) {
+  std::scoped_lock lck{transport_mutex_};
+  steps_.push_back(std::move(value));
+}
+
+template <Sequencable Event_t>
+void Atomic_sequencer<Event_t>::push_front(const Event_t& value) {
+  std::scoped_lock lck{transport_mutex_};
+  steps_.push_front(value);
+}
+
+template <Sequencable Event_t>
+void Atomic_sequencer<Event_t>::push_front(Event_t&& value) {
+  std::scoped_lock lck{transport_mutex_};
+  steps_.push_front(std::move(value));
+}
+
+template <Sequencable Event_t>
+Atomic_sequencer<Event_t>::Step_iterator
+Atomic_sequencer<Event_t>::insert(Step_idx pos, const Event_t& value) {
+  std::scoped_lock lck{transport_mutex_};
+  return steps_.insert(pos, value);
+}
+
+template <Sequencable Event_t>
+Atomic_sequencer<Event_t>::Step_iterator
+Atomic_sequencer<Event_t>::insert(Step_idx pos, Event_t&& value) {
+  std::scoped_lock lck{transport_mutex_};
+  return steps_.insert(pos, std::move(value));
+}
+
+template <Sequencable Event_t> void Atomic_sequencer<Event_t>::pop_back() {
+  std::scoped_lock lck{transport_mutex_};
+  steps_.pop_back();
+}
+
+template <Sequencable Event_t> void Atomic_sequencer<Event_t>::pop_front() {
+  std::scoped_lock lck{transport_mutex_};
+  steps_.pop_front();
+}
+
+template <Sequencable Event_t> void Atomic_sequencer<Event_t>::clear() {
+  std::scoped_lock lck{transport_mutex_};
+  steps_.clear();
+}
+
+template <Sequencable Event_t>
+inline Atomic_sequencer<Event_t>::Step_idx
+Atomic_sequencer<Event_t>::size() const {
+  std::scoped_lock lck{transport_mutex_};
+  return steps_.size();
+}
+
+template <Sequencable Event_t>
+inline bool Atomic_sequencer<Event_t>::empty() const {
+  std::scoped_lock lck{transport_mutex_};
+  return steps_.empty();
+}
+
+template <Sequencable Event_t>
+inline Event_t& Atomic_sequencer<Event_t>::front() {
+  std::scoped_lock lck{transport_mutex_};
+  return steps_.front();
+}
+
+template <Sequencable Event_t>
+inline const Event_t& Atomic_sequencer<Event_t>::front() const {
+  std::scoped_lock lck{transport_mutex_};
+  return steps_.front();
+}
+
+template <Sequencable Event_t>
+inline Event_t& Atomic_sequencer<Event_t>::back() {
+  std::scoped_lock lck{transport_mutex_};
+  return steps_.back();
+}
+
+template <Sequencable Event_t>
+inline const Event_t& Atomic_sequencer<Event_t>::back() const {
+  std::scoped_lock lck{transport_mutex_};
+  return steps_.back();
+}
+
+template <Sequencable Event_t>
+inline Event_t& Atomic_sequencer<Event_t>::at(Step_idx pos) {
+  std::scoped_lock lck{transport_mutex_};
+  return steps_.at(pos);
+}
+
+template <Sequencable Event_t>
+inline const Event_t& Atomic_sequencer<Event_t>::at(Step_idx pos) const {
+  std::scoped_lock lck{transport_mutex_};
+  return steps_.at(pos);
+}
+
+template <Sequencable Event_t>
+inline Event_t& Atomic_sequencer<Event_t>::operator[](Step_idx pos) {
+  std::scoped_lock lck{transport_mutex_};
+  return steps_.operator[](pos);
+}
+
+template <Sequencable Event_t>
+inline const Event_t&
+Atomic_sequencer<Event_t>::operator[](Step_idx pos) const {
+  std::scoped_lock lck{transport_mutex_};
+  return steps_.operator[](pos);
+}
+
+template <Sequencable Event_t>
+inline const Atomic_sequencer<Event_t>::Sequence&
+Atomic_sequencer<Event_t>::steps() const {
+  std::scoped_lock lck{transport_mutex_};
+  return steps_;
+}
+
 // PRIVATE:
 
 template <Sequencable Event_t>
@@ -81,7 +248,7 @@ void Atomic_sequencer<Event_t>::run(std::stop_token st, Time_point start_time) {
   try {
 
     Event_t event_buffer;
-    event_buffer = Base_t::next();
+    event_buffer = steps_.next();
 
     std::chrono::time_point<Clock, std::chrono::duration<double>> event_time =
         start_time;
@@ -102,7 +269,7 @@ void Atomic_sequencer<Event_t>::run(std::stop_token st, Time_point start_time) {
       // Move current event buffer to event handler
       handler_(std::move(event_buffer));
       // Load next event into buffer
-      event_buffer = Base_t::next();
+      event_buffer = steps_.next();
       // Next event should be scheduled after current event completes
       event_time += duration_cache;
     }
