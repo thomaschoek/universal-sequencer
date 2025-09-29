@@ -3,6 +3,9 @@
 
 #include "sequencable/vector_event.h"
 #include "sequencer/atomic_sequencer.h"
+#include <initializer_list>
+#include <mutex>
+#include <vector>
 
 namespace Micro_composer {
 
@@ -11,21 +14,64 @@ namespace sequencer {
 class Matrix_sequencer {
 public:
   using Vector_event = sequencable::Vector_event;
-  using Sequencer_t = Atomic_sequencer<Vector_event>;
-  using Handler_t = Sequencer_t::Handler_t;
-  using Sequence_t = Sequencer_t::Sequence_t;
-  using Clock = Sequencer_t::Clock;
-  using Time_point = Sequencer_t::Time_point;
-  using Sequencer_vec = std::vector<Sequencer_t>;
-  using Seq_idx = Sequencer_vec::size_type;
+  using Sequencer = Atomic_sequencer<Vector_event>;
+  using Sequencer_vector = std::vector<Sequencer>;
+  using Sequence = Sequencer::Sequence;
+  using Seq_idx = Sequencer_vector::size_type;
+  using Handler = Sequencer::Handler;
+  using Sequence_initializer_list = Sequencer::Initializer_list;
+  using Clock = Sequencer::Clock;
+  using Time_point = Sequencer::Time_point;
+  using Step_iterator = Sequencer::Step_iterator;
 
   void start(Seq_idx, Time_point = Clock::now());
   void start_all(Time_point = Clock::now());
   void stop(Seq_idx);
   void stop_all();
 
+  // Sequence-level CRUD
+  void add_sequence(Sequence_initializer_list);
+  void add_sequence(Sequence_initializer_list, Handler);
+
+  const Sequence& get(Seq_idx) const;
+
+  void assign(Seq_idx, std::initializer_list<Vector_event>);
+
+  void drop_sequence(Seq_idx);
+  void set_handler(Seq_idx, Handler);
+  Seq_idx size() const;
+  bool empty() const;
+
+  // Step-level CRUD
+  void push_back(Seq_idx, const Vector_event&);
+  void push_back(Seq_idx, Sequence_initializer_list);
+  void push_front(Seq_idx, const Vector_event&);
+  void push_front(Seq_idx, Sequence_initializer_list);
+
+  Step_iterator insert(Seq_idx, Sequencer::Step_idx, const Vector_event&);
+  Step_iterator insert(Seq_idx, Sequencer::Step_idx, Vector_event&&);
+
+  Vector_event& front(Seq_idx);
+  const Vector_event& front(Seq_idx) const;
+  Vector_event& back(Seq_idx);
+  const Vector_event& back(Seq_idx) const;
+  Vector_event& at(Seq_idx, Sequencer::Step_idx);
+  const Vector_event& at(Seq_idx, Sequencer::Step_idx) const;
+
+  void pop_back(Seq_idx);
+  void pop_front(Seq_idx);
+
+  void erase(Seq_idx, Sequencer::Step_idx);
+
+  // Clear all
+  void clear();
+  void clear(Seq_idx);
+
 private:
-  Sequencer_vec sequencers_;
+  std::mutex transport_mutex_;
+  std::mutex crud_mutex_;
+
+  Sequencer_vector sequencers_;
 };
 
 } // namespace sequencer
