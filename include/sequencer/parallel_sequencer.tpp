@@ -60,6 +60,18 @@ void Parallel_sequencer<Event_t>::start_all(Time_point start_time) {
 }
 
 template <sequencable::Sequencable_updatable Event_t>
+template <typename... Args>
+void Parallel_sequencer<Event_t>::update(Seq_idx seq_idx, Step_idx step_idx,
+                                         Args... args) {
+  std::scoped_lock lck{transport_mutex_};
+  if (seq_idx >= Base_vector::size()) {
+    throw std::out_of_range(
+        "[ERROR] In Parallel_sequencer::update: Sequencer index out of range.");
+  }
+  Base_vector::operator[](seq_idx).update(step_idx, std::forward<Args>(args)...);
+}
+
+template <sequencable::Sequencable_updatable Event_t>
 void Parallel_sequencer<Event_t>::set_pos(typename Sequencer::Step_idx pos) {
   std::scoped_lock lck{transport_mutex_};
   auto count = Base_vector::size();

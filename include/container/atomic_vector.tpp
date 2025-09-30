@@ -116,6 +116,17 @@ template <typename T> void Atomic_vector<T>::replace(Index pos, T&& value) {
   Base_vector::at(pos) = std::forward<T>(value);
 }
 
+template <typename T>
+template <typename... Args>
+void Atomic_vector<T>::update(Index pos, Args... args) {
+  std::scoped_lock lck{mutex_};
+  if (pos >= Base_vector::size()) {
+    throw std::out_of_range(
+        "[ERROR] In Atomic_vector::update: Position out of range.");
+  }
+  Base_vector::at(pos).update(std::forward<Args>(args)...);
+}
+
 template <typename T> void Atomic_vector<T>::pop_back() {
   std::scoped_lock lck{mutex_};
   if (!Base_vector::empty()) {

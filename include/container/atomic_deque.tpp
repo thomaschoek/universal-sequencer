@@ -140,7 +140,11 @@ template <typename T>
 template <typename... Args>
 void Atomic_deque<T>::update(Index pos, Args... args) {
   std::scoped_lock lck{mutex_};
-  Base_deque::at(pos).update(args...);
+  if (pos >= Base_deque::size()) {
+    throw std::out_of_range(
+        "[ERROR] In Atomic_deque::update: Position out of range.");
+  }
+  Base_deque::at(pos).update(std::forward<Args>(args)...);
 }
 
 template <typename T> void Atomic_deque<T>::pop_back() {

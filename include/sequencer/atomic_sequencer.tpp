@@ -144,6 +144,15 @@ void Atomic_sequencer<Event_t>::set_handler(const Handler handler) {
 }
 
 template <Sequencable_updatable Event_t>
+template <typename... Args>
+void Atomic_sequencer<Event_t>::update(Step_idx idx, Args... args) {
+  std::scoped_lock lck{mutex_};
+  if (idx < Atomic_ring_deque::size()) {
+    Atomic_ring_deque::operator[](idx).update(std::forward<Args>(args)...);
+  }
+}
+
+template <Sequencable_updatable Event_t>
 void Atomic_sequencer<Event_t>::set_duration(const Duration duration) {
   std::scoped_lock lck{mutex_};
   for (auto& event : *this) {

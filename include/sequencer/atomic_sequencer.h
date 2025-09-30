@@ -51,6 +51,8 @@ public:
 
   void set_handler(const Handler);
 
+  template <typename... Args> void update(Step_idx, Args...);
+
   void set_duration(const Duration);
   void set_duration(const Step_idx, const Duration);
 
