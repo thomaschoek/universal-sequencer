@@ -20,8 +20,7 @@ public:
   Atomic_deque() = default;
   Atomic_deque(const Atomic_deque& other) : Base_deque(other) {};
   Atomic_deque& operator=(const Atomic_deque&);
-  Atomic_deque(Atomic_deque&& other) noexcept
-      : Base_deque(std::forward<Atomic_deque>(other)) {};
+  Atomic_deque(Atomic_deque&& other) noexcept : Base_deque(std::move(other)) {};
 
   Atomic_deque(Initializer_list seq) : Base_deque(seq) {}
 

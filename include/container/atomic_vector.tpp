@@ -57,7 +57,7 @@ template <typename T> void Atomic_vector<T>::push_back(const T& value) {
 
 template <typename T> void Atomic_vector<T>::push_back(T&& value) {
   std::scoped_lock lck{mutex_};
-  Base_vector::push_back(std::move(value));
+  Base_vector::push_back(std::forward<T>(value));
 }
 
 template <typename T>
@@ -82,10 +82,11 @@ template <typename T> void Atomic_vector<T>::insert(Index pos, T&& value) {
     throw std::out_of_range(
         "[ERROR] In Atomic_vector::insert: Position out of range.");
   }
-  Base_vector::insert(Base_vector::begin() + pos, std::move(value));
+  Base_vector::insert(Base_vector::begin() + pos, std::forward<T>(value));
 }
 
-template <typename T> void Atomic_vector<T>::replace(Index pos, const T& value) {
+template <typename T>
+void Atomic_vector<T>::replace(Index pos, const T& value) {
   std::scoped_lock lck{mutex_};
   if (pos >= Base_vector::size()) {
     throw std::out_of_range(
@@ -100,7 +101,7 @@ template <typename T> void Atomic_vector<T>::replace(Index pos, T&& value) {
     throw std::out_of_range(
         "[ERROR] In Atomic_vector::replace: Position out of range.");
   }
-  Base_vector::at(pos) = std::move(value);
+  Base_vector::at(pos) = std::forward<T>(value);
 }
 
 template <typename T> void Atomic_vector<T>::pop_back() {
@@ -130,13 +131,15 @@ template <typename T> void Atomic_vector<T>::reserve(Index capacity) {
 }
 
 template <typename T>
-inline typename Atomic_vector<T>::Index Atomic_vector<T>::size() const noexcept {
+inline typename Atomic_vector<T>::Index
+Atomic_vector<T>::size() const noexcept {
   std::scoped_lock lck{mutex_};
   return Base_vector::size();
 }
 
 template <typename T>
-inline typename Atomic_vector<T>::Index Atomic_vector<T>::capacity() const noexcept {
+inline typename Atomic_vector<T>::Index
+Atomic_vector<T>::capacity() const noexcept {
   std::scoped_lock lck{mutex_};
   return Base_vector::capacity();
 }
@@ -168,7 +171,8 @@ template <typename T> inline T& Atomic_vector<T>::operator[](Index pos) {
   return Base_vector::operator[](pos);
 }
 
-template <typename T> inline const T& Atomic_vector<T>::operator[](Index pos) const {
+template <typename T>
+inline const T& Atomic_vector<T>::operator[](Index pos) const {
   std::scoped_lock lck{mutex_};
   return Base_vector::operator[](pos);
 }

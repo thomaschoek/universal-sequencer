@@ -169,7 +169,8 @@ Matrix_sequencer<T_event_params>::insert(Seq_idx seq_idx,
                                          Sequencer::Step_idx step_idx,
                                          Vector_event&& event) {
   std::scoped_lock lck{crud_mutex_};
-  return sequencers_.at(seq_idx).insert(step_idx, std::move(event));
+  return sequencers_.at(seq_idx).insert(step_idx,
+                                        std::forward<Vector_event>(event));
 }
 
 template <typename T_event_params>

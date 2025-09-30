@@ -55,7 +55,7 @@ template <typename T> void Atomic_deque<T>::push_front(const T& value) {
 
 template <typename T> void Atomic_deque<T>::push_front(T&& value) {
   std::scoped_lock lck{mutex_};
-  Base_deque::push_front(std::move(value));
+  Base_deque::push_front(std::forward<T>(value));
 }
 
 template <typename T> void Atomic_deque<T>::insert(Index pos, const T& value) {
@@ -73,7 +73,7 @@ template <typename T> void Atomic_deque<T>::insert(Index pos, T&& value) {
     throw std::out_of_range(
         "[ERROR] In Atomic_ring_deque::insert: Position out of range.");
   }
-  Base_deque::insert(Base_deque::begin() + pos, std::move(value));
+  Base_deque::insert(Base_deque::begin() + pos, std::forward<T>(value));
 }
 
 template <typename T> void Atomic_deque<T>::replace(Index pos, const T& value) {
@@ -91,7 +91,7 @@ template <typename T> void Atomic_deque<T>::replace(Index pos, T&& value) {
     throw std::out_of_range(
         "[ERROR] In Atomic_ring_deque::replace: Position out of range.");
   }
-  Base_deque::at(pos) = std::move(value);
+  Base_deque::at(pos) = std::forward<T>(value);
 }
 
 template <typename T>
