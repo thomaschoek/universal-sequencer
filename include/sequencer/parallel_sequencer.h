@@ -21,8 +21,8 @@ public:
 
   // Constructors
   Parallel_sequencer() = default;
-  Parallel_sequencer(const Parallel_sequencer&) = default;
-  Parallel_sequencer& operator=(const Parallel_sequencer&) = default;
+  Parallel_sequencer(const Parallel_sequencer&) = delete;
+  Parallel_sequencer& operator=(const Parallel_sequencer&) = delete;
   Parallel_sequencer(Parallel_sequencer&&) noexcept = default;
   ~Parallel_sequencer() = default;
 
