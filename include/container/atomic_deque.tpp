@@ -21,6 +21,16 @@ inline std::scoped_lock<std::mutex> Atomic_deque<T>::get_lock() {
   return std::scoped_lock{mutex_};
 }
 
+// Copy assignment
+template <typename T>
+Atomic_deque<T>& Atomic_deque<T>::operator=(const Atomic_deque& other) {
+  if (this != &other) {
+    std::scoped_lock lck{mutex_};
+    Base_deque::operator=(other);
+  }
+  return *this;
+}
+
 // CRUD Operations
 
 template <typename T> void Atomic_deque<T>::assign(Initializer_list seq) {
@@ -35,7 +45,7 @@ template <typename T> void Atomic_deque<T>::push_back(const T& value) {
 
 template <typename T> void Atomic_deque<T>::push_back(T&& value) {
   std::scoped_lock lck{mutex_};
-  Base_deque::push_back(std::move(value));
+  Base_deque::push_back(std::forward<T>(value));
 }
 
 template <typename T> void Atomic_deque<T>::push_front(const T& value) {
@@ -54,7 +64,7 @@ template <typename T> void Atomic_deque<T>::insert(Index pos, const T& value) {
     throw std::out_of_range(
         "[ERROR] In Atomic_ring_deque::insert: Position out of range.");
   }
-  Base_deque::insert(pos, value);
+  Base_deque::insert(Base_deque::begin() + pos, value);
 }
 
 template <typename T> void Atomic_deque<T>::insert(Index pos, T&& value) {
@@ -63,7 +73,7 @@ template <typename T> void Atomic_deque<T>::insert(Index pos, T&& value) {
     throw std::out_of_range(
         "[ERROR] In Atomic_ring_deque::insert: Position out of range.");
   }
-  Base_deque::insert(pos, std::move(value));
+  Base_deque::insert(Base_deque::begin() + pos, std::move(value));
 }
 
 template <typename T> void Atomic_deque<T>::replace(Index pos, const T& value) {
@@ -72,7 +82,7 @@ template <typename T> void Atomic_deque<T>::replace(Index pos, const T& value) {
     throw std::out_of_range(
         "[ERROR] In Atomic_ring_deque::replace: Position out of range.");
   }
-  this[pos] = value;
+  Base_deque::at(pos) = value;
 }
 
 template <typename T> void Atomic_deque<T>::replace(Index pos, T&& value) {
@@ -81,7 +91,7 @@ template <typename T> void Atomic_deque<T>::replace(Index pos, T&& value) {
     throw std::out_of_range(
         "[ERROR] In Atomic_ring_deque::replace: Position out of range.");
   }
-  this[pos] = std::move(value);
+  Base_deque::at(pos) = std::move(value);
 }
 
 template <typename T>
@@ -107,7 +117,7 @@ template <typename T> void Atomic_deque<T>::erase(Index pos) {
     throw std::out_of_range(
         "[ERROR] In Atomic_ring_deque::erase: Position out of range.");
   }
-  Base_deque::erase(pos);
+  Base_deque::erase(Base_deque::begin() + pos);
 }
 
 template <typename T> void Atomic_deque<T>::clear() noexcept {

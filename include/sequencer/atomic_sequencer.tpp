@@ -13,23 +13,23 @@ namespace sequencer {
 
 template <Sequencable_updatable Event_t>
 Atomic_sequencer<Event_t>::Atomic_sequencer(const Atomic_sequencer& other)
-    : handler_(other.handler_), Protected_base_deque(other) {
+    : handler_(other.handler_), Atomic_ring_deque(other) {
   // runner_thread_ and mutex_ are default-initialized (stopped/unlocked)
 }
 
 template <Sequencable_updatable Event_t>
 Atomic_sequencer<Event_t>::Atomic_sequencer(Atomic_sequencer&& other) noexcept
-    : handler_(std::move(other.handler_)),
-      Protected_base_deque(std::move(other)) {}
+    : handler_(std::move(other.handler_)), Atomic_ring_deque(std::move(other)) {
+}
 
 template <Sequencable_updatable Event_t>
 Atomic_sequencer<Event_t>::Atomic_sequencer(Handler handler)
-    : handler_(handler), Protected_base_deque() {}
+    : handler_(handler), Atomic_ring_deque() {}
 
 template <Sequencable_updatable Event_t>
 Atomic_sequencer<Event_t>::Atomic_sequencer(Initializer_list seq,
                                             Handler handler)
-    : handler_(handler), Protected_base_deque(seq) {}
+    : handler_(handler), Atomic_ring_deque(seq) {}
 
 // Destructor
 template <Sequencable_updatable Event_t>
@@ -50,7 +50,7 @@ Atomic_sequencer<Event_t>::operator=(const Atomic_sequencer& other) {
     }
     std::scoped_lock lck{mutex_};
     handler_ = other.handler_;
-    Protected_base_deque::operator=(other);
+    Atomic_ring_deque::operator=(other);
     // runner_thread_ remains in stopped state after copy
   }
   return *this;
@@ -81,7 +81,7 @@ void Atomic_sequencer<Event_t>::start(Time_point start_time) {
     return;
   }
 
-  while (Protected_base_deque::empty()) {
+  while (Atomic_ring_deque::empty()) {
 // Wait until user adds something to the sequence
 #ifndef NDEBUG
     std::cout << "I CAN HAZ STEPS? NO! IS EMPTY!" << std::endl;
@@ -131,8 +131,8 @@ template <Sequencable_updatable Event_t>
 void Atomic_sequencer<Event_t>::set_duration(const Step_idx idx,
                                              const Duration duration) {
   std::scoped_lock lck{mutex_};
-  if (idx < Protected_base_deque::size()) {
-    this[idx].duration = duration;
+  if (idx < Atomic_ring_deque::size()) {
+    Atomic_ring_deque::operator[](idx).duration = duration;
   }
 }
 
@@ -148,8 +148,8 @@ template <Sequencable_updatable Event_t>
 void Atomic_sequencer<Event_t>::set_offset(const Step_idx idx,
                                            const Duration offset) {
   std::scoped_lock lck{mutex_};
-  if (idx < Protected_base_deque::steps_.size()) {
-    this[idx].offset = offset;
+  if (idx < Atomic_ring_deque::size()) {
+    Atomic_ring_deque::operator[](idx).offset = offset;
   }
 }
 

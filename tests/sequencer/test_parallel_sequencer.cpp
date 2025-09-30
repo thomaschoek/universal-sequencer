@@ -1,7 +1,7 @@
-#include "sequencer/parallel_sequencer.tpp"
 #include "sequencable/oscillation_event.h"
-#include <catch2/catch_test_macros.hpp>
+#include "sequencer/parallel_sequencer.tpp"
 #include <atomic>
+#include <catch2/catch_test_macros.hpp>
 #include <chrono>
 #include <thread>
 
@@ -254,6 +254,7 @@ TEST_CASE("Parallel_sequencer: CRUD while running", "[parallel_sequencer]") {
   pseq[0].assign({Oscillation_event{440.0, 0.5, 0.0, 0ms, 10ms}});
 
   pseq.start(0);
+  REQUIRE(pseq.is_running(0));
   std::this_thread::sleep_for(20ms);
 
   SECTION("Add new sequencer while others running") {
@@ -287,8 +288,7 @@ TEST_CASE("Parallel_sequencer: CRUD while running", "[parallel_sequencer]") {
   }
 }
 
-TEST_CASE("Parallel_sequencer: Out of range handling",
-          "[parallel_sequencer]") {
+TEST_CASE("Parallel_sequencer: Out of range handling", "[parallel_sequencer]") {
   Parallel_sequencer<Oscillation_event> pseq;
   std::atomic<int> count{0};
   auto handler = [&count](Oscillation_event&&) { ++count; };
