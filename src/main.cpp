@@ -117,6 +117,8 @@ int main() {
                    .count()
             << " ms" << std::endl;
 
+  std::this_thread::sleep_for(std::chrono::seconds(2));
+
   Parallel_sequencer<Oscillation_event> psqr{sequences};
 
   assert(psqr.size() == 2);
@@ -130,9 +132,21 @@ int main() {
   std::this_thread::sleep_for(std::chrono::seconds(10));
 
   psqr.stop_all();
+  std::this_thread::sleep_for(std::chrono::seconds(1));
+
+  psqr.start_all();
 
   psqr.update(0, 7, 100, 1.0, 0.1);
-  psqr.update(2, 1, 2000, 0.5, 0.0);
+  psqr.update(1, 1, 2000, 0.5, 0.0);
+  std::this_thread::sleep_for(std::chrono::seconds(10));
+  psqr.stop_all();
+  std::this_thread::sleep_for(std::chrono::seconds(1));
+  try {
+    psqr.update(2, 1, 2000, 0.5, 0.0);
+  } catch (const std::out_of_range& e) {
+    std::cout << "Caught expected out_of_range exception: " << e.what()
+              << "PURE PWNAGE!" << std::endl;
+  }
 
   return 0;
 }
