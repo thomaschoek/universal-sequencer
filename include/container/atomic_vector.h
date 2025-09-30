@@ -22,8 +22,8 @@ public:
   Atomic_vector& operator=(const Atomic_vector&);
   Atomic_vector(Atomic_vector&& other) noexcept;
 
-  Atomic_vector(const std::vector<T>&) noexcept;
-  Atomic_vector(std::vector<T>&&) noexcept;
+  Atomic_vector(const std::vector<T>&);
+  Atomic_vector(std::vector<T>&&);
 
   // Run anything under lock
   std::scoped_lock<std::mutex> get_lock();

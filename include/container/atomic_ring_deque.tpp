@@ -5,15 +5,23 @@ namespace Micro_composer {
 
 namespace container {
 
+// Constructors
 template <typename T>
-Atomic_ring_deque<T>::Atomic_ring_deque(const std::vector<T>& vec) noexcept
+Atomic_ring_deque<T>::Atomic_ring_deque(typename Base_deque::Initializer_list seq)
+    : Base_deque(seq) {
+  // mutex_ is default-initialized
+  iterator_ = Base_deque::cbegin();
+}
+
+template <typename T>
+Atomic_ring_deque<T>::Atomic_ring_deque(const std::vector<T>& vec)
     : Base_deque(vec) {
   // mutex_ is default-initialized
   iterator_ = Base_deque::cbegin();
 }
 
 template <typename T>
-Atomic_ring_deque<T>::Atomic_ring_deque(std::vector<T>&& vec) noexcept
+Atomic_ring_deque<T>::Atomic_ring_deque(std::vector<T>&& vec)
     : Base_deque(std::move(vec)) {
   // mutex_ is default-initialized
   iterator_ = Base_deque::cbegin();

@@ -32,14 +32,14 @@ public:
 
   // Constructors
   Atomic_sequencer() = default;
-  Atomic_sequencer(const Atomic_sequencer&) noexcept;
-  Atomic_sequencer& operator=(const Atomic_sequencer&) noexcept;
+  Atomic_sequencer(const Atomic_sequencer&);
+  Atomic_sequencer& operator=(const Atomic_sequencer&);
   Atomic_sequencer(Atomic_sequencer&&) noexcept;
 
-  explicit Atomic_sequencer(Handler) noexcept;
-  Atomic_sequencer(Initializer_list, Handler) noexcept;
-  explicit Atomic_sequencer(const std::vector<Event_t>&) noexcept;
-  explicit Atomic_sequencer(std::vector<Event_t>&&) noexcept;
+  explicit Atomic_sequencer(Handler);
+  Atomic_sequencer(Initializer_list, Handler);
+  explicit Atomic_sequencer(const std::vector<Event_t>&);
+  explicit Atomic_sequencer(std::vector<Event_t>&&);
 
   ~Atomic_sequencer();
 

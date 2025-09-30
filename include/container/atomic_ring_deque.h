@@ -18,11 +18,9 @@ public:
   Atomic_ring_deque(Atomic_ring_deque&&) noexcept = default;
   Atomic_ring_deque& operator=(Atomic_ring_deque&&) noexcept = default;
 
-  Atomic_ring_deque(typename Base_deque::Initializer_list seq)
-      : Base_deque(seq) {}
-
-  Atomic_ring_deque(const std::vector<T>& vec) noexcept;
-  Atomic_ring_deque(std::vector<T>&& vec) noexcept;
+  Atomic_ring_deque(typename Base_deque::Initializer_list seq);
+  Atomic_ring_deque(const std::vector<T>& vec);
+  Atomic_ring_deque(std::vector<T>&& vec);
 
   T next();
 

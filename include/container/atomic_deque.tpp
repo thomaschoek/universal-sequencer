@@ -8,6 +8,49 @@ namespace container {
 
 // PUBLIC:
 
+// Constructors
+template <typename T>
+Atomic_deque<T>::Atomic_deque(const Atomic_deque& other)
+    : Base_deque(other) {
+  // mutex_ is default-initialized
+}
+
+template <typename T>
+Atomic_deque<T>::Atomic_deque(Atomic_deque&& other) noexcept
+    : Base_deque(std::move(other)) {
+  // mutex_ is default-initialized
+}
+
+template <typename T>
+Atomic_deque<T>::Atomic_deque(Initializer_list seq)
+    : Base_deque(seq) {
+  // mutex_ is default-initialized
+}
+
+template <typename T>
+Atomic_deque<T>::Atomic_deque(const std::vector<T>& vec)
+    : Base_deque(vec.begin(), vec.end()) {
+  // mutex_ is default-initialized
+}
+
+template <typename T>
+Atomic_deque<T>::Atomic_deque(std::vector<T>&& vec)
+    : Base_deque(std::make_move_iterator(vec.begin()),
+                 std::make_move_iterator(vec.end())) {
+  // mutex_ is default-initialized
+}
+
+// Operators
+template <typename T>
+Atomic_deque<T>& Atomic_deque<T>::operator=(const Atomic_deque& other) {
+  if (this != &other) {
+    std::scoped_lock lck{mutex_};
+    Base_deque::operator=(other);
+  }
+  return *this;
+}
+
+// Utility
 template <typename T>
 template <typename Return_t, typename... Args>
 const Return_t Atomic_deque<T>::under_lock(
@@ -19,29 +62,6 @@ const Return_t Atomic_deque<T>::under_lock(
 template <typename T>
 inline std::scoped_lock<std::mutex> Atomic_deque<T>::get_lock() {
   return std::scoped_lock{mutex_};
-}
-
-// Copy assignment
-template <typename T>
-Atomic_deque<T>& Atomic_deque<T>::operator=(const Atomic_deque& other) {
-  if (this != &other) {
-    std::scoped_lock lck{mutex_};
-    Base_deque::operator=(other);
-  }
-  return *this;
-}
-
-template <typename T>
-Atomic_deque<T>::Atomic_deque(const std::vector<T>& vec) noexcept
-    : Base_deque(vec.begin(), vec.end()) {
-  // mutex_ is default-initialized
-}
-
-template <typename T>
-Atomic_deque<T>::Atomic_deque(std::vector<T>&& vec) noexcept
-    : Base_deque(std::make_move_iterator(vec.begin()),
-                 std::make_move_iterator(vec.end())) {
-  // mutex_ is default-initialized
 }
 
 // CRUD Operations

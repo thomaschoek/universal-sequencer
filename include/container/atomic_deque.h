@@ -18,13 +18,13 @@ public:
 
   // Constructors
   Atomic_deque() = default;
-  Atomic_deque(const Atomic_deque& other) : Base_deque(other) {};
+  Atomic_deque(const Atomic_deque& other);
   Atomic_deque& operator=(const Atomic_deque&);
-  Atomic_deque(Atomic_deque&& other) noexcept : Base_deque(std::move(other)) {};
+  Atomic_deque(Atomic_deque&& other) noexcept;
 
-  Atomic_deque(Initializer_list seq) : Base_deque(seq) {}
-  Atomic_deque(const std::vector<T>&) noexcept;
-  Atomic_deque(std::vector<T>&&) noexcept;
+  Atomic_deque(Initializer_list seq);
+  Atomic_deque(const std::vector<T>&);
+  Atomic_deque(std::vector<T>&&);
 
   // Run anything under lock
   std::scoped_lock<std::mutex> get_lock();

@@ -44,13 +44,13 @@ inline std::scoped_lock<std::mutex> Atomic_vector<T>::get_lock() {
 }
 
 template <typename T>
-Atomic_vector<T>::Atomic_vector(const std::vector<T>& vec) noexcept
+Atomic_vector<T>::Atomic_vector(const std::vector<T>& vec)
     : Base_vector(vec) {
   // mutex_ is default-initialized
 }
 
 template <typename T>
-Atomic_vector<T>::Atomic_vector(std::vector<T>&& vec) noexcept
+Atomic_vector<T>::Atomic_vector(std::vector<T>&& vec)
     : Base_vector(std::move(vec)) {
   // mutex_ is default-initialized
 }

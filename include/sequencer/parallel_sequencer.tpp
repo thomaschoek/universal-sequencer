@@ -7,7 +7,7 @@ namespace sequencer {
 
 template <sequencable::Sequencable_updatable Event_t>
 Parallel_sequencer<Event_t>::Parallel_sequencer(
-    const std::vector<std::vector<Event_t>>& sequences) noexcept {
+    const std::vector<std::vector<Event_t>>& sequences) {
   std::vector<Sequencer> sequencers;
   sequencers.reserve(sequences.size());
   for (const auto& seq : sequences) {
@@ -18,7 +18,7 @@ Parallel_sequencer<Event_t>::Parallel_sequencer(
 
 template <sequencable::Sequencable_updatable Event_t>
 Parallel_sequencer<Event_t>::Parallel_sequencer(
-    std::vector<std::vector<Event_t>>&& sequences) noexcept {
+    std::vector<std::vector<Event_t>>&& sequences) {
   std::vector<Sequencer> sequencers;
   sequencers.reserve(sequences.size());
   for (auto& seq : sequences) {
@@ -29,12 +29,12 @@ Parallel_sequencer<Event_t>::Parallel_sequencer(
 
 template <sequencable::Sequencable_updatable Event_t>
 Parallel_sequencer<Event_t>::Parallel_sequencer(
-    const std::vector<Sequencer>& sequencers) noexcept
+    const std::vector<Sequencer>& sequencers)
     : Base_vector(sequencers) {}
 
 template <sequencable::Sequencable_updatable Event_t>
 Parallel_sequencer<Event_t>::Parallel_sequencer(
-    std::vector<Sequencer>&& sequencers) noexcept
+    std::vector<Sequencer>&& sequencers)
     : Base_vector(std::move(sequencers)) {}
 
 template <sequencable::Sequencable_updatable Event_t>
