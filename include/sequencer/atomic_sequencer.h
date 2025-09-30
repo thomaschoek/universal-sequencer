@@ -35,6 +35,7 @@ public:
   Atomic_sequencer(const Atomic_sequencer&);
   Atomic_sequencer& operator=(const Atomic_sequencer&);
   Atomic_sequencer(Atomic_sequencer&&) noexcept;
+  ~Atomic_sequencer();
 
   explicit Atomic_sequencer(Handler);
   Atomic_sequencer(Initializer_list, Handler);

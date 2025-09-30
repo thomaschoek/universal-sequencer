@@ -13,7 +13,9 @@ namespace sequencer {
 
 template <Sequencable_updatable Event_t>
 Atomic_sequencer<Event_t>::Atomic_sequencer(const Atomic_sequencer& other)
-    : handler_(other.handler_), Protected_base_deque(other.steps_) {}
+    : handler_(other.handler_), Protected_base_deque(other) {
+  // runner_thread_ and mutex_ are default-initialized (stopped/unlocked)
+}
 
 template <Sequencable_updatable Event_t>
 Atomic_sequencer<Event_t>::Atomic_sequencer(Atomic_sequencer&& other) noexcept
@@ -29,14 +31,27 @@ Atomic_sequencer<Event_t>::Atomic_sequencer(Initializer_list seq,
                                             Handler handler)
     : handler_(handler), Protected_base_deque(seq) {}
 
+// Destructor
+template <Sequencable_updatable Event_t>
+Atomic_sequencer<Event_t>::~Atomic_sequencer() {
+  if (is_running()) {
+    stop();
+  }
+}
+
 // Assignment
 template <Sequencable_updatable Event_t>
 Atomic_sequencer<Event_t>&
 Atomic_sequencer<Event_t>::operator=(const Atomic_sequencer& other) {
   if (this != &other) {
+    // Stop the running thread first if running
+    if (is_running()) {
+      stop();
+    }
     std::scoped_lock lck{mutex_};
     handler_ = other.handler_;
     Protected_base_deque::operator=(other);
+    // runner_thread_ remains in stopped state after copy
   }
   return *this;
 }
