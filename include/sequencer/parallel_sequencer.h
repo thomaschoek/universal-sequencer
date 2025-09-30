@@ -16,10 +16,10 @@ class Parallel_sequencer
 public:
   using Sequencer = Atomic_sequencer<Event_t>;
   using Base_vector = container::Atomic_vector<Sequencer>;
-  using Seq_idx = typename Base_vector::Index;
-  using Handler = typename Sequencer::Handler;
-  using Clock = typename Sequencer::Clock;
-  using Time_point = typename Sequencer::Time_point;
+  using Seq_idx = Base_vector::Index;
+  using Handler = Sequencer::Handler;
+  using Clock = Sequencer::Clock;
+  using Time_point = Sequencer::Time_point;
 
   // Constructors
   Parallel_sequencer() = default;
