@@ -18,8 +18,19 @@ Atomic_sequencer<Event_t>::Atomic_sequencer(const Atomic_sequencer& other)
 }
 
 template <Sequencable_updatable Event_t>
-Atomic_sequencer<Event_t>::Atomic_sequencer(Atomic_sequencer&& other) noexcept
-    : handler_(std::move(other.handler_)), Atomic_ring_deque(std::move(other)) {
+Atomic_sequencer<Event_t>::Atomic_sequencer(Atomic_sequencer&& other) noexcept {
+  // Preserve running state across move
+  bool was_other_running = other.is_running();
+  if (was_other_running) {
+    other.stop(); // Stop the old sequencer
+  }
+  Time_point restart_time = other.next_step_time_.load();
+  handler_ = std::move(other.handler_);
+  mutex_.unlock();
+  Atomic_ring_deque{std::move(other)};
+  if (was_other_running) {
+    start(restart_time); // Restart the new sequencer
+  }
 }
 
 template <Sequencable_updatable Event_t>
@@ -177,14 +188,17 @@ void Atomic_sequencer<Event_t>::run(std::stop_token st, Time_point start_time) {
     Event_t event_buffer;
     event_buffer = Atomic_ring_deque::next();
 
+    // Use member variable to track event time for move continuity
     std::chrono::time_point<Clock, std::chrono::duration<double>> event_time =
         start_time;
+    next_step_time_.store(event_time);
 
     std::chrono::duration<double> duration_cache = event_buffer.duration;
 
     while (!st.stop_requested()) {
       // Add the current step's offset to trigger time
       event_time += event_buffer.offset;
+      next_step_time_.store(event_time);
       // Store this event's duration before it's moved out of scope to handler
       duration_cache = event_buffer.duration;
       // DO NOT put anything in between the following 3 statements as their

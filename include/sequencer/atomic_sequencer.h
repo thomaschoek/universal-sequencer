@@ -23,8 +23,8 @@ public:
   using Atomic_ring_deque = container::Atomic_ring_deque<Event_t>;
   using Protected_base_deque = Atomic_ring_deque::Base_deque;
   using Handler = std::function<void(Event_t&&)>;
-  using Clock = std::chrono::steady_clock;
-  using Time_point = Clock::time_point;
+  using Clock = Sequencer::Clock;
+  using Time_point = Sequencer::Time_point;
   using Duration = Event_t::Duration;
   using Step_idx = Protected_base_deque::size_type;
   using Step_iterator = Protected_base_deque::iterator;
@@ -57,6 +57,9 @@ private:
   void run(std::stop_token st, Time_point start_time);
   std::jthread runner_thread_;
   Handler handler_ = [](Event_t&&) {};
+
+  // Track next scheduled event time for preserving state across moves
+  std::atomic<Time_point> next_step_time_{Clock::now()};
 
   std::mutex mutex_;
 };

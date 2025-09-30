@@ -250,6 +250,9 @@ TEST_CASE("Parallel_sequencer: CRUD while running", "[parallel_sequencer]") {
   std::atomic<int> count{0};
   auto handler = [&count](Oscillation_event&&) { ++count; };
 
+  // Reserve capacity to prevent reallocation during test
+  pseq.reserve(10);
+
   pseq.emplace_back(handler);
   pseq[0].assign({Oscillation_event{440.0, 0.5, 0.0, 0ms, 10ms}});
 

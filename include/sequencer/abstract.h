@@ -12,7 +12,8 @@ namespace abstract {
 class Sequencer {
 public:
   using Clock = std::chrono::steady_clock;
-  using Time_point = Clock::time_point;
+  using Time_point =
+      std::chrono::time_point<Clock, std::chrono::duration<double>>;
 
   // Destructor
   virtual ~Sequencer() = default;
