@@ -13,20 +13,21 @@ namespace sequencer {
 
 template <Sequencable_updatable Event_t>
 Atomic_sequencer<Event_t>::Atomic_sequencer(const Atomic_sequencer& other)
-    : handler_(other.handler_), Base_deque(other.steps_) {}
+    : handler_(other.handler_), Protected_base_deque(other.steps_) {}
 
 template <Sequencable_updatable Event_t>
 Atomic_sequencer<Event_t>::Atomic_sequencer(Atomic_sequencer&& other) noexcept
-    : handler_(std::move(other.handler_)), Base_deque(std::move(other)) {}
+    : handler_(std::move(other.handler_)),
+      Protected_base_deque(std::move(other)) {}
 
 template <Sequencable_updatable Event_t>
 Atomic_sequencer<Event_t>::Atomic_sequencer(Handler handler)
-    : handler_(handler), Base_deque() {}
+    : handler_(handler), Protected_base_deque() {}
 
 template <Sequencable_updatable Event_t>
 Atomic_sequencer<Event_t>::Atomic_sequencer(Initializer_list seq,
                                             Handler handler)
-    : handler_(handler), Base_deque(seq) {}
+    : handler_(handler), Protected_base_deque(seq) {}
 
 // Assignment
 template <Sequencable_updatable Event_t>
@@ -35,7 +36,7 @@ Atomic_sequencer<Event_t>::operator=(const Atomic_sequencer& other) {
   if (this != &other) {
     std::scoped_lock lck{mutex_};
     handler_ = other.handler_;
-    Base_deque::operator=(other);
+    Protected_base_deque::operator=(other);
   }
   return *this;
 }
@@ -65,7 +66,7 @@ void Atomic_sequencer<Event_t>::start(Time_point start_time) {
     return;
   }
 
-  while (Base_deque::empty()) {
+  while (Protected_base_deque::empty()) {
 // Wait until user adds something to the sequence
 #ifndef NDEBUG
     std::cout << "I CAN HAZ STEPS? NO! IS EMPTY!" << std::endl;
@@ -115,7 +116,7 @@ template <Sequencable_updatable Event_t>
 void Atomic_sequencer<Event_t>::set_duration(const Step_idx idx,
                                              const Duration duration) {
   std::scoped_lock lck{mutex_};
-  if (idx < Base_deque::size()) {
+  if (idx < Protected_base_deque::size()) {
     this[idx].duration = duration;
   }
 }
@@ -132,7 +133,7 @@ template <Sequencable_updatable Event_t>
 void Atomic_sequencer<Event_t>::set_offset(const Step_idx idx,
                                            const Duration offset) {
   std::scoped_lock lck{mutex_};
-  if (idx < Base_deque::steps_.size()) {
+  if (idx < Protected_base_deque::steps_.size()) {
     this[idx].offset = offset;
   }
 }
@@ -159,7 +160,7 @@ void Atomic_sequencer<Event_t>::run(std::stop_token st, Time_point start_time) {
   try {
 
     Event_t event_buffer;
-    event_buffer = Ring_deque::next();
+    event_buffer = Atomic_ring_deque::next();
 
     std::chrono::time_point<Clock, std::chrono::duration<double>> event_time =
         start_time;
@@ -180,7 +181,7 @@ void Atomic_sequencer<Event_t>::run(std::stop_token st, Time_point start_time) {
       // Move current event buffer to event handler
       handler_(std::move(event_buffer));
       // Load next event into buffer
-      event_buffer = Ring_deque::next();
+      event_buffer = Atomic_ring_deque::next();
       // Next event should be scheduled after current event completes
       event_time += duration_cache;
     }
