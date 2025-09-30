@@ -32,6 +32,30 @@ TEST_CASE("Atomic_vector: Basic construction", "[atomic_vector]") {
     REQUIRE(vec2.size() == 1);
     REQUIRE(vec2.front() == 10);
   }
+
+  SECTION("Construct from std::vector copy") {
+    std::vector<int> std_vec = {1, 2, 3, 4, 5};
+    Atomic_vector<int> vec(std_vec);
+
+    REQUIRE(vec.size() == 5);
+    REQUIRE(vec.front() == 1);
+    REQUIRE(vec.back() == 5);
+    REQUIRE(vec.at(2) == 3);
+
+    // Verify original vector unchanged
+    REQUIRE(std_vec.size() == 5);
+    REQUIRE(std_vec[0] == 1);
+  }
+
+  SECTION("Construct from std::vector move") {
+    std::vector<int> std_vec = {10, 20, 30};
+    Atomic_vector<int> vec(std::move(std_vec));
+
+    REQUIRE(vec.size() == 3);
+    REQUIRE(vec.front() == 10);
+    REQUIRE(vec.back() == 30);
+    REQUIRE(vec.at(1) == 20);
+  }
 }
 
 TEST_CASE("Atomic_vector: Push and pop operations", "[atomic_vector]") {

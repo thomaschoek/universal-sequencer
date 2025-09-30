@@ -88,3 +88,48 @@ TEST_CASE("Atomic_ring_deque: Inherited operations", "[atomic_ring_deque]") {
     REQUIRE((value == 1 || value == 2));
   }
 }
+
+TEST_CASE("Atomic_ring_deque: set_pos operation", "[atomic_ring_deque]") {
+  Atomic_ring_deque<int> ring;
+  ring.push_back(10);
+  ring.push_back(20);
+  ring.push_back(30);
+  ring.push_back(40);
+
+  SECTION("Set position to start") {
+    ring.set_pos(0);
+    REQUIRE(ring.next() == 10);
+    REQUIRE(ring.next() == 20);
+  }
+
+  SECTION("Set position to middle") {
+    ring.set_pos(2);
+    REQUIRE(ring.next() == 30);
+    REQUIRE(ring.next() == 40);
+    REQUIRE(ring.next() == 10); // Wrap around
+  }
+
+  SECTION("Set position to last") {
+    ring.set_pos(3);
+    REQUIRE(ring.next() == 40);
+    REQUIRE(ring.next() == 10); // Wrap around
+  }
+
+  SECTION("Set position out of range throws") {
+    REQUIRE_THROWS_AS(ring.set_pos(4), std::out_of_range);
+    REQUIRE_THROWS_AS(ring.set_pos(100), std::out_of_range);
+  }
+
+  SECTION("Set position on empty ring") {
+    Atomic_ring_deque<int> empty_ring;
+    empty_ring.set_pos(0); // Should not throw, just reset to begin
+    REQUIRE_THROWS_AS(empty_ring.next(), std::out_of_range);
+  }
+
+  SECTION("Set position with default argument") {
+    ring.next(); // Advance iterator
+    ring.next();
+    ring.set_pos(); // Reset to beginning
+    REQUIRE(ring.next() == 10);
+  }
+}

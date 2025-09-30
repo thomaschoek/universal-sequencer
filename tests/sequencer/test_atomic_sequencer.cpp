@@ -285,3 +285,39 @@ TEST_CASE("Atomic_sequencer: Copy assignment stops running thread",
   REQUIRE_FALSE(seq2.is_running());
   REQUIRE(seq2.size() == 1);
 }
+
+TEST_CASE("Atomic_sequencer: set_pos operation", "[atomic_sequencer]") {
+  std::atomic<int> call_count{0};
+  std::atomic<int> last_freq{0};
+  auto handler = [&](Oscillation_event&& ev) {
+    ++call_count;
+    last_freq = static_cast<int>(ev.frequency);
+  };
+
+  Atomic_sequencer<Oscillation_event> seq(handler);
+  seq.assign({Oscillation_event{440.0, 0.5, 0.0, 0ms, 50ms},
+              Oscillation_event{880.0, 0.5, 0.0, 0ms, 50ms},
+              Oscillation_event{1320.0, 0.5, 0.0, 0ms, 50ms},
+              Oscillation_event{1760.0, 0.5, 0.0, 0ms, 50ms}});
+
+  SECTION("Set position before starting") {
+    seq.set_pos(2);
+    seq.start();
+    std::this_thread::sleep_for(60ms);
+
+    // Should start from position 2 (1320 Hz)
+    REQUIRE(last_freq == 1320);
+    seq.stop();
+  }
+
+  SECTION("Set position with default argument resets to start") {
+    seq.set_pos(2);
+    seq.set_pos(); // Reset to beginning
+    seq.start();
+    std::this_thread::sleep_for(60ms);
+
+    // Should start from position 0 (440 Hz)
+    REQUIRE(last_freq == 440);
+    seq.stop();
+  }
+}

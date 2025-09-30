@@ -202,10 +202,36 @@ TEST_CASE("Atomic_deque: Thread safety", "[atomic_deque][thread_safety]") {
 TEST_CASE("Atomic_deque: Assign operation", "[atomic_deque]") {
   Atomic_deque<int> deque;
 
-  deque.assign({1, 2, 3, 4, 5});
+  SECTION("Assign from initializer_list") {
+    deque.assign({1, 2, 3, 4, 5});
 
-  REQUIRE(deque.size() == 5);
-  REQUIRE(deque.front() == 1);
-  REQUIRE(deque.back() == 5);
-  REQUIRE(deque.at(2) == 3);
+    REQUIRE(deque.size() == 5);
+    REQUIRE(deque.front() == 1);
+    REQUIRE(deque.back() == 5);
+    REQUIRE(deque.at(2) == 3);
+  }
+
+  SECTION("Assign from std::vector copy") {
+    std::vector<int> vec = {10, 20, 30, 40};
+    deque.assign(vec);
+
+    REQUIRE(deque.size() == 4);
+    REQUIRE(deque.front() == 10);
+    REQUIRE(deque.back() == 40);
+    REQUIRE(deque.at(1) == 20);
+
+    // Verify original vector unchanged
+    REQUIRE(vec.size() == 4);
+    REQUIRE(vec[0] == 10);
+  }
+
+  SECTION("Assign from std::vector move") {
+    std::vector<int> vec = {100, 200, 300};
+    deque.assign(std::move(vec));
+
+    REQUIRE(deque.size() == 3);
+    REQUIRE(deque.front() == 100);
+    REQUIRE(deque.back() == 300);
+    REQUIRE(deque.at(1) == 200);
+  }
 }
