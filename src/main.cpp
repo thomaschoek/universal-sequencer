@@ -75,9 +75,8 @@ int main() {
   std::this_thread::sleep_for(std::chrono::seconds(4));
   seqr.assign(steps);
   std::this_thread::sleep_for(std::chrono::seconds(1));
-  seqr.update(7, 100, 1.0, 0.1);
-  // seqr.set_offset(std::chrono::milliseconds(500));
-  // std::this_thread::sleep_for(std::chrono::seconds(3));
+  //  seqr.set_offset(std::chrono::milliseconds(500));
+  //  std::this_thread::sleep_for(std::chrono::seconds(3));
 
   // seqr.set_duration(std::chrono::milliseconds(100));
   // std::this_thread::sleep_for(std::chrono::seconds(3));
@@ -131,6 +130,9 @@ int main() {
   std::this_thread::sleep_for(std::chrono::seconds(10));
 
   psqr.stop_all();
+
+  psqr.update(0, 7, 100, 1.0, 0.1);
+  psqr.update(2, 1, 2000, 0.5, 0.0);
 
   return 0;
 }

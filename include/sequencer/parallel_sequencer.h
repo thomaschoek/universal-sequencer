@@ -3,7 +3,6 @@
 
 #include "container/atomic_vector.h"
 #include "sequencer/atomic_sequencer.h"
-#include <chrono>
 #include <mutex>
 
 namespace Micro_composer {
@@ -17,6 +16,7 @@ public:
   using Sequencer = Atomic_sequencer<Event_t>;
   using Base_vector = container::Atomic_vector<Sequencer>;
   using Seq_idx = Base_vector::Index;
+  using Step_idx = Sequencer::Step_idx;
   using Handler = Sequencer::Handler;
   using Clock = Sequencer::Clock;
   using Time_point = Sequencer::Time_point;
@@ -36,6 +36,8 @@ public:
   // Synchronized transport control
   void start(Seq_idx, Time_point start_time = Clock::now());
   void start_all(Time_point start_time = Clock::now());
+
+  template <typename... Args> void update(Seq_idx, Step_idx, Args...);
 
   void set_pos(typename Sequencer::Step_idx = 0);
   void set_pos(Seq_idx, typename Sequencer::Step_idx = 0);

@@ -41,6 +41,7 @@ public:
   void insert(Index, const T&);
   void insert(Index, T&&);
 
+  template <typename... Args> void update(Index, Args...);
   void replace(Index, const T&);
   void replace(Index, T&&);
 
