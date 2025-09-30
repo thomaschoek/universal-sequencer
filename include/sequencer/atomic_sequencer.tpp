@@ -112,6 +112,12 @@ void Atomic_sequencer<Event_t>::start(Time_point start_time) {
 }
 
 template <Sequencable_updatable Event_t>
+void Atomic_sequencer<Event_t>::set_pos(Step_idx idx) {
+  std::scoped_lock lck{mutex_};
+  Atomic_ring_deque::set_pos(idx);
+}
+
+template <Sequencable_updatable Event_t>
 void Atomic_sequencer<Event_t>::stop() {
 #ifndef NDEBUG
   // Print debug message about the exact time the clock started

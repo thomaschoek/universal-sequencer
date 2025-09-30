@@ -21,13 +21,13 @@ class Atomic_sequencer : public abstract::Sequencer,
                          public container::Atomic_ring_deque<Event_t> {
 public:
   using Atomic_ring_deque = container::Atomic_ring_deque<Event_t>;
-  using Protected_base_deque = Atomic_ring_deque::Base_deque;
+  using Base_deque = Atomic_ring_deque::Base_deque;
   using Handler = std::function<void(Event_t&&)>;
   using Clock = Sequencer::Clock;
   using Time_point = Sequencer::Time_point;
   using Duration = Event_t::Duration;
-  using Step_idx = Protected_base_deque::size_type;
-  using Step_iterator = Protected_base_deque::iterator;
+  using Step_idx = Base_deque::size_type;
+  using Step_iterator = Base_deque::iterator;
   using Initializer_list = std::initializer_list<Event_t>;
 
   // Constructors
@@ -46,6 +46,7 @@ public:
   // Thread-safe transport control
   bool is_running() const override;
   void start(Time_point start_time = Clock::now()) override;
+  void set_pos(Step_idx = 0);
   void stop() override;
 
   void set_handler(const Handler);

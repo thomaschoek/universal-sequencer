@@ -60,6 +60,22 @@ void Parallel_sequencer<Event_t>::start_all(Time_point start_time) {
 }
 
 template <sequencable::Sequencable_updatable Event_t>
+void Parallel_sequencer<Event_t>::set_pos(typename Sequencer::Step_idx pos) {
+  std::scoped_lock lck{transport_mutex_};
+  auto count = Base_vector::size();
+  for (auto& seqr : *this) {
+    seqr.set_pos(pos);
+  }
+}
+
+template <sequencable::Sequencable_updatable Event_t>
+void Parallel_sequencer<Event_t>::set_pos(Seq_idx idx,
+                                          typename Sequencer::Step_idx pos) {
+  std::scoped_lock lck{transport_mutex_};
+  Base_vector::at(idx).set_pos(pos);
+}
+
+template <sequencable::Sequencable_updatable Event_t>
 void Parallel_sequencer<Event_t>::stop(Seq_idx idx) {
   std::scoped_lock lck{transport_mutex_};
   if (idx >= Base_vector::size()) {

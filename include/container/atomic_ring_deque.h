@@ -23,8 +23,11 @@ public:
   Atomic_ring_deque(std::vector<T>&& vec);
 
   T next();
+  void set_pos(typename Base_deque::Index = 0);
 
 private:
+  // Workaround: only for use under lock to avoid double locking
+  using Unatomic_base_deque = Base_deque::Base_deque;
   Base_deque::const_iterator iterator_{Base_deque::begin()};
 };
 

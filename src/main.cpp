@@ -124,6 +124,8 @@ int main() {
 
   psqr.set_handlers(handlers);
 
+  psqr.set_pos();
+
   psqr.start_all();
 
   std::this_thread::sleep_for(std::chrono::seconds(10));

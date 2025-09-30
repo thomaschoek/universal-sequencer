@@ -37,6 +37,9 @@ public:
   void start(Seq_idx, Time_point start_time = Clock::now());
   void start_all(Time_point start_time = Clock::now());
 
+  void set_pos(typename Sequencer::Step_idx = 0);
+  void set_pos(Seq_idx, typename Sequencer::Step_idx = 0);
+
   void stop(Seq_idx);
   void stop_all();
 
