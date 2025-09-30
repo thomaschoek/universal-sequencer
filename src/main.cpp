@@ -75,7 +75,7 @@ int main() {
   std::this_thread::sleep_for(std::chrono::seconds(4));
   seqr.assign(steps);
   std::this_thread::sleep_for(std::chrono::seconds(1));
-  //  seqr.set_offset(std::chrono::milliseconds(500));
+  seqr.set_offset(std::chrono::milliseconds(500));
   //  std::this_thread::sleep_for(std::chrono::seconds(3));
 
   // seqr.set_duration(std::chrono::milliseconds(100));
@@ -88,7 +88,7 @@ int main() {
   // std::this_thread::sleep_for(std::chrono::seconds(2));
   // seqr.set_duration(std::chrono::milliseconds(600));
   // std::this_thread::sleep_for(std::chrono::seconds(5));
-  // seqr.set_offset(std::chrono::seconds(1));
+  seqr.set_offset(std::chrono::seconds(1));
   std::this_thread::sleep_for(std::chrono::seconds(5));
 
   seqr.stop();
