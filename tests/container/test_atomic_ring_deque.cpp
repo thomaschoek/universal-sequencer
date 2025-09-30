@@ -1,9 +1,10 @@
-#include "container/atomic_ring_deque.tpp"
+#include "container/atomic_ring_deque.h"
 #include <catch2/catch_test_macros.hpp>
 
 using namespace Micro_composer::container;
 
-TEST_CASE("Atomic_ring_deque: Basic ring buffer behavior", "[atomic_ring_deque]") {
+TEST_CASE("Atomic_ring_deque: Basic ring buffer behavior",
+          "[atomic_ring_deque]") {
   Atomic_ring_deque<int> ring;
 
   SECTION("Cycling through elements") {
@@ -31,7 +32,8 @@ TEST_CASE("Atomic_ring_deque: Basic ring buffer behavior", "[atomic_ring_deque]"
   }
 }
 
-TEST_CASE("Atomic_ring_deque: Modifications during iteration", "[atomic_ring_deque]") {
+TEST_CASE("Atomic_ring_deque: Modifications during iteration",
+          "[atomic_ring_deque]") {
   Atomic_ring_deque<int> ring;
   ring.push_back(1);
   ring.push_back(2);

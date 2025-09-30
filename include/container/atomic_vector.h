@@ -22,6 +22,8 @@ public:
   Atomic_vector& operator=(const Atomic_vector&);
   Atomic_vector(Atomic_vector&& other) noexcept;
 
+  Atomic_vector(std::vector<T>&&) noexcept;
+
   // Run anything under lock
   std::scoped_lock<std::mutex> get_lock();
   template <typename Return_type, typename... Args>
@@ -69,5 +71,7 @@ private:
 } // namespace container
 
 } // namespace Micro_composer
+
+#include "container/atomic_vector.tpp"
 
 #endif

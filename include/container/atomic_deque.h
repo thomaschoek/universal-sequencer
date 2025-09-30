@@ -69,4 +69,6 @@ private:
 
 } // namespace Micro_composer
 
+#include "container/atomic_deque.tpp"
+
 #endif

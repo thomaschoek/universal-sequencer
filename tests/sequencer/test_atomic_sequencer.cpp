@@ -1,7 +1,7 @@
-#include "sequencer/atomic_sequencer.tpp"
 #include "sequencable/oscillation_event.h"
-#include <catch2/catch_test_macros.hpp>
+#include "sequencer/atomic_sequencer.h"
 #include <atomic>
+#include <catch2/catch_test_macros.hpp>
 #include <chrono>
 #include <thread>
 
@@ -173,9 +173,9 @@ TEST_CASE("Atomic_sequencer: Transport control", "[atomic_sequencer]") {
     REQUIRE(event_count > 0);
   }
 
-  // Note: "Start with empty sequence" test removed because it creates a deadlock
-  // The sequencer holds the lock while waiting for steps, preventing other
-  // threads from adding steps
+  // Note: "Start with empty sequence" test removed because it creates a
+  // deadlock The sequencer holds the lock while waiting for steps, preventing
+  // other threads from adding steps
 
   SECTION("Synchronized start time") {
     Atomic_sequencer<Oscillation_event> seq1(handler);

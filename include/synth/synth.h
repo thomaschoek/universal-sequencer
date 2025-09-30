@@ -34,4 +34,6 @@ private:
 } // namespace synth
 } // namespace Micro_composer
 
+#include "synth/synth.tpp"
+
 #endif

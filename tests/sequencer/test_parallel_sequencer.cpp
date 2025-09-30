@@ -1,5 +1,5 @@
 #include "sequencable/oscillation_event.h"
-#include "sequencer/parallel_sequencer.tpp"
+#include "sequencer/parallel_sequencer.h"
 #include <atomic>
 #include <catch2/catch_test_macros.hpp>
 #include <chrono>

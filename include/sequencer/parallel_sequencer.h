@@ -11,7 +11,8 @@ namespace Micro_composer {
 namespace sequencer {
 
 template <sequencable::Sequencable_updatable Event_t>
-class Parallel_sequencer : public container::Atomic_vector<Atomic_sequencer<Event_t>> {
+class Parallel_sequencer
+    : public container::Atomic_vector<Atomic_sequencer<Event_t>> {
 public:
   using Sequencer = Atomic_sequencer<Event_t>;
   using Base_vector = container::Atomic_vector<Sequencer>;
@@ -25,6 +26,8 @@ public:
   Parallel_sequencer& operator=(const Parallel_sequencer&) = delete;
   Parallel_sequencer(Parallel_sequencer&&) noexcept = default;
   ~Parallel_sequencer() = default;
+
+  Parallel_sequencer(std::vector<Sequencer>&&) noexcept;
 
   // Synchronized transport control
   void start(Seq_idx, Time_point start_time = Clock::now());
@@ -43,5 +46,7 @@ private:
 
 } // namespace sequencer
 } // namespace Micro_composer
+
+#include "sequencer/parallel_sequencer.tpp"
 
 #endif // MICRO_COMPOSER_PARALLEL_SEQUENCER_H

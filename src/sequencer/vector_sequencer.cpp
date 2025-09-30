@@ -1,5 +1,4 @@
 #include "sequencer/vector_sequencer.h"
-#include "sequencer/atomic_sequencer.tpp"
 
 namespace Micro_composer {
 

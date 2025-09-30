@@ -67,4 +67,6 @@ private:
 } // namespace sequencer
 } // namespace Micro_composer
 
+#include "sequencer/atomic_sequencer.tpp"
+
 #endif // MICRO_COMPOSER_ATOMIC_EVENT_SEQUENCER_H

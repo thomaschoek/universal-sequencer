@@ -1,4 +1,3 @@
-#include "container/atomic_ring_deque.tpp"
 #include "sequencer/atomic_sequencer.h"
 
 #include <exception>

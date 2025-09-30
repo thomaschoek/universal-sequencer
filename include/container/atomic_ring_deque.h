@@ -31,4 +31,6 @@ private:
 
 } // namespace Micro_composer
 
+#include "atomic_ring_deque.tpp"
+
 #endif

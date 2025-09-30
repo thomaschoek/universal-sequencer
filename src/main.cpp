@@ -1,6 +1,7 @@
 #include "sequencable/oscillation_event.h"
-#include "sequencer/atomic_sequencer.tpp"
-#include "synth/synth.tpp"
+#include "sequencer/atomic_sequencer.h"
+#include "sequencer/parallel_sequencer.h"
+#include "synth/synth.h"
 
 #include <chrono>
 #include <functional>
@@ -108,6 +109,8 @@ int main() {
                                                                      t_start)
                    .count()
             << " ms" << std::endl;
+
+  Parallel_sequencer<Oscillation_event> psqr{sequences};
 
   return 0;
 }

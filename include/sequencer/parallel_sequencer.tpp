@@ -1,5 +1,5 @@
-#include "container/atomic_vector.tpp"
-#include "sequencer/atomic_sequencer.tpp"
+#include "container/atomic_vector.h"
+#include "sequencer/atomic_sequencer.h"
 #include "sequencer/parallel_sequencer.h"
 #include <stdexcept>
 

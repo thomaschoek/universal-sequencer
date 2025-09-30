@@ -1,4 +1,3 @@
-#include "container/atomic_deque.tpp"
 #include "container/atomic_ring_deque.h"
 #include <stdexcept>
 
