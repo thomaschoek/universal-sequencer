@@ -17,6 +17,7 @@ public:
   using Sequencer = Atomic_sequencer<Event_t>;
   using Base_vector = container::Atomic_vector<Sequencer>;
   using Seq_idx = typename Base_vector::Index;
+  using Handler = typename Sequencer::Handler;
   using Clock = typename Sequencer::Clock;
   using Time_point = typename Sequencer::Time_point;
 
@@ -42,6 +43,11 @@ public:
   bool is_running(Seq_idx) const;
   bool any_running() const;
   bool all_running() const;
+
+  // Handler management
+  void set_handler(Seq_idx, Handler);
+  template <typename Handler_container>
+  void set_handlers(const Handler_container&);
 
 private:
   mutable std::mutex transport_mutex_;

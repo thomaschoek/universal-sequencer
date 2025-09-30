@@ -112,5 +112,31 @@ bool Parallel_sequencer<Event_t>::all_running() const {
   return true;
 }
 
+template <sequencable::Sequencable_updatable Event_t>
+void Parallel_sequencer<Event_t>::set_handler(Seq_idx idx, Handler handler) {
+  std::scoped_lock lck{transport_mutex_};
+  if (idx >= Base_vector::size()) {
+    throw std::out_of_range(
+        "[ERROR] In Parallel_sequencer::set_handler: Index out of range.");
+  }
+  Base_vector::operator[](idx).set_handler(handler);
+}
+
+template <sequencable::Sequencable_updatable Event_t>
+template <typename Handler_container>
+void Parallel_sequencer<Event_t>::set_handlers(
+    const Handler_container& handlers) {
+  std::scoped_lock lck{transport_mutex_};
+  auto seq_count = Base_vector::size();
+  Seq_idx idx = 0;
+  for (const auto& handler : handlers) {
+    if (idx >= seq_count) {
+      break; // Don't throw, just stop setting handlers
+    }
+    Base_vector::operator[](idx).set_handler(handler);
+    ++idx;
+  }
+}
+
 } // namespace sequencer
 } // namespace Micro_composer

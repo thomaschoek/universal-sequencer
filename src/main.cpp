@@ -115,5 +115,13 @@ int main() {
 
   Parallel_sequencer<Oscillation_event> psqr{sequences};
 
+  psqr.set_handlers(handlers);
+
+  psqr.start_all();
+
+  std::this_thread::sleep_for(std::chrono::seconds(10));
+
+  psqr.stop_all();
+
   return 0;
 }
