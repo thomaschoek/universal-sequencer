@@ -31,6 +31,19 @@ Atomic_deque<T>& Atomic_deque<T>::operator=(const Atomic_deque& other) {
   return *this;
 }
 
+template <typename T>
+Atomic_deque<T>::Atomic_deque(const std::vector<T>& vec) noexcept
+    : Base_deque(vec.begin(), vec.end()) {
+  // mutex_ is default-initialized
+}
+
+template <typename T>
+Atomic_deque<T>::Atomic_deque(std::vector<T>&& vec) noexcept
+    : Base_deque(std::make_move_iterator(vec.begin()),
+                 std::make_move_iterator(vec.end())) {
+  // mutex_ is default-initialized
+}
+
 // CRUD Operations
 
 template <typename T> void Atomic_deque<T>::assign(Initializer_list seq) {

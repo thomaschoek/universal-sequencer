@@ -1,11 +1,41 @@
-#include "container/atomic_vector.h"
-#include "sequencer/atomic_sequencer.h"
 #include "sequencer/parallel_sequencer.h"
 #include <stdexcept>
 
 namespace Micro_composer {
 
 namespace sequencer {
+
+template <sequencable::Sequencable_updatable Event_t>
+Parallel_sequencer<Event_t>::Parallel_sequencer(
+    const std::vector<std::vector<Event_t>>& sequences) noexcept {
+  std::vector<Sequencer> sequencers;
+  sequencers.reserve(sequences.size());
+  for (const auto& seq : sequences) {
+    sequencers.emplace_back(seq);
+  }
+  Base_vector::operator=(std::move(sequencers));
+}
+
+template <sequencable::Sequencable_updatable Event_t>
+Parallel_sequencer<Event_t>::Parallel_sequencer(
+    std::vector<std::vector<Event_t>>&& sequences) noexcept {
+  std::vector<Sequencer> sequencers;
+  sequencers.reserve(sequences.size());
+  for (auto& seq : sequences) {
+    sequencers.emplace_back(std::move(seq));
+  }
+  Base_vector::operator=(std::move(sequencers));
+}
+
+template <sequencable::Sequencable_updatable Event_t>
+Parallel_sequencer<Event_t>::Parallel_sequencer(
+    const std::vector<Sequencer>& sequencers) noexcept
+    : Base_vector(sequencers) {}
+
+template <sequencable::Sequencable_updatable Event_t>
+Parallel_sequencer<Event_t>::Parallel_sequencer(
+    std::vector<Sequencer>&& sequencers) noexcept
+    : Base_vector(std::move(sequencers)) {}
 
 template <sequencable::Sequencable_updatable Event_t>
 void Parallel_sequencer<Event_t>::start(Seq_idx idx, Time_point start_time) {

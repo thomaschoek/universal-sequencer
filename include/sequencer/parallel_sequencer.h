@@ -27,6 +27,9 @@ public:
   Parallel_sequencer(Parallel_sequencer&&) noexcept = default;
   ~Parallel_sequencer() = default;
 
+  Parallel_sequencer(const std::vector<std::vector<Event_t>>&) noexcept;
+  Parallel_sequencer(std::vector<std::vector<Event_t>>&&) noexcept;
+  Parallel_sequencer(const std::vector<Sequencer>&) noexcept;
   Parallel_sequencer(std::vector<Sequencer>&&) noexcept;
 
   // Synchronized transport control

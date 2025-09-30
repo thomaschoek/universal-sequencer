@@ -110,6 +110,9 @@ int main() {
                    .count()
             << " ms" << std::endl;
 
+  // Convert vector<vector<Event>> to vector<Atomic_sequencer<Event>>
+  std::vector<Atomic_sequencer<Oscillation_event>> sequencers;
+
   Parallel_sequencer<Oscillation_event> psqr{sequences};
 
   return 0;

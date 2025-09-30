@@ -43,6 +43,18 @@ inline std::scoped_lock<std::mutex> Atomic_vector<T>::get_lock() {
   return std::scoped_lock{mutex_};
 }
 
+template <typename T>
+Atomic_vector<T>::Atomic_vector(const std::vector<T>& vec) noexcept
+    : Base_vector(vec) {
+  // mutex_ is default-initialized
+}
+
+template <typename T>
+Atomic_vector<T>::Atomic_vector(std::vector<T>&& vec) noexcept
+    : Base_vector(std::move(vec)) {
+  // mutex_ is default-initialized
+}
+
 // CRUD Operations
 
 template <typename T> void Atomic_vector<T>::assign(Initializer_list seq) {

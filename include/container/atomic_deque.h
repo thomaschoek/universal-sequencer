@@ -23,6 +23,8 @@ public:
   Atomic_deque(Atomic_deque&& other) noexcept : Base_deque(std::move(other)) {};
 
   Atomic_deque(Initializer_list seq) : Base_deque(seq) {}
+  Atomic_deque(const std::vector<T>&) noexcept;
+  Atomic_deque(std::vector<T>&&) noexcept;
 
   // Run anything under lock
   std::scoped_lock<std::mutex> get_lock();

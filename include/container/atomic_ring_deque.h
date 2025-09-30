@@ -21,6 +21,9 @@ public:
   Atomic_ring_deque(typename Base_deque::Initializer_list seq)
       : Base_deque(seq) {}
 
+  Atomic_ring_deque(const std::vector<T>& vec) noexcept;
+  Atomic_ring_deque(std::vector<T>&& vec) noexcept;
+
   T next();
 
 private:

@@ -22,6 +22,7 @@ public:
   Atomic_vector& operator=(const Atomic_vector&);
   Atomic_vector(Atomic_vector&& other) noexcept;
 
+  Atomic_vector(const std::vector<T>&) noexcept;
   Atomic_vector(std::vector<T>&&) noexcept;
 
   // Run anything under lock

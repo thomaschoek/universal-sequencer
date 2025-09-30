@@ -11,7 +11,8 @@ namespace sequencer {
 // Constructors
 
 template <Sequencable_updatable Event_t>
-Atomic_sequencer<Event_t>::Atomic_sequencer(const Atomic_sequencer& other)
+Atomic_sequencer<Event_t>::Atomic_sequencer(
+    const Atomic_sequencer& other) noexcept
     : handler_(other.handler_), Atomic_ring_deque(other) {
   // runner_thread_ and mutex_ are default-initialized (stopped/unlocked)
 }
@@ -33,13 +34,22 @@ Atomic_sequencer<Event_t>::Atomic_sequencer(Atomic_sequencer&& other) noexcept {
 }
 
 template <Sequencable_updatable Event_t>
-Atomic_sequencer<Event_t>::Atomic_sequencer(Handler handler)
+Atomic_sequencer<Event_t>::Atomic_sequencer(Handler handler) noexcept
     : handler_(handler), Atomic_ring_deque() {}
 
 template <Sequencable_updatable Event_t>
 Atomic_sequencer<Event_t>::Atomic_sequencer(Initializer_list seq,
-                                            Handler handler)
+                                            Handler handler) noexcept
     : handler_(handler), Atomic_ring_deque(seq) {}
+
+template <Sequencable_updatable Event_t>
+Atomic_sequencer<Event_t>::Atomic_sequencer(
+    const std::vector<Event_t>& vec) noexcept
+    : Atomic_ring_deque{vec} {}
+
+template <Sequencable_updatable Event_t>
+Atomic_sequencer<Event_t>::Atomic_sequencer(std::vector<Event_t>&& vec) noexcept
+    : Atomic_ring_deque{std::move(vec)} {}
 
 // Destructor
 template <Sequencable_updatable Event_t>
@@ -52,7 +62,7 @@ Atomic_sequencer<Event_t>::~Atomic_sequencer() {
 // Assignment
 template <Sequencable_updatable Event_t>
 Atomic_sequencer<Event_t>&
-Atomic_sequencer<Event_t>::operator=(const Atomic_sequencer& other) {
+Atomic_sequencer<Event_t>::operator=(const Atomic_sequencer& other) noexcept {
   if (this != &other) {
     // Stop the running thread first if running
     if (is_running()) {
