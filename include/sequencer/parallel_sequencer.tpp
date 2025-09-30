@@ -1,4 +1,5 @@
 #include "sequencer/parallel_sequencer.h"
+#include <future>
 #include <stdexcept>
 
 namespace Micro_composer {
@@ -52,7 +53,9 @@ void Parallel_sequencer<Event_t>::start_all(Time_point start_time) {
   std::scoped_lock lck{transport_mutex_};
   auto count = Base_vector::size();
   for (Seq_idx i = 0; i < count; ++i) {
-    Base_vector::operator[](i).start(start_time);
+    std::ignore = std::async([this, start_time, i]() {
+      Base_vector::operator[](i).start(start_time);
+    });
   }
 }
 

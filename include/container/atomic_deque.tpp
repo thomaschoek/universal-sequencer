@@ -10,8 +10,7 @@ namespace container {
 
 // Constructors
 template <typename T>
-Atomic_deque<T>::Atomic_deque(const Atomic_deque& other)
-    : Base_deque(other) {
+Atomic_deque<T>::Atomic_deque(const Atomic_deque& other) : Base_deque(other) {
   // mutex_ is default-initialized
 }
 
@@ -22,8 +21,7 @@ Atomic_deque<T>::Atomic_deque(Atomic_deque&& other) noexcept
 }
 
 template <typename T>
-Atomic_deque<T>::Atomic_deque(Initializer_list seq)
-    : Base_deque(seq) {
+Atomic_deque<T>::Atomic_deque(Initializer_list seq) : Base_deque(seq) {
   // mutex_ is default-initialized
 }
 
@@ -69,6 +67,17 @@ inline std::scoped_lock<std::mutex> Atomic_deque<T>::get_lock() {
 template <typename T> void Atomic_deque<T>::assign(Initializer_list seq) {
   std::scoped_lock lck{mutex_};
   Base_deque::assign(seq);
+}
+
+template <typename T> void Atomic_deque<T>::assign(const std::vector<T>& vec) {
+  std::scoped_lock lck{mutex_};
+  Base_deque::assign(vec.begin(), vec.end());
+}
+
+template <typename T> void Atomic_deque<T>::assign(std::vector<T>&& vec) {
+  std::scoped_lock lck{mutex_};
+  Base_deque::assign(std::make_move_iterator(vec.begin()),
+                     std::make_move_iterator(vec.end()));
 }
 
 template <typename T> void Atomic_deque<T>::push_back(const T& value) {

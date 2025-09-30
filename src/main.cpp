@@ -3,6 +3,7 @@
 #include "sequencer/parallel_sequencer.h"
 #include "synth/synth.h"
 
+#include <cassert>
 #include <chrono>
 #include <functional>
 #include <future>
@@ -72,32 +73,39 @@ int main() {
   seqr.start();
 
   std::this_thread::sleep_for(std::chrono::seconds(4));
-  seqr.assign({
-      Oscillation_event{320.63}, // C4
-      Oscillation_event{293.66}, // D4
-      Oscillation_event{329.63}, // E4
-      Oscillation_event{349.23}, // F4
-      Oscillation_event{800.00}, // G4
-      Oscillation_event{440.00}, // A4
-      Oscillation_event{493.88}, // B4
-      Oscillation_event{523.25}, // C5
-  });
+  seqr.assign(steps);
   std::this_thread::sleep_for(std::chrono::seconds(1));
   seqr.update(7, 100, 1.0, 0.1);
   // seqr.set_offset(std::chrono::milliseconds(500));
-  std::this_thread::sleep_for(std::chrono::seconds(3));
+  // std::this_thread::sleep_for(std::chrono::seconds(3));
 
-  seqr.set_duration(std::chrono::milliseconds(100));
-  std::this_thread::sleep_for(std::chrono::seconds(3));
-  seqr.set_duration(std::chrono::milliseconds(50));
-  std::this_thread::sleep_for(std::chrono::seconds(3));
-  seqr.set_duration(std::chrono::milliseconds(10));
+  // seqr.set_duration(std::chrono::milliseconds(100));
+  // std::this_thread::sleep_for(std::chrono::seconds(3));
+  // seqr.set_duration(std::chrono::milliseconds(50));
+  // std::this_thread::sleep_for(std::chrono::seconds(3));
+  // seqr.set_duration(std::chrono::milliseconds(10));
+  // std::this_thread::sleep_for(std::chrono::seconds(5));
+  // seqr.set_duration(std::chrono::milliseconds(300));
+  // std::this_thread::sleep_for(std::chrono::seconds(2));
+  // seqr.set_duration(std::chrono::milliseconds(600));
+  // std::this_thread::sleep_for(std::chrono::seconds(5));
+  // seqr.set_offset(std::chrono::seconds(1));
   std::this_thread::sleep_for(std::chrono::seconds(5));
-  seqr.set_duration(std::chrono::milliseconds(300));
-  std::this_thread::sleep_for(std::chrono::seconds(2));
-  seqr.set_duration(std::chrono::milliseconds(600));
+
+  seqr.stop();
+
+  seqr.assign(sequences[0]);
+
+  seqr.start();
+
   std::this_thread::sleep_for(std::chrono::seconds(5));
-  seqr.set_offset(std::chrono::seconds(1));
+
+  seqr.stop();
+
+  seqr.assign(sequences[1]);
+
+  seqr.start();
+
   std::this_thread::sleep_for(std::chrono::seconds(5));
 
   seqr.stop();
@@ -110,10 +118,9 @@ int main() {
                    .count()
             << " ms" << std::endl;
 
-  // Convert vector<vector<Event>> to vector<Atomic_sequencer<Event>>
-  std::vector<Atomic_sequencer<Oscillation_event>> sequencers;
-
   Parallel_sequencer<Oscillation_event> psqr{sequences};
+
+  assert(psqr.size() == 2);
 
   psqr.set_handlers(handlers);
 

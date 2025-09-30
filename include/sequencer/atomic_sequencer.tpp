@@ -157,8 +157,11 @@ void Atomic_sequencer<Event_t>::set_duration(const Step_idx idx,
 template <Sequencable_updatable Event_t>
 void Atomic_sequencer<Event_t>::set_offset(const Duration offset) {
   std::scoped_lock lck{mutex_};
+
   for (auto& event : *this) {
+    auto offset_diff = offset - event.offset;
     event.offset = offset;
+    event.duration -= offset_diff;
   }
 }
 
@@ -167,7 +170,10 @@ void Atomic_sequencer<Event_t>::set_offset(const Step_idx idx,
                                            const Duration offset) {
   std::scoped_lock lck{mutex_};
   if (idx < Atomic_ring_deque::size()) {
-    Atomic_ring_deque::operator[](idx).offset = offset;
+    Event_t& event = Atomic_ring_deque::operator[](idx);
+    auto offset_diff = offset - event.offset;
+    event.offset = offset;
+    event.duration -= offset_diff;
   }
 }
 

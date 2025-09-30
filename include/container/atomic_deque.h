@@ -34,6 +34,8 @@ public:
 
   // Thread-safe CRUD operations
   void assign(Initializer_list);
+  void assign(const std::vector<T>&);
+  void assign(std::vector<T>&&);
 
   void push_back(const T&);
   void push_back(T&&);
