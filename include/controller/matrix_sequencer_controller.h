@@ -1,6 +1,7 @@
 #ifndef MICRO_COMPOSER_MATRIX_SEQUENCER_CONTROLLER_H
 #define MICRO_COMPOSER_MATRIX_SEQUENCER_CONTROLLER_H
 
+#include "gui/display_state.h"
 #include "sequencer/matrix_sequencer.h"
 #include <mutex>
 #include <optional>
@@ -50,6 +51,9 @@ public:
 
   // Clear all selections
   void clear_selection();
+
+  // Get current display state (thread-safe)
+  gui::Display_state get_display_state() const;
 
 private:
   std::optional<Seq_idx> selected_seq_idx_;

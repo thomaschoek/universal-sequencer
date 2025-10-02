@@ -56,5 +56,17 @@ template <typename T> T Atomic_ring_deque<T>::next() {
   return *iterator_++;
 }
 
+template <typename T>
+typename Atomic_ring_deque<T>::Base_deque::Index
+Atomic_ring_deque<T>::get_pos() const {
+  std::scoped_lock lck = Atomic_deque<T>::get_lock();
+  if (Unatomic_base_deque::empty()) {
+    return 0;
+  }
+  // Return the distance from begin to current iterator
+  return static_cast<typename Base_deque::Index>(
+      std::distance(Unatomic_base_deque::cbegin(), iterator_));
+}
+
 } // namespace container
 } // namespace Micro_composer

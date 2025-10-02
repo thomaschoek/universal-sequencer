@@ -299,5 +299,36 @@ void Matrix_sequencer_controller<T_event_params>::clear_selection() {
   selected_param_idx_.reset();
 }
 
+template <typename T_event_params>
+gui::Display_state
+Matrix_sequencer_controller<T_event_params>::get_display_state() const {
+  gui::Display_state state;
+
+  // Get selection state (thread-safe)
+  {
+    std::scoped_lock lck{selection_mutex_};
+    state.selected_seq_idx = selected_seq_idx_;
+    state.selected_step_idx = selected_step_idx_;
+    state.selected_param_idx = selected_param_idx_;
+  }
+
+  // Get sequencer states
+  // Note: We access the base class's transport_mutex_ for thread safety
+  std::scoped_lock lck{Base_sequencer::transport_mutex_};
+
+  for (Seq_idx i = 0; i < Base_sequencer::size(); ++i) {
+    const auto& seq = Base_sequencer::operator[](i);
+
+    gui::Sequencer_display_state seq_state;
+    seq_state.current_step_idx = seq.get_pos();
+    seq_state.is_running = seq.is_running();
+    seq_state.num_steps = seq.size();
+
+    state.sequencers.push_back(seq_state);
+  }
+
+  return state;
+}
+
 } // namespace controller
 } // namespace Micro_composer
