@@ -68,7 +68,7 @@ void Parallel_sequencer<Event_t>::update(Seq_idx seq_idx, Step_idx step_idx,
     throw std::out_of_range(
         "[ERROR] In Parallel_sequencer::update: Sequencer index out of range.");
   }
-  Base_vector::operator[](seq_idx).update(step_idx, std::forward<Args>(args)...);
+  Base_vector::update(seq_idx, step_idx, std::forward<Args>(args)...);
 }
 
 template <sequencable::Sequencable_updatable Event_t>
