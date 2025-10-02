@@ -120,8 +120,7 @@ void Gui<T_event_params>::render(const Display_state& state) {
     update_selection_highlighting(state);
     update_play_icons(state);
   } else {
-    // Just update values and highlighting
-    update_cell_values(state);
+    // Just update highlighting (not values - they only change when user edits)
     update_playhead_highlighting(state);
     update_selection_highlighting(state);
     update_play_icons(state);
@@ -253,8 +252,12 @@ void Gui<T_event_params>::create_parameter_row(std::size_t seq_idx, std::size_t 
     g_object_set_data(G_OBJECT(entry), "cell_key",
                      g_strdup(key.c_str()));
 
-    // Connect edit signal
+    // Connect edit signal (Enter key)
     g_signal_connect(entry, "activate", G_CALLBACK(on_cell_edited), this);
+
+    // Connect focus-out signal (when user leaves the cell)
+    g_signal_connect(entry, "focus-out-event", G_CALLBACK(on_cell_focus_out),
+                    this);
 
     // Connect keyboard navigation
     g_signal_connect(entry, "key-press-event", G_CALLBACK(on_cell_key_press),
@@ -416,10 +419,9 @@ void Gui<T_event_params>::scroll_to_selection(const Display_state& state) {
   }
 }
 
-// Static event handlers
+// Helper to commit cell edit
 template <typename T_event_params>
-void Gui<T_event_params>::on_cell_edited(GtkEntry* entry, gpointer user_data) {
-  Gui* gui = static_cast<Gui*>(user_data);
+void Gui<T_event_params>::commit_cell_edit(Gui<T_event_params>* gui, GtkEntry* entry) {
   const char* key = static_cast<const char*>(
       g_object_get_data(G_OBJECT(entry), "cell_key"));
 
@@ -446,12 +448,33 @@ void Gui<T_event_params>::on_cell_edited(GtkEntry* entry, gpointer user_data) {
       try {
         gui->controller_->update(it->second.seq_idx, it->second.step_idx,
                                  it->second.param_idx, std::move(new_value));
+
+        // Update the display value to reflect the committed value
+        std::string display_value = std::to_string(new_value);
+        gtk_entry_set_text(entry, display_value.c_str());
       } catch (const std::exception& e) {
         std::cerr << "[ERROR] Failed to update controller: " << e.what()
                   << std::endl;
       }
     }
   }
+}
+
+// Static event handlers
+template <typename T_event_params>
+void Gui<T_event_params>::on_cell_edited(GtkEntry* entry, gpointer user_data) {
+  Gui* gui = static_cast<Gui*>(user_data);
+  commit_cell_edit(gui, entry);
+}
+
+template <typename T_event_params>
+gboolean Gui<T_event_params>::on_cell_focus_out(GtkWidget* widget,
+                                                  GdkEventFocus* event,
+                                                  gpointer user_data) {
+  Gui* gui = static_cast<Gui*>(user_data);
+  GtkEntry* entry = GTK_ENTRY(widget);
+  commit_cell_edit(gui, entry);
+  return FALSE; // Allow default handling
 }
 
 template <typename T_event_params>
@@ -513,22 +536,40 @@ gboolean Gui<T_event_params>::on_cell_key_press(GtkWidget* widget,
       break;
 
     case GDK_KEY_Left:
-      // Move to previous step
-      if (cell.step_idx > 0) {
-        gui->controller_->select(cell.seq_idx, cell.step_idx - 1);
-        gui->controller_->select_param(cell.param_idx);
-        handled = true;
-      }
+      // Move to previous step (wrap around)
+      gui->controller_->select(cell.seq_idx, cell.step_idx);
+      gui->controller_->select_param(cell.param_idx);
+      gui->controller_->select_prev_step();
+      handled = true;
       break;
 
     case GDK_KEY_Right:
-    case GDK_KEY_Tab:
-      // Move to next step (Tab also moves to next step)
+      // Move to next step
       gui->controller_->select(cell.seq_idx, cell.step_idx);
       gui->controller_->select_param(cell.param_idx);
       gui->controller_->select_next_step();
       handled = true;
       break;
+
+    case GDK_KEY_Tab:
+    case GDK_KEY_ISO_Left_Tab: {
+      // Tab: move right, Shift+Tab: move left
+      bool shift_pressed = (event->state & GDK_SHIFT_MASK) != 0;
+
+      if (shift_pressed) {
+        // Shift+Tab: move to previous step (wrap around)
+        gui->controller_->select(cell.seq_idx, cell.step_idx);
+        gui->controller_->select_param(cell.param_idx);
+        gui->controller_->select_prev_step();
+      } else {
+        // Tab: move to next step (wrap around)
+        gui->controller_->select(cell.seq_idx, cell.step_idx);
+        gui->controller_->select_param(cell.param_idx);
+        gui->controller_->select_next_step();
+      }
+      handled = true;
+      break;
+    }
 
     case GDK_KEY_Page_Up:
       // Move to previous sequence
@@ -570,7 +611,8 @@ void Gui<T_event_params>::show_help_dialog() {
       "Navigation:\n"
       "  ↑/↓         - Move between parameters\n"
       "  ←/→         - Move between steps\n"
-      "  Tab         - Move to next step\n"
+      "  Tab         - Move to next step (right)\n"
+      "  Shift+Tab   - Move to previous step (left)\n"
       "  Page Up/Dn  - Move between sequences\n"
       "\n"
       "Transport:\n"
@@ -578,8 +620,9 @@ void Gui<T_event_params>::show_help_dialog() {
       "  Ctrl+Space  - Start/stop selected sequence\n"
       "\n"
       "Editing:\n"
-      "  Click cell  - Select for editing\n"
-      "  Enter       - Confirm edit\n"
+      "  Type digits - Start editing selected cell\n"
+      "  Enter       - Commit edit and stay\n"
+      "  Navigate    - Commit edit and move\n"
       "\n"
       "View:\n"
       "  ▶/▼ button  - Expand/collapse sequence\n"
