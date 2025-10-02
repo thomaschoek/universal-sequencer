@@ -3,21 +3,40 @@
 
 #include <cstddef>
 #include <optional>
+#include <string>
 #include <vector>
 
 namespace Micro_composer {
 
 namespace gui {
 
+// Represents a single step's parameter values
+struct Step_display_state {
+  std::vector<std::string> param_values; // Parameters as strings for display
+
+  bool operator==(const Step_display_state& other) const {
+    return param_values == other.param_values;
+  }
+
+  bool operator!=(const Step_display_state& other) const {
+    return !(*this == other);
+  }
+};
+
 // Represents the current state of a single sequencer for display purposes
 struct Sequencer_display_state {
   std::size_t current_step_idx;  // Current step being played (or last played)
   bool is_running;
   std::size_t num_steps;
+  std::size_t num_params; // Number of parameters per step
+  std::vector<Step_display_state> steps; // All steps with their parameter values
+  bool is_expanded{false}; // Whether this sequence's row group is expanded
 
   bool operator==(const Sequencer_display_state& other) const {
     return current_step_idx == other.current_step_idx &&
-           is_running == other.is_running && num_steps == other.num_steps;
+           is_running == other.is_running && num_steps == other.num_steps &&
+           num_params == other.num_params && steps == other.steps &&
+           is_expanded == other.is_expanded;
   }
 
   bool operator!=(const Sequencer_display_state& other) const {

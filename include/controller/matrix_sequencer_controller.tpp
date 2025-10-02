@@ -324,6 +324,32 @@ Matrix_sequencer_controller<T_event_params>::get_display_state() const {
     seq_state.is_running = seq.is_running();
     seq_state.num_steps = seq.size();
 
+    // Get parameter values for each step
+    if (seq_state.num_steps > 0) {
+      // Determine number of parameters from first step
+      auto first_step = seq.at(0);
+      seq_state.num_params = first_step.params.size();
+
+      // Get all step values
+      for (Step_idx step_idx = 0; step_idx < seq_state.num_steps; ++step_idx) {
+        auto step = seq.at(step_idx);
+        gui::Step_display_state step_state;
+
+        // Convert each parameter to string
+        for (const auto& param : step.params) {
+          step_state.param_values.push_back(std::to_string(param));
+        }
+
+        seq_state.steps.push_back(step_state);
+      }
+    } else {
+      seq_state.num_params = 0;
+    }
+
+    // Expanded state: seq 0 starts expanded, others collapsed
+    // (This should eventually be tracked per-sequence in the controller)
+    seq_state.is_expanded = (i == state.selected_seq_idx.value_or(0));
+
     state.sequencers.push_back(seq_state);
   }
 
