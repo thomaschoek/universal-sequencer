@@ -333,3 +333,114 @@ TEST_CASE("Matrix_sequencer_controller empty sequences",
     REQUIRE(!ctrl.selected_param().has_value());
   }
 }
+
+TEST_CASE("Matrix_sequencer_controller update_selected",
+          "[matrix_sequencer_controller]") {
+  using Controller = Matrix_sequencer_controller<double>;
+  using VectorEvent = Vector_event<double>;
+
+  std::vector<VectorEvent> seq1;
+  for (int i = 0; i < 3; ++i) {
+    VectorEvent evt;
+    evt.params = {261.63, 1.0, 0.0}; // frequency, amplitude, phase
+    seq1.push_back(evt);
+  }
+
+  std::vector<VectorEvent> seq2;
+  for (int i = 0; i < 2; ++i) {
+    VectorEvent evt;
+    evt.params = {440.0, 0.5, 0.1};
+    seq2.push_back(evt);
+  }
+
+  std::vector<std::vector<VectorEvent>> sequences = {seq1, seq2};
+
+  SECTION("Update selected parameter") {
+    Controller ctrl{sequences};
+
+    // Select sequence 0, step 1, parameter 0 (frequency)
+    ctrl.select(0, 1);
+    ctrl.select_param(0);
+
+    // Update the selected parameter
+    ctrl.update_selected(880.0);
+
+    // Verify the update worked
+    REQUIRE(ctrl[0].at(1).params[0] == 880.0);
+
+    // Verify other parameters unchanged
+    REQUIRE(ctrl[0].at(1).params[1] == 1.0);
+    REQUIRE(ctrl[0].at(1).params[2] == 0.0);
+    REQUIRE(ctrl[0].at(0).params[0] == 261.63);
+  }
+
+  SECTION("Update different parameter types") {
+    Controller ctrl{sequences};
+
+    // Update amplitude (parameter 1)
+    ctrl.select(0, 0);
+    ctrl.select_param(1);
+    ctrl.update_selected(0.75);
+    REQUIRE(ctrl[0].at(0).params[1] == 0.75);
+
+    // Update phase (parameter 2)
+    ctrl.select_param(2);
+    ctrl.update_selected(0.5);
+    REQUIRE(ctrl[0].at(0).params[2] == 0.5);
+  }
+
+  SECTION("Update preserves selection") {
+    Controller ctrl{sequences};
+
+    ctrl.select(1, 1);
+    ctrl.select_param(0);
+
+    ctrl.update_selected(523.25);
+
+    // Verify selection is still active
+    REQUIRE(ctrl.selected_seq().value() == 1);
+    REQUIRE(ctrl.selected_step().value() == 1);
+    REQUIRE(ctrl.selected_param().value() == 0);
+
+    // Can immediately update again
+    ctrl.update_selected(587.33);
+    REQUIRE(ctrl[1].at(1).params[0] == 587.33);
+  }
+
+  SECTION("Update fails without full selection") {
+    Controller ctrl{sequences};
+
+    // No selection at all
+    REQUIRE_THROWS_AS(ctrl.update_selected(100.0), std::runtime_error);
+
+    // Only sequence selected
+    ctrl.select_next_seq();
+    REQUIRE_THROWS_AS(ctrl.update_selected(100.0), std::runtime_error);
+
+    // Sequence and step selected, but no parameter
+    ctrl.select_next_step();
+    REQUIRE_THROWS_AS(ctrl.update_selected(100.0), std::runtime_error);
+
+    // All three selected - should work
+    ctrl.select_param(0);
+    REQUIRE_NOTHROW(ctrl.update_selected(100.0));
+    // After select_next_seq() we have seq=0,step=0, then select_next_step() moves to step=1
+    REQUIRE(ctrl[0].at(1).params[0] == 100.0);
+  }
+
+  SECTION("Multiple updates to same selection") {
+    Controller ctrl{sequences};
+
+    ctrl.select(0, 2);
+    ctrl.select_param(1);
+
+    ctrl.update_selected(0.1);
+    REQUIRE(ctrl[0].at(2).params[1] == 0.1);
+
+    ctrl.update_selected(0.2);
+    REQUIRE(ctrl[0].at(2).params[1] == 0.2);
+
+    ctrl.update_selected(0.9);
+    REQUIRE(ctrl[0].at(2).params[1] == 0.9);
+  }
+}

@@ -33,6 +33,9 @@ public:
   // Clear parameter selection
   void clear_param_selection();
 
+  // Update selected parameter
+  void update_selected(T_event_params&& value);
+
   // Sequence and step selection (delegated to underlying sequencers)
   void select(Seq_idx seq_idx, Step_idx step_idx = 0);
   void select_next_seq();

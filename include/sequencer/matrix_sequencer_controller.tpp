@@ -120,6 +120,23 @@ void Matrix_sequencer_controller<T_event_params>::clear_param_selection() {
   selected_param_idx_.reset();
 }
 
+template <typename T_event_params>
+void Matrix_sequencer_controller<T_event_params>::update_selected(
+    T_event_params&& value) {
+  std::scoped_lock lck{selection_mutex_};
+
+  if (!selected_seq_idx_ || !selected_step_idx_ || !selected_param_idx_) {
+    throw std::runtime_error(
+        "[ERROR] In Matrix_sequencer_controller::update_selected: No "
+        "sequence, step, or parameter selected.");
+  }
+
+  // Use base class update method which properly handles the underlying data
+  Base_sequencer::update(*selected_seq_idx_, *selected_step_idx_,
+                         *selected_param_idx_,
+                         std::forward<T_event_params>(value));
+}
+
 // Sequence and step selection methods
 
 template <typename T_event_params>
