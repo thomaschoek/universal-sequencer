@@ -10,9 +10,18 @@ namespace sequencable {
 template <typename T>
 struct Vector_event : public Parametrized_event<std::vector<T>> {
   using Base_event = Parametrized_event<std::vector<T>>;
-  void update(size_t idx, T&& value) {
+  using Size_type = typename std::vector<T>::size_type;
+
+  // Satisfies Sequencable_updatable concept - generic update for all params
+  template <typename... Args>
+  void update(Args&&... args) {
+    Base_event::params = std::vector<T>{std::forward<Args>(args)...};
+  }
+
+  // Specific update for single parameter at index
+  void update(Size_type idx, T&& value) {
     Base_event::params.at(idx) = std::forward<T>(value);
-  };
+  }
 };
 
 } // namespace sequencable

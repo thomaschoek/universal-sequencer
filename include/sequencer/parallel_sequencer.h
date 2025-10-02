@@ -54,7 +54,7 @@ public:
   template <typename Handler_container>
   void set_handlers(const Handler_container&);
 
-private:
+protected:
   mutable std::mutex transport_mutex_;
 };
 

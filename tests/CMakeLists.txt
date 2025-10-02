@@ -18,6 +18,7 @@ add_executable(tests
     sequencer/test_atomic_sequencer.cpp
     sequencer/test_parallel_sequencer.cpp
     sequencer/test_parallel_sequencer_controller.cpp
+    sequencer/test_matrix_sequencer_controller.cpp
 )
 
 # Link against Catch2 and project sources
