@@ -304,12 +304,6 @@ void Gui<T_event_params>::update_playhead_highlighting(const Display_state& stat
     const auto& seq = state.sequencers[seq_idx];
     std::size_t current_step = seq.current_step_idx;
 
-    // Debug output for step 0
-    if (current_step == 0 && seq.is_running) {
-      std::cout << "[DEBUG] Highlighting step 0 for seq " << seq_idx
-                << " (running=" << seq.is_running << ")" << std::endl;
-    }
-
     // Highlight all parameters for the current step of this sequence
     for (std::size_t param_idx = 0; param_idx < seq.num_params; ++param_idx) {
       std::string key = make_cell_key(seq_idx, current_step, param_idx);
@@ -318,8 +312,6 @@ void Gui<T_event_params>::update_playhead_highlighting(const Display_state& stat
         GtkStyleContext* context =
             gtk_widget_get_style_context(it->second.entry);
         gtk_style_context_add_class(context, "playhead");
-      } else if (current_step == 0) {
-        std::cout << "[DEBUG] Widget not found for key: " << key << std::endl;
       }
     }
   }
