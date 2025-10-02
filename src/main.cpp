@@ -1,6 +1,9 @@
 #include "controller/matrix_sequencer_controller.h"
+#include "sequencable/oscillation_event.h"
 #include "sequencable/vector_event.h"
+#include "synth/synth.h"
 #include "ui/ui.h"
+#include <future>
 #include <iostream>
 #include <memory>
 
@@ -9,6 +12,7 @@ int main(int argc, char** argv) {
   using namespace Micro_composer::controller;
   using namespace Micro_composer::user_interface;
   using namespace Micro_composer::sequencable;
+  using namespace Micro_composer::synth;
 
   using VectorEvent = Vector_event<double>;
 
@@ -40,6 +44,39 @@ int main(int argc, char** argv) {
 
   std::cout << "[INFO] Created controller with " << controller->size()
             << " sequences" << std::endl;
+
+  // Set up audio output
+  RealTimeAudioOutput synth_out_1, synth_out_2;
+  Synthesizer synth_1{synth_out_1}, synth_2{synth_out_2};
+
+  // Create handlers that convert Vector_event to Oscillation_event for audio
+  // playback
+  auto create_handler = [](Synthesizer& synth) {
+    return [&synth](const VectorEvent&& event) {
+      // Convert Vector_event to Oscillation_event for synthesis
+      Oscillation_event osc_event;
+      if (event.params.size() >= 1)
+        osc_event.frequency = event.params[0];
+      if (event.params.size() >= 2)
+        osc_event.amplitude = event.params[1];
+      if (event.params.size() >= 3)
+        osc_event.phase = event.params[2];
+      osc_event.duration = event.duration;
+      osc_event.offset = event.offset;
+
+      // Play asynchronously to avoid blocking sequencer
+      std::ignore = std::async(std::launch::async,
+                               [&synth, osc_event]() { synth.play(osc_event); });
+    };
+  };
+
+  std::vector<std::function<void(VectorEvent&&)>> handlers;
+  handlers.push_back(create_handler(synth_1));
+  handlers.push_back(create_handler(synth_2));
+
+  controller->set_handlers(handlers);
+
+  std::cout << "[INFO] Audio output configured" << std::endl;
 
   // Create user interface with controller
   auto ui = std::make_unique<User_interface<double>>(controller);
