@@ -28,6 +28,7 @@ public:
 
   // Run anything under lock
   std::scoped_lock<std::mutex> get_lock();
+  std::scoped_lock<std::mutex> get_lock() const;
   template <typename Return_type, typename... Args>
   const Return_type
   under_lock(std::function<Return_type(std::deque<T>, Args...)>, Args...);
@@ -62,6 +63,7 @@ public:
   T back();
 
   T at(Index);
+  T at(Index) const;
 
   const Base_deque& data() const noexcept;
 

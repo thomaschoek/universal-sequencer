@@ -68,7 +68,7 @@ private:
   // Track next scheduled event time for preserving state across moves
   std::atomic<Time_point> next_step_time_{Clock::now()};
 
-  std::mutex mutex_;
+  mutable std::mutex mutex_;
 };
 
 } // namespace sequencer

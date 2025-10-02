@@ -1,152 +1,58 @@
-#include "sequencable/oscillation_event.h"
-#include "sequencer/atomic_sequencer.h"
-#include "sequencer/parallel_sequencer.h"
-#include "synth/synth.h"
-
-#include <cassert>
-#include <chrono>
-#include <functional>
-#include <future>
+#include "controller/matrix_sequencer_controller.h"
+#include "sequencable/vector_event.h"
+#include "ui/ui.h"
 #include <iostream>
-#include <thread>
-#include <vector>
+#include <memory>
 
-int main() {
-  using namespace Micro_composer::sequencer;
-  using namespace Micro_composer::synth;
-  using namespace Micro_composer::container;
+int main(int argc, char** argv) {
+  using namespace Micro_composer;
+  using namespace Micro_composer::controller;
+  using namespace Micro_composer::user_interface;
   using namespace Micro_composer::sequencable;
-  std::vector<Oscillation_event> steps;
 
-  // Add some steps with different frequencies (musical notes)
-  // Each step: offset, duration, {frequency, amplitude, phase}
-  steps.push_back(Oscillation_event{261.63}); // C4
-  steps.push_back(Oscillation_event{293.66}); // D4
-  steps.push_back(Oscillation_event{329.63}); // E4
-  steps.push_back(Oscillation_event{349.23}); // F4
-  steps.push_back(Oscillation_event{392.00}); // G4
-  steps.push_back(Oscillation_event{440.00}); // A4
-  steps.push_back(Oscillation_event{493.88}); // B4
-  steps.push_back(Oscillation_event{523.25}); // C5
+  using VectorEvent = Vector_event<double>;
 
-  std::vector<Oscillation_event> reverse_steps;
-  for (auto it = steps.rbegin(); it != steps.rend(); ++it) {
-    reverse_steps.push_back(*it);
+  // Create example sequences with vector events
+  // Each event has 3 parameters: [frequency, amplitude, phase]
+  std::vector<VectorEvent> seq1;
+  std::vector<double> frequencies1 = {261.63, 293.66, 329.63, 349.23,
+                                      392.00, 440.00, 493.88, 523.25};
+  for (auto freq : frequencies1) {
+    VectorEvent evt;
+    evt.params = {freq, 1.0, 0.0}; // frequency, amplitude, phase
+    seq1.push_back(evt);
   }
 
-  RealTimeAudioOutput synth_out_1, synth_out_2;
-  Synthesizer synth_1{synth_out_1}, synth_2{synth_out_2};
-  std::function<void(Oscillation_event&&)> handler_1 =
-      [&synth_1](const Oscillation_event&& event) {
-        std::ignore = std::async(std::launch::async,
-                                 [&synth_1, event]() { synth_1.play(event); });
-      };
-  decltype(handler_1) handler_2 = [&synth_2](const Oscillation_event&& event) {
-    std::ignore = std::async(std::launch::async,
-                             [&synth_2, event]() { synth_2.play(event); });
-  };
-
-  std::vector<std::vector<Oscillation_event>> sequences;
-  sequences.emplace_back(steps);
-  sequences.emplace_back(reverse_steps);
-
-  std::vector<decltype(handler_1)> handlers;
-  handlers.emplace_back(handler_1);
-  handlers.emplace_back(handler_2);
-
-  Atomic_sequencer<Oscillation_event> seqr;
-
-  auto t_start = std::chrono::steady_clock::now();
-
-  seqr.assign({
-      Oscillation_event{261.63}, // C4
-      Oscillation_event{293.66}, // D4
-      Oscillation_event{329.63}, // E4
-      Oscillation_event{349.23}, // F4
-      Oscillation_event{392.00}, // G4
-      Oscillation_event{440.00}, // A4
-      Oscillation_event{493.88}, // B4
-      Oscillation_event{523.25}, // C5
-  });
-
-  seqr.set_handler(handler_1);
-  seqr.start();
-
-  std::this_thread::sleep_for(std::chrono::seconds(4));
-  seqr.assign(steps);
-  std::this_thread::sleep_for(std::chrono::seconds(1));
-  seqr.set_offset(std::chrono::milliseconds(500));
-  //  std::this_thread::sleep_for(std::chrono::seconds(3));
-
-  // seqr.set_duration(std::chrono::milliseconds(100));
-  // std::this_thread::sleep_for(std::chrono::seconds(3));
-  // seqr.set_duration(std::chrono::milliseconds(50));
-  // std::this_thread::sleep_for(std::chrono::seconds(3));
-  // seqr.set_duration(std::chrono::milliseconds(10));
-  // std::this_thread::sleep_for(std::chrono::seconds(5));
-  // seqr.set_duration(std::chrono::milliseconds(300));
-  // std::this_thread::sleep_for(std::chrono::seconds(2));
-  // seqr.set_duration(std::chrono::milliseconds(600));
-  // std::this_thread::sleep_for(std::chrono::seconds(5));
-  seqr.set_offset(std::chrono::seconds(1));
-  std::this_thread::sleep_for(std::chrono::seconds(5));
-
-  seqr.stop();
-
-  seqr.assign(sequences[0]);
-
-  seqr.start();
-
-  std::this_thread::sleep_for(std::chrono::seconds(5));
-
-  seqr.stop();
-
-  seqr.assign(sequences[1]);
-
-  seqr.start();
-
-  std::this_thread::sleep_for(std::chrono::seconds(5));
-
-  seqr.stop();
-
-  auto t_end = std::chrono::steady_clock::now();
-
-  std::cout << "Elapsed time: "
-            << std::chrono::duration_cast<std::chrono::milliseconds>(t_end -
-                                                                     t_start)
-                   .count()
-            << " ms" << std::endl;
-
-  std::this_thread::sleep_for(std::chrono::seconds(2));
-
-  Parallel_sequencer<Oscillation_event> psqr{sequences};
-
-  assert(psqr.size() == 2);
-
-  psqr.set_handlers(handlers);
-
-  psqr.set_pos();
-
-  psqr.start_all();
-
-  std::this_thread::sleep_for(std::chrono::seconds(10));
-
-  psqr.stop_all();
-  std::this_thread::sleep_for(std::chrono::seconds(1));
-
-  psqr.start_all();
-
-  psqr.update(0, 7, 100, 1.0, 0.1);
-  psqr.update(1, 1, 2000, 0.5, 0.0);
-  std::this_thread::sleep_for(std::chrono::seconds(10));
-  psqr.stop_all();
-  std::this_thread::sleep_for(std::chrono::seconds(1));
-  try {
-    psqr.update(2, 1, 2000, 0.5, 0.0);
-  } catch (const std::out_of_range& e) {
-    std::cout << "Caught expected out_of_range exception: " << e.what()
-              << "PURE PWNAGE!" << std::endl;
+  std::vector<VectorEvent> seq2;
+  std::vector<double> frequencies2 = {523.25, 493.88, 440.00, 392.00,
+                                      349.23, 329.63, 293.66, 261.63};
+  for (auto freq : frequencies2) {
+    VectorEvent evt;
+    evt.params = {freq, 0.8, 0.1}; // frequency, amplitude, phase
+    seq2.push_back(evt);
   }
+
+  std::vector<std::vector<VectorEvent>> sequences = {seq1, seq2};
+
+  // Create controller with sequences
+  auto controller =
+      std::make_shared<Matrix_sequencer_controller<double>>(sequences);
+
+  std::cout << "[INFO] Created controller with " << controller->size()
+            << " sequences" << std::endl;
+
+  // Create user interface with controller
+  auto ui = std::make_unique<User_interface<double>>(controller);
+
+  // Initialize GTK and show window
+  ui->init(argc, argv);
+
+  std::cout << "[INFO] Starting GUI..." << std::endl;
+
+  // Run event loop (blocks until window closed)
+  ui->run();
+
+  std::cout << "[INFO] GUI closed" << std::endl;
 
   return 0;
 }

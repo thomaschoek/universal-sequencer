@@ -437,7 +437,7 @@ void Gui<T_event_params>::on_cell_edited(GtkEntry* entry, gpointer user_data) {
       // Update the controller
       try {
         gui->controller_->update(it->second.seq_idx, it->second.step_idx,
-                                 it->second.param_idx, new_value);
+                                 it->second.param_idx, std::move(new_value));
       } catch (const std::exception& e) {
         std::cerr << "[ERROR] Failed to update controller: " << e.what()
                   << std::endl;
