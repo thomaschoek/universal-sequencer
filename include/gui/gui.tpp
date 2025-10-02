@@ -1,4 +1,6 @@
+#include "controller/matrix_sequencer_controller.h"
 #include "gui/gui.h"
+#include <cstdlib>
 #include <iostream>
 #include <sstream>
 
@@ -22,15 +24,21 @@ static const char* CSS_STYLE = R"(
   }
 )";
 
-Gui::Gui() {
+template <typename T_event_params>
+Gui<T_event_params>::Gui(std::shared_ptr<Controller> controller)
+    : controller_(controller) {
   // GTK will be initialized in init()
+  // Initialize first sequence as expanded
+  expanded_seqs_[0] = true;
 }
 
-Gui::~Gui() {
+template <typename T_event_params>
+Gui<T_event_params>::~Gui() {
   // GTK cleanup handled by gtk_main_quit if needed
 }
 
-void Gui::init(int argc, char** argv) {
+template <typename T_event_params>
+void Gui<T_event_params>::init(int argc, char** argv) {
   // Initialize GTK
   gtk_init(&argc, &argv);
 
@@ -68,13 +76,15 @@ void Gui::init(int argc, char** argv) {
   std::cout << "[INFO] GUI initialized" << std::endl;
 }
 
-void Gui::show() {
+template <typename T_event_params>
+void Gui<T_event_params>::show() {
   if (window_) {
     gtk_widget_show_all(window_);
   }
 }
 
-void Gui::render(const Display_state& state) {
+template <typename T_event_params>
+void Gui<T_event_params>::render(const Display_state& state) {
   // Skip rendering if state hasn't changed
   if (state == last_state_) {
     return;
@@ -119,7 +129,8 @@ void Gui::render(const Display_state& state) {
   last_state_ = state;
 }
 
-void Gui::rebuild_grid(const Display_state& state) {
+template <typename T_event_params>
+void Gui<T_event_params>::rebuild_grid(const Display_state& state) {
   std::cout << "[DEBUG] Rebuilding entire grid..." << std::endl;
 
   // Clear existing grid contents
@@ -145,12 +156,15 @@ void Gui::rebuild_grid(const Display_state& state) {
   for (std::size_t seq_idx = 0; seq_idx < state.sequencers.size(); ++seq_idx) {
     const auto& seq = state.sequencers[seq_idx];
 
+    // Check if this sequence is expanded (use local state)
+    bool is_expanded = expanded_seqs_[seq_idx];
+
     // Create sequence header row
     create_sequence_header(seq_idx, seq, current_row);
     current_row++;
 
     // If expanded, create parameter rows
-    if (seq.is_expanded) {
+    if (is_expanded) {
       for (std::size_t param_idx = 0; param_idx < seq.num_params; ++param_idx) {
         create_parameter_row(seq_idx, param_idx, seq, current_row);
         current_row++;
@@ -161,11 +175,13 @@ void Gui::rebuild_grid(const Display_state& state) {
   gtk_widget_show_all(grid_);
 }
 
-void Gui::create_sequence_header(std::size_t seq_idx,
+template <typename T_event_params>
+void Gui<T_event_params>::create_sequence_header(std::size_t seq_idx,
                                   const Sequencer_display_state& seq_state,
                                   int row) {
   // Expand/collapse button (column 0)
-  GtkWidget* expand_btn = gtk_button_new_with_label(seq_state.is_expanded ? "▼" : "▶");
+  bool is_expanded = expanded_seqs_[seq_idx];
+  GtkWidget* expand_btn = gtk_button_new_with_label(is_expanded ? "▼" : "▶");
   gtk_widget_set_size_request(expand_btn, 30, 30);
   g_object_set_data(G_OBJECT(expand_btn), "seq_idx",
                    GSIZE_TO_POINTER(seq_idx));
@@ -193,7 +209,8 @@ void Gui::create_sequence_header(std::size_t seq_idx,
   seq_headers_[seq_idx] = {expand_btn, play_icon, name_label};
 }
 
-void Gui::create_parameter_row(std::size_t seq_idx, std::size_t param_idx,
+template <typename T_event_params>
+void Gui<T_event_params>::create_parameter_row(std::size_t seq_idx, std::size_t param_idx,
                                 const Sequencer_display_state& seq_state,
                                 int row) {
   // Parameter label (columns 0-2, merged)
@@ -231,12 +248,17 @@ void Gui::create_parameter_row(std::size_t seq_idx, std::size_t param_idx,
     // Connect edit signal
     g_signal_connect(entry, "activate", G_CALLBACK(on_cell_edited), this);
 
+    // Connect keyboard navigation
+    g_signal_connect(entry, "key-press-event", G_CALLBACK(on_cell_key_press),
+                    this);
+
     // Add to grid (column offset by 3 for fixed columns)
     gtk_grid_attach(GTK_GRID(grid_), entry, step_idx + 3, row, 1, 1);
   }
 }
 
-void Gui::update_cell_values(const Display_state& state) {
+template <typename T_event_params>
+void Gui<T_event_params>::update_cell_values(const Display_state& state) {
   for (std::size_t seq_idx = 0; seq_idx < state.sequencers.size(); ++seq_idx) {
     const auto& seq = state.sequencers[seq_idx];
 
@@ -260,7 +282,8 @@ void Gui::update_cell_values(const Display_state& state) {
   }
 }
 
-void Gui::update_playhead_highlighting(const Display_state& state) {
+template <typename T_event_params>
+void Gui<T_event_params>::update_playhead_highlighting(const Display_state& state) {
   // Clear old playhead highlighting
   for (auto& [key, cell] : cell_widgets_) {
     GtkStyleContext* context =
@@ -286,7 +309,8 @@ void Gui::update_playhead_highlighting(const Display_state& state) {
   }
 }
 
-void Gui::update_selection_highlighting(const Display_state& state) {
+template <typename T_event_params>
+void Gui<T_event_params>::update_selection_highlighting(const Display_state& state) {
   // Clear old selection highlighting
   for (auto& [key, cell] : cell_widgets_) {
     GtkStyleContext* context =
@@ -309,7 +333,8 @@ void Gui::update_selection_highlighting(const Display_state& state) {
   }
 }
 
-void Gui::update_play_icons(const Display_state& state) {
+template <typename T_event_params>
+void Gui<T_event_params>::update_play_icons(const Display_state& state) {
   for (std::size_t seq_idx = 0; seq_idx < state.sequencers.size(); ++seq_idx) {
     const auto& seq = state.sequencers[seq_idx];
     auto it = seq_headers_.find(seq_idx);
@@ -323,14 +348,16 @@ void Gui::update_play_icons(const Display_state& state) {
   }
 }
 
-std::string Gui::make_cell_key(std::size_t seq, std::size_t step,
+template <typename T_event_params>
+std::string Gui<T_event_params>::make_cell_key(std::size_t seq, std::size_t step,
                                 std::size_t param) const {
   std::ostringstream ss;
   ss << seq << "_" << step << "_" << param;
   return ss.str();
 }
 
-void Gui::clear_highlighting() {
+template <typename T_event_params>
+void Gui<T_event_params>::clear_highlighting() {
   for (auto& [key, cell] : cell_widgets_) {
     GtkStyleContext* context =
         gtk_widget_get_style_context(cell.entry);
@@ -339,7 +366,8 @@ void Gui::clear_highlighting() {
   }
 }
 
-void Gui::scroll_to_selection(const Display_state& state) {
+template <typename T_event_params>
+void Gui<T_event_params>::scroll_to_selection(const Display_state& state) {
   if (!state.selected_seq_idx || !state.selected_step_idx ||
       !state.selected_param_idx) {
     return;
@@ -381,7 +409,8 @@ void Gui::scroll_to_selection(const Display_state& state) {
 }
 
 // Static event handlers
-void Gui::on_cell_edited(GtkEntry* entry, gpointer user_data) {
+template <typename T_event_params>
+void Gui<T_event_params>::on_cell_edited(GtkEntry* entry, gpointer user_data) {
   Gui* gui = static_cast<Gui*>(user_data);
   const char* key = static_cast<const char*>(
       g_object_get_data(G_OBJECT(entry), "cell_key"));
@@ -389,26 +418,138 @@ void Gui::on_cell_edited(GtkEntry* entry, gpointer user_data) {
   if (key) {
     auto it = gui->cell_widgets_.find(key);
     if (it != gui->cell_widgets_.end()) {
-      const char* new_value = gtk_entry_get_text(entry);
+      const char* new_value_str = gtk_entry_get_text(entry);
+
+      // Parse the string value to T_event_params
+      T_event_params new_value;
+      std::istringstream iss(new_value_str);
+      if (!(iss >> new_value)) {
+        std::cerr << "[ERROR] Failed to parse value: " << new_value_str
+                  << std::endl;
+        return;
+      }
+
       std::cout << "[INFO] Cell edited: seq=" << it->second.seq_idx
                 << " step=" << it->second.step_idx
                 << " param=" << it->second.param_idx << " value=" << new_value
                 << std::endl;
 
-      // TODO: Call controller to update the actual parameter value
-      // This will require passing the controller reference to the GUI
+      // Update the controller
+      try {
+        gui->controller_->update(it->second.seq_idx, it->second.step_idx,
+                                 it->second.param_idx, new_value);
+      } catch (const std::exception& e) {
+        std::cerr << "[ERROR] Failed to update controller: " << e.what()
+                  << std::endl;
+      }
     }
   }
 }
 
-void Gui::on_expand_clicked(GtkButton* button, gpointer user_data) {
+template <typename T_event_params>
+void Gui<T_event_params>::on_expand_clicked(GtkButton* button, gpointer user_data) {
+  Gui* gui = static_cast<Gui*>(user_data);
   std::size_t seq_idx =
       GPOINTER_TO_SIZE(g_object_get_data(G_OBJECT(button), "seq_idx"));
-  std::cout << "[INFO] Expand/collapse clicked for seq " << seq_idx
+
+  // Toggle expansion state
+  gui->expanded_seqs_[seq_idx] = !gui->expanded_seqs_[seq_idx];
+
+  std::cout << "[INFO] Toggled expansion for seq " << seq_idx
+            << " to " << (gui->expanded_seqs_[seq_idx] ? "expanded" : "collapsed")
             << std::endl;
 
-  // TODO: Toggle expansion state in controller and trigger re-render
-  // For now, this would require the controller to track expansion state
+  // Trigger a full grid rebuild
+  auto state = gui->controller_->get_display_state();
+  gui->rebuild_grid(state);
+  gui->last_state_ = state;
+}
+
+template <typename T_event_params>
+gboolean Gui<T_event_params>::on_cell_key_press(GtkWidget* widget,
+                                                 GdkEventKey* event,
+                                                 gpointer user_data) {
+  Gui* gui = static_cast<Gui*>(user_data);
+  const char* key = static_cast<const char*>(
+      g_object_get_data(G_OBJECT(widget), "cell_key"));
+
+  if (!key) {
+    return FALSE; // Not handled
+  }
+
+  auto it = gui->cell_widgets_.find(key);
+  if (it == gui->cell_widgets_.end()) {
+    return FALSE;
+  }
+
+  const CellWidget& cell = it->second;
+  bool handled = false;
+
+  // Handle navigation keys
+  switch (event->keyval) {
+    case GDK_KEY_Up:
+      // Move to previous parameter
+      if (cell.param_idx > 0) {
+        gui->controller_->select(cell.seq_idx, cell.step_idx);
+        gui->controller_->select_param(cell.param_idx - 1);
+        handled = true;
+      }
+      break;
+
+    case GDK_KEY_Down:
+      // Move to next parameter
+      gui->controller_->select(cell.seq_idx, cell.step_idx);
+      gui->controller_->select_param(cell.param_idx);
+      gui->controller_->select_next_param();
+      handled = true;
+      break;
+
+    case GDK_KEY_Left:
+      // Move to previous step
+      if (cell.step_idx > 0) {
+        gui->controller_->select(cell.seq_idx, cell.step_idx - 1);
+        gui->controller_->select_param(cell.param_idx);
+        handled = true;
+      }
+      break;
+
+    case GDK_KEY_Right:
+    case GDK_KEY_Tab:
+      // Move to next step (Tab also moves to next step)
+      gui->controller_->select(cell.seq_idx, cell.step_idx);
+      gui->controller_->select_param(cell.param_idx);
+      gui->controller_->select_next_step();
+      handled = true;
+      break;
+
+    case GDK_KEY_Page_Up:
+      // Move to previous sequence
+      gui->controller_->select_prev_seq();
+      gui->controller_->select_param(cell.param_idx);
+      handled = true;
+      break;
+
+    case GDK_KEY_Page_Down:
+      // Move to next sequence
+      gui->controller_->select_next_seq();
+      gui->controller_->select_param(cell.param_idx);
+      handled = true;
+      break;
+
+    default:
+      break;
+  }
+
+  if (handled) {
+    // Update GUI to reflect new selection
+    auto state = gui->controller_->get_display_state();
+    gui->update_selection_highlighting(state);
+    gui->scroll_to_selection(state);
+    gui->last_state_ = state;
+    return TRUE; // Event handled
+  }
+
+  return FALSE; // Event not handled, allow default processing
 }
 
 } // namespace gui
