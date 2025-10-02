@@ -24,6 +24,7 @@ public:
 
   T next();
   void set_pos(typename Base_deque::Index = 0);
+  typename Base_deque::Index get_pos() const;
 
 private:
   // Workaround: only for use under lock to avoid double locking

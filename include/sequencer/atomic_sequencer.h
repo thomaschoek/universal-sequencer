@@ -47,6 +47,7 @@ public:
   bool is_running() const override;
   void start(Time_point start_time = Clock::now()) override;
   void set_pos(Step_idx = 0);
+  Step_idx get_pos() const;
   void stop() override;
 
   void set_handler(const Handler);

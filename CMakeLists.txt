@@ -11,14 +11,24 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 # Generate compile_commands.json for clangd
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Find GTK3
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
+
 # Include directories
-include_directories(include)
+include_directories(include ${GTK3_INCLUDE_DIRS})
 
 # Add original console executable
 add_executable(MicroComposer
     src/main.cpp
     src/synth/synth_output.cpp
+    src/gui/gui.cpp
 )
+
+# Link GTK3 and glib
+target_link_libraries(MicroComposer ${GTK3_LIBRARIES})
+target_link_directories(MicroComposer PRIVATE ${GTK3_LIBRARY_DIRS})
+target_compile_options(MicroComposer PRIVATE ${GTK3_CFLAGS_OTHER})
 
 # Enable testing
 enable_testing()
