@@ -1,4 +1,4 @@
-#include "sequencer/parallel_sequencer_controller.h"
+#include "parallel_sequencer_controller.h"
 #include <stdexcept>
 
 namespace Micro_composer {
@@ -7,7 +7,7 @@ namespace sequencer {
 
 template <sequencable::Sequencable_updatable Event_t>
 void Parallel_sequencer_controller<Event_t>::select(Seq_idx seq_idx,
-                                                     Step_idx step_idx) {
+                                                    Step_idx step_idx) {
   std::scoped_lock lck{selection_mutex_};
 
   if (seq_idx >= Base_sequencer::size()) {

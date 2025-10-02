@@ -1,4 +1,4 @@
-#include "sequencer/parallel_sequencer_controller.h"
+#include "controller/parallel_sequencer_controller.h"
 #include "sequencable/oscillation_event.h"
 #include <catch2/catch_test_macros.hpp>
 #include <chrono>
@@ -158,8 +158,8 @@ TEST_CASE("Parallel_sequencer_controller inherits base functionality",
           "[parallel_sequencer_controller]") {
   using Controller = Parallel_sequencer_controller<Oscillation_event>;
 
-  std::vector<Oscillation_event> seq1 = {
-      Oscillation_event{261.63}, Oscillation_event{293.66}};
+  std::vector<Oscillation_event> seq1 = {Oscillation_event{261.63},
+                                         Oscillation_event{293.66}};
   std::vector<Oscillation_event> seq2 = {Oscillation_event{440.00}};
 
   std::vector<std::vector<Oscillation_event>> sequences = {seq1, seq2};

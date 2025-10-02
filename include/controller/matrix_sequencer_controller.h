@@ -2,8 +2,8 @@
 #define MICRO_COMPOSER_MATRIX_SEQUENCER_CONTROLLER_H
 
 #include "sequencer/matrix_sequencer.h"
-#include <optional>
 #include <mutex>
+#include <optional>
 
 namespace Micro_composer {
 
@@ -60,6 +60,6 @@ private:
 } // namespace sequencer
 } // namespace Micro_composer
 
-#include "sequencer/matrix_sequencer_controller.tpp"
+#include "matrix_sequencer_controller.tpp"
 
 #endif // MICRO_COMPOSER_MATRIX_SEQUENCER_CONTROLLER_H

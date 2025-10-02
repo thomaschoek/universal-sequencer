@@ -1,4 +1,4 @@
-#include "sequencer/matrix_sequencer_controller.h"
+#include "controller/matrix_sequencer_controller.h"
 #include "sequencable/vector_event.h"
 #include <catch2/catch_test_macros.hpp>
 #include <vector>
@@ -424,7 +424,8 @@ TEST_CASE("Matrix_sequencer_controller update_selected",
     // All three selected - should work
     ctrl.select_param(0);
     REQUIRE_NOTHROW(ctrl.update_selected(100.0));
-    // After select_next_seq() we have seq=0,step=0, then select_next_step() moves to step=1
+    // After select_next_seq() we have seq=0,step=0, then select_next_step()
+    // moves to step=1
     REQUIRE(ctrl[0].at(1).params[0] == 100.0);
   }
 

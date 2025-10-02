@@ -9,8 +9,7 @@ namespace Micro_composer {
 namespace sequencer {
 
 template <sequencable::Sequencable_updatable Event_t>
-class Parallel_sequencer_controller
-    : public Parallel_sequencer<Event_t> {
+class Parallel_sequencer_controller : public Parallel_sequencer<Event_t> {
 public:
   using Base_sequencer = Parallel_sequencer<Event_t>;
   using Sequencer = typename Base_sequencer::Sequencer;
@@ -46,6 +45,6 @@ private:
 } // namespace sequencer
 } // namespace Micro_composer
 
-#include "sequencer/parallel_sequencer_controller.tpp"
+#include "parallel_sequencer_controller.tpp"
 
 #endif // MICRO_COMPOSER_PARALLEL_SEQUENCER_CONTROLLER_H

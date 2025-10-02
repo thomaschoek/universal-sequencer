@@ -1,4 +1,4 @@
-#include "sequencer/matrix_sequencer_controller.h"
+#include "matrix_sequencer_controller.h"
 #include <stdexcept>
 
 namespace Micro_composer {
@@ -31,7 +31,7 @@ void Matrix_sequencer_controller<T_event_params>::select_param(
         "out of range.");
   }
 
-  auto step = seq.at(*selected_step_idx_);  // Get copy for validation
+  auto step = seq.at(*selected_step_idx_); // Get copy for validation
   if (param_idx >= step.params.size()) {
     throw std::out_of_range(
         "[ERROR] In Matrix_sequencer_controller::select_param: Parameter "
@@ -58,7 +58,7 @@ void Matrix_sequencer_controller<T_event_params>::select_next_param() {
     return;
   }
 
-  auto step = seq.at(*selected_step_idx_);  // Get copy
+  auto step = seq.at(*selected_step_idx_); // Get copy
   if (step.params.empty()) {
     return;
   }
@@ -89,7 +89,7 @@ void Matrix_sequencer_controller<T_event_params>::select_prev_param() {
     return;
   }
 
-  auto step = seq.at(*selected_step_idx_);  // Get copy
+  auto step = seq.at(*selected_step_idx_); // Get copy
   if (step.params.empty()) {
     return;
   }
@@ -141,7 +141,7 @@ void Matrix_sequencer_controller<T_event_params>::update_selected(
 
 template <typename T_event_params>
 void Matrix_sequencer_controller<T_event_params>::select(Seq_idx seq_idx,
-                                                          Step_idx step_idx) {
+                                                         Step_idx step_idx) {
   std::scoped_lock lck{selection_mutex_};
 
   if (seq_idx >= Base_sequencer::size()) {
