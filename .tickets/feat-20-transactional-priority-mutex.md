@@ -1,0 +1,108 @@
+```
+concept SequencerController : public Abstract_parallel_sequencer_controller, public Sequencer_container {
+public:
+	select(Seq_idx, Step_idx=0);
+	select_next_seq();
+	select_prev_seq();
+	select_next_step();
+	select_prev_step();
+	// .. start, stop and other transport methods inherited from Parallel_sequencer_transport
+	// .. push, pop, insert, update, at etc inherited from Sequencer_container
+}
+
+```
+
+```
+// rename Atomic_sequencer to Atomic_deque_controller or Atomic_sequence_controller, inheriting from public Sequence_controller and Atomic_ring_deque.
+
+Inherit Parallel_sequencer_controller from Sequencer_controller from Abstract_sequencer_controller {
+public:
+    virtual void start(seqr_idx)=0;
+    virtual void start_all()=0;
+    // stop, set_pos, etc
+```
+
+# SIDE NOTE WRITE A PROGRAMMING LANGUAGE WHERE YOU CAN TYPE `some words func_name(); idem func_name();` and that will be syntactic sugar for the compiler to insert `some words func_name(); some words func_name();`, idem being replaced by all the words that are not in the second line but are in the first non-whitespace line above.
+
+
+# PRIORITY MUTEX
+```
+
+class Prioritized_mutex : public std::mutex {
+public:
+	// Inherit constructors
+	using std::mutex::mutex;
+
+	Return_type acquire_read_lock() {
+		Return_type ret_val = std::mutex::lock();
+		// wait until priority thread is done writing so it can do so lock-free
+		while (is_priority_writing.load(std::memory_order_seq_cst));
+		return ret_val;
+	}
+
+	Return_type acquire_write_lock() {
+		Return_type ret_val = std::mutex::lock();
+		// Wait until priority thread is done both reading and writing
+		while (is_priority_writing_.load() || is_priority_reading_.load());
+		return ret_val;
+		// CAVEAT: what if the thread acquiring the lock takes a long time to do its work and ends up messing the next read or write attempt by the priority thread?
+	}
+
+	void set_priority_writing(Time_point next_pwrite_time);
+	void set_priority_reading(Time_point next_pread_time);
+private:
+	std::atomic<bool> is_priority_writing_{false};
+	std::atomic<bool> is_priority_reading_{false};
+	// Safe time interval between successive priority access attempts during which other threads can access the resource this mutex applies to
+	Time_point max_time_to_read_;
+	Time_point max_time_to_write_;
+
+	// To be updated by priority thread
+	std::atomic<Time_point> next_priority_read_;
+	std::atomic<Time_point> next_priority_write_;
+
+	// Problem what is a non-priority thread to do? Insert while loops checking if is_priority_reading_ /-writing_ is still false after each line of code? Use some kind of std::async::try_for_max_t_milliseconds(user_supplied_code()) ? Wrap each line of code in an `if (!Clock::now() == next_priority_write_) {` ?
+	// That all seems highly impractical and error prone. The async try for max approach seems best but then 
+}
+
+// HOW ABOUT THIS solution to the above problem:
+class Transactional_mutex : public Priority_mutex {
+public:
+	void set_priority_writing_(auto thread_id) {
+		if (thread_id == priority_thread_id_ ) {
+			is_priority_writing_.store(value);
+			++n_priority_writes_;
+		} else {
+			throw "ERROR!!!!! YOU ARE B4NNED!"
+		}
+	}
+	void acquire_write_lock() {
+		auto prev_n_priority_writes = n_priority_writes.load();
+		while (is_priority_writing_);
+		pending_transaction_ = user_supplied_code();
+	}
+	void release_write_lock() {
+		if (n_priority_writes_.load() > prev_n_priority_writes) {
+			// Rollback transaction and notify calling thread of failure
+			pending_transaction_.rollback();
+		} else {
+			pending_transaction_.commit();
+		}
+	}
+	// IDEM for reading
+
+private:
+	Transaction pending_transaction_;
+	std::atomic<unsigned long> n_priority_writes_{0};
+	std::atomic<unsigned long> n_priority_reads_{0};
+}
+
+class Transaction {
+public:
+	Transaction(Resource* shared_resource) : resource_(shared_resource) {}
+	// ...
+private:
+	Resource* shared_resource{nullptr};
+}
+
+```
