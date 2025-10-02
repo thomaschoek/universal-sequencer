@@ -86,8 +86,13 @@ private:
   void scroll_to_selection(const Display_state& state);
   void show_help_dialog();
 
+  // Helper to commit cell edits
+  static void commit_cell_edit(Gui* gui, GtkEntry* entry);
+
   // Event handlers
   static void on_cell_edited(GtkEntry* entry, gpointer user_data);
+  static gboolean on_cell_focus_out(GtkWidget* widget, GdkEventFocus* event,
+                                    gpointer user_data);
   static void on_expand_clicked(GtkButton* button, gpointer user_data);
   static gboolean on_cell_key_press(GtkWidget* widget, GdkEventKey* event,
                                    gpointer user_data);
