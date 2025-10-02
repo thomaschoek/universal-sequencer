@@ -62,6 +62,11 @@ inline std::scoped_lock<std::mutex> Atomic_deque<T>::get_lock() {
   return std::scoped_lock{mutex_};
 }
 
+template <typename T>
+inline std::scoped_lock<std::mutex> Atomic_deque<T>::get_lock() const {
+  return std::scoped_lock{mutex_};
+}
+
 // CRUD Operations
 
 template <typename T> void Atomic_deque<T>::assign(Initializer_list seq) {
@@ -196,6 +201,12 @@ template <typename T> inline T Atomic_deque<T>::at(Index pos) {
   // Thread-safe at; rather than T&, return a copy of Base_deque::at(pos)
   // to prevent exposing a reference whose value might be deleted by another
   // thread.
+  std::scoped_lock lck{mutex_};
+  return Base_deque::at(pos);
+}
+
+template <typename T> inline T Atomic_deque<T>::at(Index pos) const {
+  // Const version for read-only access
   std::scoped_lock lck{mutex_};
   return Base_deque::at(pos);
 }

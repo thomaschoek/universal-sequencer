@@ -19,7 +19,7 @@ public:
   explicit User_interface(std::shared_ptr<Controller> controller);
 
   // Initialize the GUI system (GTK, etc.)
-  void init();
+  void init(int argc, char** argv);
 
   // Start the event loop
   void run();
@@ -35,7 +35,7 @@ private:
   bool on_update_timer();
 
   std::shared_ptr<Controller> controller_;
-  std::unique_ptr<gui::Gui> gui_;
+  std::unique_ptr<gui::Gui<T_event_params>> gui_;
 
   gui::Display_state last_display_state_;
 
