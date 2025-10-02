@@ -7,12 +7,13 @@
 
 namespace Micro_composer {
 
-namespace sequencer {
+namespace controller {
 
 template <typename T_event_params>
-class Matrix_sequencer_controller : public Matrix_sequencer<T_event_params> {
+class Matrix_sequencer_controller
+    : public sequencer::Matrix_sequencer<T_event_params> {
 public:
-  using Base_sequencer = Matrix_sequencer<T_event_params>;
+  using Base_sequencer = sequencer::Matrix_sequencer<T_event_params>;
   using Vector_event = typename Base_sequencer::Vector_event;
   using Sequencer = typename Base_sequencer::Sequencer;
   using Seq_idx = typename Base_sequencer::Seq_idx;
@@ -57,7 +58,7 @@ private:
   mutable std::mutex selection_mutex_;
 };
 
-} // namespace sequencer
+} // namespace controller
 } // namespace Micro_composer
 
 #include "matrix_sequencer_controller.tpp"

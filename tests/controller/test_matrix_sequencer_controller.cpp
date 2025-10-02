@@ -4,6 +4,7 @@
 #include <vector>
 
 using namespace Micro_composer::sequencer;
+using namespace Micro_composer::controller;
 using namespace Micro_composer::sequencable;
 
 TEST_CASE("Matrix_sequencer_controller parameter selection",

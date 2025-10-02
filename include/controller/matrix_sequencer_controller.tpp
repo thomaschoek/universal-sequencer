@@ -3,7 +3,7 @@
 
 namespace Micro_composer {
 
-namespace sequencer {
+namespace controller {
 
 // Parameter selection methods
 
@@ -299,5 +299,5 @@ void Matrix_sequencer_controller<T_event_params>::clear_selection() {
   selected_param_idx_.reset();
 }
 
-} // namespace sequencer
+} // namespace controller
 } // namespace Micro_composer

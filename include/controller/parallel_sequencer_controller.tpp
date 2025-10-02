@@ -3,7 +3,7 @@
 
 namespace Micro_composer {
 
-namespace sequencer {
+namespace controller {
 
 template <sequencable::Sequencable_updatable Event_t>
 void Parallel_sequencer_controller<Event_t>::select(Seq_idx seq_idx,
@@ -137,5 +137,5 @@ void Parallel_sequencer_controller<Event_t>::clear_selection() {
   selected_step_idx_.reset();
 }
 
-} // namespace sequencer
+} // namespace controller
 } // namespace Micro_composer

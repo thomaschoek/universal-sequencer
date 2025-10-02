@@ -6,12 +6,13 @@
 
 namespace Micro_composer {
 
-namespace sequencer {
+namespace controller {
 
 template <sequencable::Sequencable_updatable Event_t>
-class Parallel_sequencer_controller : public Parallel_sequencer<Event_t> {
+class Parallel_sequencer_controller
+    : public sequencer::Parallel_sequencer<Event_t> {
 public:
-  using Base_sequencer = Parallel_sequencer<Event_t>;
+  using Base_sequencer = sequencer::Parallel_sequencer<Event_t>;
   using Sequencer = typename Base_sequencer::Sequencer;
   using Seq_idx = typename Base_sequencer::Seq_idx;
   using Step_idx = typename Sequencer::Step_idx;
@@ -42,7 +43,7 @@ private:
   mutable std::mutex selection_mutex_;
 };
 
-} // namespace sequencer
+} // namespace controller
 } // namespace Micro_composer
 
 #include "parallel_sequencer_controller.tpp"
