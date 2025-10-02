@@ -7,7 +7,11 @@ namespace Micro_composer {
 
 namespace user_interface {
 
-class User_interface {};
+class User_interface {
+public:
+  // Notify the user about any state change
+  void notify();
+};
 
 } // namespace user_interface
 
