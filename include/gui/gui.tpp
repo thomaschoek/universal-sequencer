@@ -115,6 +115,10 @@ void Gui<T_event_params>::render(const Display_state& state) {
 
   if (need_rebuild) {
     rebuild_grid(state);
+    // Apply highlighting after rebuild
+    update_playhead_highlighting(state);
+    update_selection_highlighting(state);
+    update_play_icons(state);
   } else {
     // Just update values and highlighting
     update_cell_values(state);
