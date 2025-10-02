@@ -84,6 +84,7 @@ private:
                            std::size_t param) const;
   void clear_highlighting();
   void scroll_to_selection(const Display_state& state);
+  void show_help_dialog();
 
   // Event handlers
   static void on_cell_edited(GtkEntry* entry, gpointer user_data);

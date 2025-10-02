@@ -561,10 +561,48 @@ gboolean Gui<T_event_params>::on_cell_key_press(GtkWidget* widget,
 }
 
 template <typename T_event_params>
+void Gui<T_event_params>::show_help_dialog() {
+  GtkWidget* dialog = gtk_message_dialog_new(
+      GTK_WINDOW(window_), GTK_DIALOG_MODAL, GTK_MESSAGE_INFO,
+      GTK_BUTTONS_OK, "Keyboard Shortcuts");
+
+  const char* help_text =
+      "Navigation:\n"
+      "  ↑/↓         - Move between parameters\n"
+      "  ←/→         - Move between steps\n"
+      "  Tab         - Move to next step\n"
+      "  Page Up/Dn  - Move between sequences\n"
+      "\n"
+      "Transport:\n"
+      "  Space       - Start/stop all sequences\n"
+      "  Ctrl+Space  - Start/stop selected sequence\n"
+      "\n"
+      "Editing:\n"
+      "  Click cell  - Select for editing\n"
+      "  Enter       - Confirm edit\n"
+      "\n"
+      "View:\n"
+      "  ▶/▼ button  - Expand/collapse sequence\n"
+      "  F1          - Show this help";
+
+  gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(dialog), "%s",
+                                           help_text);
+
+  gtk_dialog_run(GTK_DIALOG(dialog));
+  gtk_widget_destroy(dialog);
+}
+
+template <typename T_event_params>
 gboolean Gui<T_event_params>::on_window_key_press(GtkWidget* widget,
                                                    GdkEventKey* event,
                                                    gpointer user_data) {
   Gui* gui = static_cast<Gui*>(user_data);
+
+  // Check for F1 help
+  if (event->keyval == GDK_KEY_F1) {
+    gui->show_help_dialog();
+    return TRUE; // Event handled
+  }
 
   // Check for Space or Ctrl+Space
   if (event->keyval == GDK_KEY_space) {
