@@ -57,6 +57,10 @@ void Gui<T_event_params>::init(int argc, char** argv) {
   // Connect destroy signal
   g_signal_connect(window_, "destroy", G_CALLBACK(gtk_main_quit), nullptr);
 
+  // Connect global keyboard handler for window
+  g_signal_connect(window_, "key-press-event", G_CALLBACK(on_window_key_press),
+                   this);
+
   // Create main container
   main_box_ = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
   gtk_container_add(GTK_CONTAINER(window_), main_box_);
@@ -550,6 +554,49 @@ gboolean Gui<T_event_params>::on_cell_key_press(GtkWidget* widget,
   }
 
   return FALSE; // Event not handled, allow default processing
+}
+
+template <typename T_event_params>
+gboolean Gui<T_event_params>::on_window_key_press(GtkWidget* widget,
+                                                   GdkEventKey* event,
+                                                   gpointer user_data) {
+  Gui* gui = static_cast<Gui*>(user_data);
+
+  // Check for Space or Ctrl+Space
+  if (event->keyval == GDK_KEY_space) {
+    bool ctrl_pressed = (event->state & GDK_CONTROL_MASK) != 0;
+
+    if (ctrl_pressed) {
+      // Ctrl+Space: Toggle selected sequence only
+      auto state = gui->controller_->get_display_state();
+      if (state.selected_seq_idx) {
+        std::size_t seq_idx = *state.selected_seq_idx;
+
+        if (gui->controller_->is_running(seq_idx)) {
+          std::cout << "[INFO] Stopping sequence " << seq_idx << std::endl;
+          gui->controller_->stop(seq_idx);
+        } else {
+          std::cout << "[INFO] Starting sequence " << seq_idx << std::endl;
+          gui->controller_->start(seq_idx);
+        }
+
+        return TRUE; // Event handled
+      }
+    } else {
+      // Space: Toggle all sequences
+      if (gui->controller_->any_running()) {
+        std::cout << "[INFO] Stopping all sequences" << std::endl;
+        gui->controller_->stop_all();
+      } else {
+        std::cout << "[INFO] Starting all sequences" << std::endl;
+        gui->controller_->start_all();
+      }
+
+      return TRUE; // Event handled
+    }
+  }
+
+  return FALSE; // Event not handled
 }
 
 } // namespace gui

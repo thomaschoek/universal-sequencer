@@ -90,6 +90,8 @@ private:
   static void on_expand_clicked(GtkButton* button, gpointer user_data);
   static gboolean on_cell_key_press(GtkWidget* widget, GdkEventKey* event,
                                    gpointer user_data);
+  static gboolean on_window_key_press(GtkWidget* widget, GdkEventKey* event,
+                                     gpointer user_data);
 };
 
 } // namespace gui
