@@ -1,0 +1,29 @@
+/* MicroComposer GUI Stylesheet */
+
+.playhead {
+  background-color: #4CAF50;
+  font-weight: bold;
+}
+
+.selected {
+  border: 2px solid #2196F3;
+  background-color: #E3F2FD;
+}
+
+entry {
+  min-width: 70px;
+  max-width: 70px;
+  padding: 4px;
+}
+
+/* Prevent grid from shifting during updates */
+#sequencer-grid {
+  column-homogeneous: false;
+  row-homogeneous: false;
+}
+
+#sequencer-grid entry {
+  /* Fixed size to prevent jitter */
+  min-width: 70px;
+  max-width: 70px;
+}

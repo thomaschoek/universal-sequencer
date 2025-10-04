@@ -29,6 +29,13 @@ target_link_libraries(MicroComposer ${GTK3_LIBRARIES})
 target_link_directories(MicroComposer PRIVATE ${GTK3_LIBRARY_DIRS})
 target_compile_options(MicroComposer PRIVATE ${GTK3_CFLAGS_OTHER})
 
+# Copy CSS resources to build directory
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/resources/gui_style.css
+    ${CMAKE_CURRENT_BINARY_DIR}/resources/gui_style.css
+    COPYONLY
+)
+
 # Enable testing
 enable_testing()
 
