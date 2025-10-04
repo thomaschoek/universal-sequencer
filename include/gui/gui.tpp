@@ -8,22 +8,6 @@ namespace Micro_composer {
 
 namespace gui {
 
-// CSS for styling
-static const char* CSS_STYLE = R"(
-  .playhead {
-    background-color: #4CAF50;
-    font-weight: bold;
-  }
-  .selected {
-    border: 2px solid #2196F3;
-    background-color: #E3F2FD;
-  }
-  entry {
-    min-width: 60px;
-    padding: 4px;
-  }
-)";
-
 template <typename T_event_params>
 Gui<T_event_params>::Gui(std::shared_ptr<Controller> controller)
     : controller_(controller) {
@@ -42,9 +26,33 @@ void Gui<T_event_params>::init(int argc, char** argv) {
   // Initialize GTK
   gtk_init(&argc, &argv);
 
-  // Load CSS
+  // Load CSS from file
   GtkCssProvider* css_provider = gtk_css_provider_new();
-  gtk_css_provider_load_from_data(css_provider, CSS_STYLE, -1, nullptr);
+  GError* error = nullptr;
+
+  // Try loading from install location first, then fallback to source location
+  const char* css_paths[] = {
+    "resources/gui_style.css",
+    "../resources/gui_style.css",
+    "../../resources/gui_style.css"
+  };
+
+  bool css_loaded = false;
+  for (const char* path : css_paths) {
+    if (gtk_css_provider_load_from_path(css_provider, path, &error)) {
+      std::cout << "[INFO] Loaded CSS from: " << path << std::endl;
+      css_loaded = true;
+      break;
+    }
+    if (error) {
+      g_clear_error(&error);
+    }
+  }
+
+  if (!css_loaded) {
+    std::cerr << "[WARNING] Could not load CSS file, using default styling" << std::endl;
+  }
+
   gtk_style_context_add_provider_for_screen(
       gdk_screen_get_default(), GTK_STYLE_PROVIDER(css_provider),
       GTK_STYLE_PROVIDER_PRIORITY_USER);
@@ -71,8 +79,9 @@ void Gui<T_event_params>::init(int argc, char** argv) {
                                  GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
   gtk_box_pack_start(GTK_BOX(main_box_), scrolled_window_, TRUE, TRUE, 0);
 
-  // Create grid
+  // Create grid with fixed name for CSS styling
   grid_ = gtk_grid_new();
+  gtk_widget_set_name(grid_, "sequencer-grid");
   gtk_grid_set_row_spacing(GTK_GRID(grid_), 2);
   gtk_grid_set_column_spacing(GTK_GRID(grid_), 2);
   gtk_container_add(GTK_CONTAINER(scrolled_window_), grid_);
@@ -519,6 +528,8 @@ gboolean Gui<T_event_params>::on_cell_key_press(GtkWidget* widget,
   // Handle navigation keys
   switch (event->keyval) {
     case GDK_KEY_Up:
+      // Commit edits before navigating
+      commit_cell_edit(gui, GTK_ENTRY(widget));
       // Move to previous parameter
       if (cell.param_idx > 0) {
         gui->controller_->select(cell.seq_idx, cell.step_idx);
@@ -528,6 +539,8 @@ gboolean Gui<T_event_params>::on_cell_key_press(GtkWidget* widget,
       break;
 
     case GDK_KEY_Down:
+      // Commit edits before navigating
+      commit_cell_edit(gui, GTK_ENTRY(widget));
       // Move to next parameter
       gui->controller_->select(cell.seq_idx, cell.step_idx);
       gui->controller_->select_param(cell.param_idx);
@@ -536,6 +549,8 @@ gboolean Gui<T_event_params>::on_cell_key_press(GtkWidget* widget,
       break;
 
     case GDK_KEY_Left:
+      // Commit edits before navigating
+      commit_cell_edit(gui, GTK_ENTRY(widget));
       // Move to previous step (wrap around)
       gui->controller_->select(cell.seq_idx, cell.step_idx);
       gui->controller_->select_param(cell.param_idx);
@@ -544,6 +559,8 @@ gboolean Gui<T_event_params>::on_cell_key_press(GtkWidget* widget,
       break;
 
     case GDK_KEY_Right:
+      // Commit edits before navigating
+      commit_cell_edit(gui, GTK_ENTRY(widget));
       // Move to next step
       gui->controller_->select(cell.seq_idx, cell.step_idx);
       gui->controller_->select_param(cell.param_idx);
@@ -553,20 +570,42 @@ gboolean Gui<T_event_params>::on_cell_key_press(GtkWidget* widget,
 
     case GDK_KEY_Tab:
     case GDK_KEY_ISO_Left_Tab: {
+      // Commit any edits before navigating
+      commit_cell_edit(gui, GTK_ENTRY(widget));
+
       // Tab: move right, Shift+Tab: move left
       bool shift_pressed = (event->state & GDK_SHIFT_MASK) != 0;
 
+      // Update selection in controller
+      gui->controller_->select(cell.seq_idx, cell.step_idx);
+      gui->controller_->select_param(cell.param_idx);
+
       if (shift_pressed) {
-        // Shift+Tab: move to previous step (wrap around)
-        gui->controller_->select(cell.seq_idx, cell.step_idx);
-        gui->controller_->select_param(cell.param_idx);
+        // Shift+Tab: move to previous step
         gui->controller_->select_prev_step();
       } else {
-        // Tab: move to next step (wrap around)
-        gui->controller_->select(cell.seq_idx, cell.step_idx);
-        gui->controller_->select_param(cell.param_idx);
+        // Tab: move to next step
         gui->controller_->select_next_step();
       }
+
+      // Get the new state and find the new cell
+      auto state = gui->controller_->get_display_state();
+      if (state.selected_seq_idx && state.selected_step_idx && state.selected_param_idx) {
+        std::string new_key = gui->make_cell_key(*state.selected_seq_idx,
+                                                  *state.selected_step_idx,
+                                                  *state.selected_param_idx);
+        auto new_cell_it = gui->cell_widgets_.find(new_key);
+        if (new_cell_it != gui->cell_widgets_.end()) {
+          // Give focus to the new cell
+          gtk_widget_grab_focus(new_cell_it->second.entry);
+        }
+      }
+
+      // Update highlighting
+      gui->update_selection_highlighting(state);
+      gui->scroll_to_selection(state);
+      gui->last_state_ = state;
+
       handled = true;
       break;
     }
@@ -592,6 +631,20 @@ gboolean Gui<T_event_params>::on_cell_key_press(GtkWidget* widget,
   if (handled) {
     // Update GUI to reflect new selection
     auto state = gui->controller_->get_display_state();
+
+    // For non-Tab navigation, also grab focus on the new cell
+    if (event->keyval != GDK_KEY_Tab && event->keyval != GDK_KEY_ISO_Left_Tab) {
+      if (state.selected_seq_idx && state.selected_step_idx && state.selected_param_idx) {
+        std::string new_key = gui->make_cell_key(*state.selected_seq_idx,
+                                                  *state.selected_step_idx,
+                                                  *state.selected_param_idx);
+        auto new_cell_it = gui->cell_widgets_.find(new_key);
+        if (new_cell_it != gui->cell_widgets_.end()) {
+          gtk_widget_grab_focus(new_cell_it->second.entry);
+        }
+      }
+    }
+
     gui->update_selection_highlighting(state);
     gui->scroll_to_selection(state);
     gui->last_state_ = state;
