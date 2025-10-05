@@ -1,29 +1,52 @@
 /* MicroComposer GUI Stylesheet */
 
-.playhead {
-  background-color: #4CAF50;
-  font-weight: bold;
-}
-
-.selected {
-  border: 2px solid #2196F3;
-  background-color: #E3F2FD;
-}
-
+/* Base entry styling */
 entry {
   min-width: 70px;
-  max-width: 70px;
   padding: 4px;
 }
 
 /* Prevent grid from shifting during updates */
-#sequencer-grid {
-  column-homogeneous: false;
-  row-homogeneous: false;
-}
+/*//#sequencer-grid {
+//  column-homogeneous: false;
+//  row-homogeneous: false;
+//}*/
 
 #sequencer-grid entry {
   /* Fixed size to prevent jitter */
   min-width: 70px;
-  max-width: 70px;
+}
+
+/* Playhead highlighting - GTK3 entry widgets need text node styling */
+#sequencer-grid entry.playhead,
+entry.playhead,
+.playhead {
+  background: #4CAF50;
+  background-color: #4CAF50;
+  background-image: none;
+}
+
+#sequencer-grid entry.playhead text,
+entry.playhead text,
+.playhead text {
+  background: #4CAF50;
+  background-color: #4CAF50;
+  font-weight: bold;
+}
+
+/* Selection highlighting */
+#sequencer-grid entry.selected,
+entry.selected,
+.selected {
+  border: 2px solid #2196F3;
+  /*background: #E3F2FD;
+  background-color: #E3F2FD;
+  background-image: none;*/
+}
+
+#sequencer-grid entry.selected text,
+entry.selected text,
+.selected text{
+  background: #E3F2FD;
+  background-color: #E3F2FD;
 }
