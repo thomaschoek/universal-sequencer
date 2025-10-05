@@ -89,6 +89,9 @@ private:
   // Helper to commit cell edits
   static void commit_cell_edit(Gui* gui, GtkEntry* entry);
 
+  // Helper to save sequences to JSON file
+  void save_to_json(const std::string& filename);
+
   // Event handlers
   static void on_cell_edited(GtkEntry* entry, gpointer user_data);
   static gboolean on_cell_focus_out(GtkWidget* widget, GdkEventFocus* event,
