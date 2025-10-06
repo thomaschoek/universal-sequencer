@@ -1,4 +1,8 @@
 #include "matrix_sequencer_controller.h"
+#include <algorithm>
+#include <cctype>
+#include <fstream>
+#include <sstream>
 #include <stdexcept>
 
 namespace Micro_composer {
@@ -340,6 +344,9 @@ Matrix_sequencer_controller<T_event_params>::get_display_state() const {
           step_state.param_values.push_back(std::to_string(param));
         }
 
+        // Check if step is toggled
+        step_state.is_toggled = is_step_toggled(i, step_idx);
+
         seq_state.steps.push_back(step_state);
       }
     } else {
@@ -354,6 +361,359 @@ Matrix_sequencer_controller<T_event_params>::get_display_state() const {
   }
 
   return state;
+}
+
+// Step operations
+
+template <typename T_event_params>
+void Matrix_sequencer_controller<T_event_params>::add_step(Seq_idx seq_idx) {
+  if (seq_idx >= Base_sequencer::size()) {
+    throw std::out_of_range("Sequence index out of range");
+  }
+
+  auto& seq = Base_sequencer::operator[](seq_idx);
+
+  // Create a new step with default values (0 for all parameters)
+  if (seq.size() > 0) {
+    auto first_step = seq.at(0);
+    Vector_event new_step = first_step; // Copy structure
+    // Set all params to 0
+    for (auto& param : new_step.params) {
+      param = T_event_params{0};
+    }
+    seq.push_back(std::move(new_step));
+  }
+}
+
+template <typename T_event_params>
+void Matrix_sequencer_controller<T_event_params>::insert_step(Seq_idx seq_idx, Step_idx step_idx) {
+  if (seq_idx >= Base_sequencer::size()) {
+    throw std::out_of_range("Sequence index out of range");
+  }
+
+  auto& seq = Base_sequencer::operator[](seq_idx);
+
+  if (step_idx > seq.size()) {
+    throw std::out_of_range("Step index out of range");
+  }
+
+  // Create a new step with default values
+  if (seq.size() > 0) {
+    auto template_step = seq.at(0);
+    Vector_event new_step = template_step;
+    for (auto& param : new_step.params) {
+      param = T_event_params{0};
+    }
+    seq.insert(step_idx, std::move(new_step));
+  }
+}
+
+template <typename T_event_params>
+void Matrix_sequencer_controller<T_event_params>::remove_step(Seq_idx seq_idx, Step_idx step_idx) {
+  if (seq_idx >= Base_sequencer::size()) {
+    throw std::out_of_range("Sequence index out of range");
+  }
+
+  auto& seq = Base_sequencer::operator[](seq_idx);
+
+  if (step_idx >= seq.size()) {
+    throw std::out_of_range("Step index out of range");
+  }
+
+  // Don't allow removing the last step
+  if (seq.size() <= 1) {
+    std::cerr << "[WARNING] Cannot remove last step from sequence" << std::endl;
+    return;
+  }
+
+  seq.erase(step_idx);
+
+  // Remove from toggled steps if it was toggled
+  {
+    std::scoped_lock lck{toggled_steps_mutex_};
+    auto it = toggled_steps_.find(seq_idx);
+    if (it != toggled_steps_.end()) {
+      it->second.erase(step_idx);
+
+      // Adjust indices for steps after the removed one
+      std::set<Step_idx> adjusted_steps;
+      for (auto idx : it->second) {
+        if (idx > step_idx) {
+          adjusted_steps.insert(idx - 1);
+        } else {
+          adjusted_steps.insert(idx);
+        }
+      }
+      it->second = adjusted_steps;
+    }
+  }
+}
+
+template <typename T_event_params>
+void Matrix_sequencer_controller<T_event_params>::toggle_step(Seq_idx seq_idx, Step_idx step_idx) {
+  std::scoped_lock lck{toggled_steps_mutex_};
+
+  auto& toggled_set = toggled_steps_[seq_idx];
+  if (toggled_set.count(step_idx)) {
+    // Already toggled off, toggle on
+    toggled_set.erase(step_idx);
+  } else {
+    // Not toggled, toggle off
+    toggled_set.insert(step_idx);
+  }
+}
+
+template <typename T_event_params>
+bool Matrix_sequencer_controller<T_event_params>::is_step_toggled(Seq_idx seq_idx, Step_idx step_idx) const {
+  std::scoped_lock lck{toggled_steps_mutex_};
+
+  auto it = toggled_steps_.find(seq_idx);
+  if (it != toggled_steps_.end()) {
+    return it->second.count(step_idx) > 0;
+  }
+  return false;
+}
+
+// Sequence operations
+
+template <typename T_event_params>
+void Matrix_sequencer_controller<T_event_params>::add_sequence(std::size_t num_steps, std::size_t num_params) {
+  // Create a new sequencer with default steps
+  std::vector<Vector_event> steps;
+  using Duration = typename Vector_event::Duration;
+
+  // Always use default duration/offset (like in main.cpp)
+  for (std::size_t i = 0; i < num_steps; ++i) {
+    Vector_event step;
+    // Default constructor sets duration=0.25s, offset=0.0s
+    step.params.resize(num_params, T_event_params{0});
+    steps.push_back(step);
+  }
+
+  std::cout << "[DEBUG] Created " << steps.size() << " steps with "
+            << num_params << " params each" << std::endl;
+
+  Sequencer new_seq(std::move(steps));
+
+  std::cout << "[DEBUG] New sequencer has " << new_seq.size() << " steps" << std::endl;
+
+  Base_sequencer::push_back(std::move(new_seq));
+
+  std::cout << "[DEBUG] After push_back, controller has " << Base_sequencer::size()
+            << " sequences" << std::endl;
+
+  if (Base_sequencer::size() > 0) {
+    auto& last_seq = Base_sequencer::operator[](Base_sequencer::size() - 1);
+    std::cout << "[DEBUG] Last sequence has " << last_seq.size() << " steps" << std::endl;
+  }
+}
+
+template <typename T_event_params>
+void Matrix_sequencer_controller<T_event_params>::remove_sequence(Seq_idx seq_idx) {
+  if (seq_idx >= Base_sequencer::size()) {
+    throw std::out_of_range("Sequence index out of range");
+  }
+
+  // Stop the sequence if running
+  if (Base_sequencer::is_running(seq_idx)) {
+    Base_sequencer::stop(seq_idx);
+  }
+
+  Base_sequencer::erase(seq_idx);
+
+  // Clean up toggled steps for this sequence
+  {
+    std::scoped_lock lck{toggled_steps_mutex_};
+    toggled_steps_.erase(seq_idx);
+
+    // Adjust indices for sequences after the removed one
+    std::map<Seq_idx, std::set<Step_idx>> adjusted_map;
+    for (auto& [idx, steps] : toggled_steps_) {
+      if (idx > seq_idx) {
+        adjusted_map[idx - 1] = steps;
+      } else {
+        adjusted_map[idx] = steps;
+      }
+    }
+    toggled_steps_ = adjusted_map;
+  }
+
+  // Adjust selection if necessary
+  {
+    std::scoped_lock lck{selection_mutex_};
+    if (selected_seq_idx_ && *selected_seq_idx_ == seq_idx) {
+      // Selected sequence was removed
+      if (Base_sequencer::size() > 0) {
+        selected_seq_idx_ = std::min(seq_idx, Base_sequencer::size() - 1);
+        auto& new_seq = Base_sequencer::operator[](*selected_seq_idx_);
+        if (!new_seq.empty()) {
+          selected_step_idx_ = 0;
+        } else {
+          selected_step_idx_.reset();
+        }
+      } else {
+        selected_seq_idx_.reset();
+        selected_step_idx_.reset();
+      }
+      selected_param_idx_.reset();
+    } else if (selected_seq_idx_ && *selected_seq_idx_ > seq_idx) {
+      // Adjust selection index
+      --(*selected_seq_idx_);
+    }
+  }
+}
+
+template <typename T_event_params>
+void Matrix_sequencer_controller<T_event_params>::duplicate_sequence(Seq_idx seq_idx) {
+  if (seq_idx >= Base_sequencer::size()) {
+    throw std::out_of_range("Sequence index out of range");
+  }
+
+  // Get the sequence to duplicate
+  auto& orig_seq = Base_sequencer::operator[](seq_idx);
+
+  // Create a copy
+  std::vector<Vector_event> steps;
+  for (Step_idx i = 0; i < orig_seq.size(); ++i) {
+    steps.push_back(orig_seq.at(i));
+  }
+
+  Sequencer new_seq(steps);
+  Base_sequencer::push_back(std::move(new_seq));
+
+  // Copy toggled steps
+  {
+    std::scoped_lock lck{toggled_steps_mutex_};
+    auto it = toggled_steps_.find(seq_idx);
+    if (it != toggled_steps_.end()) {
+      toggled_steps_[Base_sequencer::size() - 1] = it->second;
+    }
+  }
+}
+
+// JSON loading
+
+template <typename T_event_params>
+void Matrix_sequencer_controller<T_event_params>::load_from_json(const std::string& filename) {
+  std::ifstream file(filename);
+  if (!file.is_open()) {
+    throw std::runtime_error("Failed to open file: " + filename);
+  }
+
+  // Simple JSON parsing (avoiding external dependencies)
+  std::string content((std::istreambuf_iterator<char>(file)),
+                      std::istreambuf_iterator<char>());
+
+  // Find "sequences": [
+  std::size_t seq_start = content.find("\"sequences\"");
+  if (seq_start == std::string::npos) {
+    throw std::runtime_error("Invalid JSON: missing 'sequences' key");
+  }
+
+  seq_start = content.find('[', seq_start);
+  if (seq_start == std::string::npos) {
+    throw std::runtime_error("Invalid JSON: invalid format");
+  }
+
+  // Stop all sequences
+  Base_sequencer::stop_all();
+
+  // Clear existing sequences
+  Base_sequencer::clear();
+
+  // Clear toggled steps
+  {
+    std::scoped_lock lck{toggled_steps_mutex_};
+    toggled_steps_.clear();
+  }
+
+  // Parse sequences (simplified parser)
+  std::size_t pos = seq_start + 1;
+  while (pos < content.size()) {
+    // Skip whitespace
+    while (pos < content.size() && std::isspace(content[pos])) ++pos;
+
+    if (pos >= content.size() || content[pos] == ']') break;
+    if (content[pos] == ',') {
+      ++pos;
+      continue;
+    }
+
+    // Expect a sequence array
+    if (content[pos] != '[') break;
+
+    std::vector<Vector_event> steps;
+    ++pos; // Skip '['
+
+    // Parse steps
+    while (pos < content.size()) {
+      while (pos < content.size() && std::isspace(content[pos])) ++pos;
+
+      if (pos >= content.size() || content[pos] == ']') {
+        ++pos;
+        break;
+      }
+      if (content[pos] == ',') {
+        ++pos;
+        continue;
+      }
+
+      // Expect a step array
+      if (content[pos] != '[') break;
+      ++pos;
+
+      Vector_event step;
+
+      // Parse parameters
+      while (pos < content.size()) {
+        while (pos < content.size() && std::isspace(content[pos])) ++pos;
+
+        if (pos >= content.size() || content[pos] == ']') {
+          ++pos;
+          break;
+        }
+        if (content[pos] == ',') {
+          ++pos;
+          continue;
+        }
+
+        // Parse number
+        std::size_t end_pos = pos;
+        bool is_negative = false;
+        if (content[end_pos] == '-') {
+          is_negative = true;
+          ++end_pos;
+        }
+
+        while (end_pos < content.size() &&
+               (std::isdigit(content[end_pos]) || content[end_pos] == '.')) {
+          ++end_pos;
+        }
+
+        std::string num_str = content.substr(pos, end_pos - pos);
+        T_event_params value;
+        std::istringstream iss(num_str);
+        if (!(iss >> value)) {
+          value = T_event_params{0};
+        }
+
+        step.params.push_back(value);
+        pos = end_pos;
+      }
+
+      if (!step.params.empty()) {
+        steps.push_back(step);
+      }
+    }
+
+    if (!steps.empty()) {
+      Sequencer new_seq(steps);
+      Base_sequencer::push_back(std::move(new_seq));
+    }
+  }
+
+  std::cout << "[INFO] Loaded " << Base_sequencer::size() << " sequences from "
+            << filename << std::endl;
 }
 
 } // namespace controller

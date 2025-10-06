@@ -40,6 +40,7 @@ private:
   // GTK widgets
   GtkWidget* window_{nullptr};
   GtkWidget* main_box_{nullptr};
+  GtkWidget* menu_bar_{nullptr};
   GtkWidget* scrolled_window_{nullptr};
   GtkWidget* grid_{nullptr}; // Main grid containing all cells
 
@@ -66,6 +67,7 @@ private:
   std::map<std::size_t, SeqHeaderWidgets> seq_headers_;
 
   // Helper methods for building UI
+  void create_menu_bar();
   void rebuild_grid(const Display_state& state);
   void create_sequence_header(std::size_t seq_idx,
                                const Sequencer_display_state& seq_state,
@@ -89,8 +91,25 @@ private:
   // Helper to commit cell edits
   static void commit_cell_edit(Gui* gui, GtkEntry* entry);
 
-  // Helper to save sequences to JSON file
+  // File operations
   void save_to_json(const std::string& filename);
+  void load_from_json(const std::string& filename);
+
+  // Step operations
+  void toggle_selected_step();
+  void add_step_to_selected();
+  void insert_step_before_selected();
+  void remove_selected_step();
+
+  // Sequence operations
+  void add_new_sequence();
+  void remove_selected_sequence();
+  void duplicate_selected_sequence();
+
+  // Expand/collapse operations
+  void expand_all_sequences();
+  void collapse_all_sequences();
+  void toggle_selected_sequence_expand();
 
   // Event handlers
   static void on_cell_edited(GtkEntry* entry, gpointer user_data);
