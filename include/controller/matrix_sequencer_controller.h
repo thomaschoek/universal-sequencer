@@ -3,8 +3,10 @@
 
 #include "gui/display_state.h"
 #include "sequencer/matrix_sequencer.h"
+#include <map>
 #include <mutex>
 #include <optional>
+#include <set>
 
 namespace Micro_composer {
 
@@ -52,14 +54,33 @@ public:
   // Clear all selections
   void clear_selection();
 
+  // Step operations
+  void add_step(Seq_idx seq_idx);
+  void insert_step(Seq_idx seq_idx, Step_idx step_idx);
+  void remove_step(Seq_idx seq_idx, Step_idx step_idx);
+  void toggle_step(Seq_idx seq_idx, Step_idx step_idx);
+  bool is_step_toggled(Seq_idx seq_idx, Step_idx step_idx) const;
+
+  // Sequence operations
+  void add_sequence(std::size_t num_steps, std::size_t num_params);
+  void remove_sequence(Seq_idx seq_idx);
+  void duplicate_sequence(Seq_idx seq_idx);
+
   // Get current display state (thread-safe)
   gui::Display_state get_display_state() const;
+
+  // Load session from JSON
+  void load_from_json(const std::string& filename);
 
 private:
   std::optional<Seq_idx> selected_seq_idx_;
   std::optional<Step_idx> selected_step_idx_;
   std::optional<Param_idx> selected_param_idx_;
   mutable std::mutex selection_mutex_;
+
+  // Track toggled steps: map<seq_idx, set<step_idx>>
+  std::map<Seq_idx, std::set<Step_idx>> toggled_steps_;
+  mutable std::mutex toggled_steps_mutex_;
 };
 
 } // namespace controller

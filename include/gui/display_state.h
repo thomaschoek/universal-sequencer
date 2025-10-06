@@ -13,9 +13,10 @@ namespace gui {
 // Represents a single step's parameter values
 struct Step_display_state {
   std::vector<std::string> param_values; // Parameters as strings for display
+  bool is_toggled{false}; // Whether this step is toggled off
 
   bool operator==(const Step_display_state& other) const {
-    return param_values == other.param_values;
+    return param_values == other.param_values && is_toggled == other.is_toggled;
   }
 
   bool operator!=(const Step_display_state& other) const {
