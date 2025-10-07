@@ -14,9 +14,11 @@ namespace gui {
 struct Step_display_state {
   std::vector<std::string> param_values; // Parameters as strings for display
   bool is_toggled{false}; // Whether this step is toggled off
+  double duration_seconds{0.25}; // Duration in seconds
 
   bool operator==(const Step_display_state& other) const {
-    return param_values == other.param_values && is_toggled == other.is_toggled;
+    return param_values == other.param_values && is_toggled == other.is_toggled &&
+           duration_seconds == other.duration_seconds;
   }
 
   bool operator!=(const Step_display_state& other) const {

@@ -74,6 +74,8 @@ private:
                                int row);
   void create_parameter_row(std::size_t seq_idx, std::size_t param_idx,
                             const Sequencer_display_state& seq_state, int row);
+  void create_duration_row(std::size_t seq_idx,
+                           const Sequencer_display_state& seq_state, int row);
 
   // Helper methods for rendering updates
   void update_cell_values(const Display_state& state);
@@ -94,6 +96,9 @@ private:
   // File operations
   void save_to_json(const std::string& filename);
   void load_from_json(const std::string& filename);
+
+  // BPM operations
+  void edit_bpm();
 
   // Step operations
   void toggle_selected_step();

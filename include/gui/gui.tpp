@@ -223,6 +223,15 @@ void Gui<T_event_params>::create_menu_bar() {
                            this);
   gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), toggle_expand_item);
 
+  gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), gtk_separator_menu_item_new());
+
+  // BPM editing
+  GtkWidget* edit_bpm_item = gtk_menu_item_new_with_label("Edit BPM                  Ctrl+B");
+  g_signal_connect_swapped(edit_bpm_item, "activate",
+                           G_CALLBACK(+[](Gui* gui) { gui->edit_bpm(); }),
+                           this);
+  gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), edit_bpm_item);
+
   gtk_menu_shell_append(GTK_MENU_SHELL(menu_bar_), edit_item);
 
   // Pack menu bar at the top of main_box
@@ -311,12 +320,15 @@ void Gui<T_event_params>::rebuild_grid(const Display_state& state) {
     create_sequence_header(seq_idx, seq, current_row);
     current_row++;
 
-    // If expanded, create parameter rows
+    // If expanded, create parameter rows and duration row
     if (is_expanded) {
       for (std::size_t param_idx = 0; param_idx < seq.num_params; ++param_idx) {
         create_parameter_row(seq_idx, param_idx, seq, current_row);
         current_row++;
       }
+      // Add duration row after all parameter rows
+      create_duration_row(seq_idx, seq, current_row);
+      current_row++;
     }
   }
 
@@ -385,6 +397,64 @@ void Gui<T_event_params>::create_parameter_row(
     // Store cell info for event handling
     CellWidget cell_widget{entry, seq_idx, step_idx, param_idx};
     std::string key = make_cell_key(seq_idx, step_idx, param_idx);
+    cell_widgets_[key] = cell_widget;
+
+    // Attach to user data for callback
+    g_object_set_data(G_OBJECT(entry), "cell_key", g_strdup(key.c_str()));
+
+    // Connect edit signal (Enter key)
+    g_signal_connect(entry, "activate", G_CALLBACK(on_cell_edited), this);
+
+    // Connect focus-out signal (when user leaves the cell)
+    g_signal_connect(entry, "focus-out-event", G_CALLBACK(on_cell_focus_out),
+                     this);
+
+    // Connect keyboard navigation
+    g_signal_connect(entry, "key-press-event", G_CALLBACK(on_cell_key_press),
+                     this);
+
+    // Add to grid (column offset by 3 for fixed columns)
+    gtk_grid_attach(GTK_GRID(grid_), entry, step_idx + 3, row, 1, 1);
+  }
+}
+
+template <typename T_event_params>
+void Gui<T_event_params>::create_duration_row(
+    std::size_t seq_idx, const Sequencer_display_state& seq_state, int row) {
+  // Duration label (columns 0-2, merged)
+  GtkWidget* duration_label = gtk_label_new("  Duration");
+  gtk_widget_set_halign(duration_label, GTK_ALIGN_START);
+  gtk_widget_set_size_request(duration_label, 140, 30);
+  gtk_grid_attach(GTK_GRID(grid_), duration_label, 0, row, 3, 1);
+
+  // Create duration cells for each step
+  for (std::size_t step_idx = 0; step_idx < seq_state.num_steps; ++step_idx) {
+    // Get duration value
+    std::string value = "0.25";
+    if (step_idx < seq_state.steps.size()) {
+      // Use the number_to_string_no_trailing_zeros helper
+      std::ostringstream oss;
+      oss << seq_state.steps[step_idx].duration_seconds;
+      value = oss.str();
+
+      // Remove trailing zeros
+      if (value.find('.') != std::string::npos) {
+        value.erase(value.find_last_not_of('0') + 1, std::string::npos);
+        if (!value.empty() && value.back() == '.') {
+          value.pop_back();
+        }
+      }
+    }
+
+    // Create entry widget
+    GtkWidget* entry = gtk_entry_new();
+    gtk_entry_set_text(GTK_ENTRY(entry), value.c_str());
+    gtk_entry_set_width_chars(GTK_ENTRY(entry), 8);
+    gtk_widget_set_size_request(entry, 70, 30);
+
+    // Store cell info for event handling (use SIZE_MAX for param_idx to indicate duration)
+    CellWidget cell_widget{entry, seq_idx, step_idx, SIZE_MAX};
+    std::string key = make_cell_key(seq_idx, step_idx, SIZE_MAX);
     cell_widgets_[key] = cell_widget;
 
     // Attach to user data for callback
@@ -568,37 +638,65 @@ void Gui<T_event_params>::commit_cell_edit(Gui<T_event_params>* gui,
     if (it != gui->cell_widgets_.end()) {
       const char* new_value_str = gtk_entry_get_text(entry);
 
-      // Parse the string value to T_event_params
-      T_event_params new_value;
+      // Check if this is a duration cell (param_idx == SIZE_MAX)
+      if (it->second.param_idx == SIZE_MAX) {
+        // Duration cell - parse as double
+        double duration_value;
 
-      // Handle empty string as 0
-      if (new_value_str == nullptr || std::string(new_value_str).empty()) {
-        new_value = T_event_params{0};
-      } else {
-        std::istringstream iss(new_value_str);
-        if (!(iss >> new_value)) {
-          std::cerr << "[ERROR] Failed to parse value: " << new_value_str
-                    << std::endl;
-          return;
+        // Handle empty string as default (0.25)
+        if (new_value_str == nullptr || std::string(new_value_str).empty()) {
+          duration_value = 0.25;
+        } else {
+          std::istringstream iss(new_value_str);
+          if (!(iss >> duration_value)) {
+            std::cerr << "[ERROR] Failed to parse duration value: " << new_value_str
+                      << std::endl;
+            return;
+          }
         }
-      }
 
-      std::cout << "[INFO] Cell edited: seq=" << it->second.seq_idx
-                << " step=" << it->second.step_idx
-                << " param=" << it->second.param_idx << " value=" << new_value
-                << std::endl;
+        std::cout << "[INFO] Duration edited: seq=" << it->second.seq_idx
+                  << " step=" << it->second.step_idx
+                  << " duration=" << duration_value << std::endl;
 
-      // Update the controller
-      try {
-        gui->controller_->update(it->second.seq_idx, it->second.step_idx,
-                                 it->second.param_idx, std::move(new_value));
+        // Update the duration in controller
+        try {
+          gui->controller_->update_step_duration(it->second.seq_idx,
+                                                 it->second.step_idx,
+                                                 duration_value);
+        } catch (const std::exception& e) {
+          std::cerr << "[ERROR] Failed to update duration: " << e.what()
+                    << std::endl;
+        }
+      } else {
+        // Parameter cell - parse as T_event_params
+        T_event_params new_value;
 
-        // Update the display value to reflect the committed value
-        std::string display_value = std::to_string(new_value);
-        gtk_entry_set_text(entry, display_value.c_str());
-      } catch (const std::exception& e) {
-        std::cerr << "[ERROR] Failed to update controller: " << e.what()
+        // Handle empty string as 0
+        if (new_value_str == nullptr || std::string(new_value_str).empty()) {
+          new_value = T_event_params{0};
+        } else {
+          std::istringstream iss(new_value_str);
+          if (!(iss >> new_value)) {
+            std::cerr << "[ERROR] Failed to parse value: " << new_value_str
+                      << std::endl;
+            return;
+          }
+        }
+
+        std::cout << "[INFO] Cell edited: seq=" << it->second.seq_idx
+                  << " step=" << it->second.step_idx
+                  << " param=" << it->second.param_idx << " value=" << new_value
                   << std::endl;
+
+        // Update the controller
+        try {
+          gui->controller_->update(it->second.seq_idx, it->second.step_idx,
+                                   it->second.param_idx, std::move(new_value));
+        } catch (const std::exception& e) {
+          std::cerr << "[ERROR] Failed to update controller: " << e.what()
+                    << std::endl;
+        }
       }
     }
   }
@@ -760,6 +858,46 @@ gboolean Gui<T_event_params>::on_cell_key_press(GtkWidget* widget,
     gui->controller_->select_param(cell.param_idx);
     handled = true;
     break;
+
+  case GDK_KEY_Escape: {
+    // Cancel edit and revert to original value
+    auto state = gui->controller_->get_display_state();
+
+    // Get original value from controller
+    if (cell.seq_idx < state.sequencers.size()) {
+      const auto& seq_state = state.sequencers[cell.seq_idx];
+      if (cell.step_idx < seq_state.steps.size()) {
+        const auto& step_state = seq_state.steps[cell.step_idx];
+
+        if (cell.param_idx == SIZE_MAX) {
+          // Duration cell - revert to original duration
+          std::ostringstream oss;
+          oss << step_state.duration_seconds;
+          std::string duration_str = oss.str();
+          // Remove trailing zeros
+          if (duration_str.find('.') != std::string::npos) {
+            duration_str.erase(duration_str.find_last_not_of('0') + 1, std::string::npos);
+            if (!duration_str.empty() && duration_str.back() == '.') {
+              duration_str.pop_back();
+            }
+          }
+          gtk_entry_set_text(GTK_ENTRY(widget), duration_str.c_str());
+        } else if (cell.param_idx < step_state.param_values.size()) {
+          // Parameter cell - revert to original parameter value
+          const std::string& original_value = step_state.param_values[cell.param_idx];
+          gtk_entry_set_text(GTK_ENTRY(widget), original_value.c_str());
+        }
+      }
+    }
+
+    // Remove focus from the cell
+    if (gui->window_) {
+      gtk_widget_grab_focus(gui->window_);
+    }
+
+    handled = true;
+    break;
+  }
 
   default:
     break;
@@ -1083,6 +1221,54 @@ void Gui<T_event_params>::save_to_json(const std::string& filename) {
 }
 
 template <typename T_event_params>
+void Gui<T_event_params>::edit_bpm() {
+  // Create dialog with entry field for BPM
+  GtkWidget* dialog = gtk_dialog_new_with_buttons(
+      "Edit BPM", GTK_WINDOW(window_), GTK_DIALOG_MODAL,
+      "_OK", GTK_RESPONSE_OK,
+      "_Cancel", GTK_RESPONSE_CANCEL,
+      NULL);
+
+  GtkWidget* content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+
+  // Add label
+  GtkWidget* label = gtk_label_new("Enter BPM (beats per minute):");
+  gtk_box_pack_start(GTK_BOX(content_area), label, FALSE, FALSE, 5);
+
+  // Add entry for BPM
+  GtkWidget* entry = gtk_entry_new();
+  gtk_entry_set_text(GTK_ENTRY(entry), "120"); // Default BPM
+  gtk_entry_set_width_chars(GTK_ENTRY(entry), 10);
+  gtk_box_pack_start(GTK_BOX(content_area), entry, FALSE, FALSE, 5);
+
+  gtk_widget_show_all(dialog);
+
+  // Run dialog
+  if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_OK) {
+    const char* bpm_str = gtk_entry_get_text(GTK_ENTRY(entry));
+    try {
+      double bpm = std::stod(bpm_str);
+      if (bpm > 0 && bpm <= 999) {
+        controller_->set_all_durations_from_bpm(bpm);
+
+        // Refresh display
+        auto state = controller_->get_display_state();
+        rebuild_grid(state);
+        last_state_ = state;
+
+        std::cout << "[INFO] Set BPM to " << bpm << std::endl;
+      } else {
+        std::cerr << "[ERROR] BPM must be between 1 and 999" << std::endl;
+      }
+    } catch (const std::exception& e) {
+      std::cerr << "[ERROR] Invalid BPM value: " << bpm_str << std::endl;
+    }
+  }
+
+  gtk_widget_destroy(dialog);
+}
+
+template <typename T_event_params>
 void Gui<T_event_params>::show_help_dialog() {
   GtkWidget* dialog = gtk_message_dialog_new(
       GTK_WINDOW(window_), GTK_DIALOG_MODAL, GTK_MESSAGE_INFO, GTK_BUTTONS_OK,
@@ -1267,6 +1453,12 @@ gboolean Gui<T_event_params>::on_window_key_press(GtkWidget* widget,
   // Collapse all (Ctrl+W)
   if ((event->keyval == GDK_KEY_w || event->keyval == GDK_KEY_W) && ctrl_pressed && !shift_pressed) {
     gui->collapse_all_sequences();
+    return TRUE;
+  }
+
+  // Edit BPM (Ctrl+B)
+  if ((event->keyval == GDK_KEY_b || event->keyval == GDK_KEY_B) && ctrl_pressed && !shift_pressed) {
+    gui->edit_bpm();
     return TRUE;
   }
 
