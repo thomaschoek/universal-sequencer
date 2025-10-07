@@ -4,6 +4,7 @@
 entry {
   min-width: 70px;
   padding: 4px;
+  text-align: left;
 }
 
 /* Prevent grid from shifting during updates */

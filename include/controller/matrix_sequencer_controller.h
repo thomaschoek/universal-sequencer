@@ -60,6 +60,8 @@ public:
   void remove_step(Seq_idx seq_idx, Step_idx step_idx);
   void toggle_step(Seq_idx seq_idx, Step_idx step_idx);
   bool is_step_toggled(Seq_idx seq_idx, Step_idx step_idx) const;
+  void update_step_duration(Seq_idx seq_idx, Step_idx step_idx, double duration_seconds);
+  void set_all_durations_from_bpm(double bpm);
 
   // Sequence operations
   void add_sequence(std::size_t num_steps, std::size_t num_params);

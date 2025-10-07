@@ -303,6 +303,24 @@ void Matrix_sequencer_controller<T_event_params>::clear_selection() {
   selected_param_idx_.reset();
 }
 
+// Helper function to convert number to string without trailing zeros
+template <typename T>
+static std::string number_to_string_no_trailing_zeros(T value) {
+  std::string str = std::to_string(value);
+
+  // Only process if string contains a decimal point
+  if (str.find('.') != std::string::npos) {
+    // Remove trailing zeros
+    str.erase(str.find_last_not_of('0') + 1, std::string::npos);
+    // Remove trailing decimal point if that's all that's left
+    if (!str.empty() && str.back() == '.') {
+      str.pop_back();
+    }
+  }
+
+  return str;
+}
+
 template <typename T_event_params>
 gui::Display_state
 Matrix_sequencer_controller<T_event_params>::get_display_state() const {
@@ -339,13 +357,16 @@ Matrix_sequencer_controller<T_event_params>::get_display_state() const {
         auto step = seq.at(step_idx);
         gui::Step_display_state step_state;
 
-        // Convert each parameter to string
+        // Convert each parameter to string without trailing zeros
         for (const auto& param : step.params) {
-          step_state.param_values.push_back(std::to_string(param));
+          step_state.param_values.push_back(number_to_string_no_trailing_zeros(param));
         }
 
         // Check if step is toggled
         step_state.is_toggled = is_step_toggled(i, step_idx);
+
+        // Get duration in seconds
+        step_state.duration_seconds = step.duration.count();
 
         seq_state.steps.push_back(step_state);
       }
@@ -472,6 +493,42 @@ bool Matrix_sequencer_controller<T_event_params>::is_step_toggled(Seq_idx seq_id
     return it->second.count(step_idx) > 0;
   }
   return false;
+}
+
+template <typename T_event_params>
+void Matrix_sequencer_controller<T_event_params>::update_step_duration(Seq_idx seq_idx, Step_idx step_idx, double duration_seconds) {
+  if (seq_idx >= Base_sequencer::size()) {
+    throw std::out_of_range("Sequence index out of range");
+  }
+
+  auto& seq = Base_sequencer::operator[](seq_idx);
+
+  if (step_idx >= seq.size()) {
+    throw std::out_of_range("Step index out of range");
+  }
+
+  // Use the set_duration method from Atomic_sequencer
+  typename Vector_event::Duration duration(duration_seconds);
+  seq.set_duration(step_idx, duration);
+}
+
+template <typename T_event_params>
+void Matrix_sequencer_controller<T_event_params>::set_all_durations_from_bpm(double bpm) {
+  // Calculate duration for quarter note at given BPM
+  // BPM = beats per minute, so duration in seconds = 60 / BPM
+  double duration_seconds = 60.0 / bpm;
+  typename Vector_event::Duration duration(duration_seconds);
+
+  // Update all sequences and all steps
+  for (Seq_idx seq_idx = 0; seq_idx < Base_sequencer::size(); ++seq_idx) {
+    auto& seq = Base_sequencer::operator[](seq_idx);
+    for (Step_idx step_idx = 0; step_idx < seq.size(); ++step_idx) {
+      seq.set_duration(step_idx, duration);
+    }
+  }
+
+  std::cout << "[INFO] Set all step durations to " << duration_seconds
+            << "s (BPM: " << bpm << ")" << std::endl;
 }
 
 // Sequence operations
