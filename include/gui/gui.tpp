@@ -45,8 +45,8 @@ void Gui<T_event_params>::init(int argc, char** argv) {
       break;
     }
     if (error) {
-      std::cerr << "[WARNING] Failed to load CSS from " << path
-                << ": " << error->message << std::endl;
+      std::cerr << "[WARNING] Failed to load CSS from " << path << ": "
+                << error->message << std::endl;
       g_clear_error(&error);
     }
   }
@@ -101,8 +101,7 @@ template <typename T_event_params> void Gui<T_event_params>::show() {
   }
 }
 
-template <typename T_event_params>
-void Gui<T_event_params>::create_menu_bar() {
+template <typename T_event_params> void Gui<T_event_params>::create_menu_bar() {
   menu_bar_ = gtk_menu_bar_new();
 
   // File menu
@@ -111,16 +110,17 @@ void Gui<T_event_params>::create_menu_bar() {
   gtk_menu_item_set_submenu(GTK_MENU_ITEM(file_item), file_menu);
 
   // File -> Save (Ctrl+S)
-  GtkWidget* save_item = gtk_menu_item_new_with_label("Save                          Ctrl+S");
-  g_signal_connect_swapped(save_item, "activate",
-                           G_CALLBACK(+[](Gui* gui) {
+  GtkWidget* save_item =
+      gtk_menu_item_new_with_label("Save                          Ctrl+S");
+  g_signal_connect_swapped(save_item, "activate", G_CALLBACK(+[](Gui* gui) {
                              auto now = std::time(nullptr);
                              auto tm = *std::localtime(&now);
                              std::ostringstream filename;
                              filename << "sequences_" << (tm.tm_year + 1900)
-                                      << std::setfill('0') << std::setw(2) << (tm.tm_mon + 1)
-                                      << std::setw(2) << tm.tm_mday << "_"
-                                      << std::setw(2) << tm.tm_hour << std::setw(2) << tm.tm_min
+                                      << std::setfill('0') << std::setw(2)
+                                      << (tm.tm_mon + 1) << std::setw(2)
+                                      << tm.tm_mday << "_" << std::setw(2)
+                                      << tm.tm_hour << std::setw(2) << tm.tm_min
                                       << std::setw(2) << tm.tm_sec << ".json";
                              gui->save_to_json(filename.str());
                            }),
@@ -128,25 +128,26 @@ void Gui<T_event_params>::create_menu_bar() {
   gtk_menu_shell_append(GTK_MENU_SHELL(file_menu), save_item);
 
   // File -> Load (Ctrl+L)
-  GtkWidget* load_item = gtk_menu_item_new_with_label("Load                          Ctrl+L");
-  g_signal_connect_swapped(load_item, "activate",
-                           G_CALLBACK(+[](Gui* gui) {
-                             // Simple file chooser dialog
-                             GtkWidget* dialog = gtk_file_chooser_dialog_new(
-                                 "Load Session", GTK_WINDOW(gui->window_),
-                                 GTK_FILE_CHOOSER_ACTION_OPEN, "_Cancel",
-                                 GTK_RESPONSE_CANCEL, "_Open", GTK_RESPONSE_ACCEPT, NULL);
+  GtkWidget* load_item =
+      gtk_menu_item_new_with_label("Load                          Ctrl+L");
+  g_signal_connect_swapped(
+      load_item, "activate", G_CALLBACK(+[](Gui* gui) {
+        // Simple file chooser dialog
+        GtkWidget* dialog = gtk_file_chooser_dialog_new(
+            "Load Session", GTK_WINDOW(gui->window_),
+            GTK_FILE_CHOOSER_ACTION_OPEN, "_Cancel", GTK_RESPONSE_CANCEL,
+            "_Open", GTK_RESPONSE_ACCEPT, NULL);
 
-                             if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
-                               char* filename = gtk_file_chooser_get_filename(
-                                   GTK_FILE_CHOOSER(dialog));
-                               gui->load_from_json(filename);
-                               g_free(filename);
-                             }
+        if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
+          char* filename =
+              gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
+          gui->load_from_json(filename);
+          g_free(filename);
+        }
 
-                             gtk_widget_destroy(dialog);
-                           }),
-                           this);
+        gtk_widget_destroy(dialog);
+      }),
+      this);
   gtk_menu_shell_append(GTK_MENU_SHELL(file_menu), load_item);
 
   gtk_menu_shell_append(GTK_MENU_SHELL(menu_bar_), file_item);
@@ -157,76 +158,91 @@ void Gui<T_event_params>::create_menu_bar() {
   gtk_menu_item_set_submenu(GTK_MENU_ITEM(edit_item), edit_menu);
 
   // Step operations
-  GtkWidget* toggle_step_item = gtk_menu_item_new_with_label("Toggle Step               T");
-  g_signal_connect_swapped(toggle_step_item, "activate",
-                           G_CALLBACK(+[](Gui* gui) { gui->toggle_selected_step(); }),
-                           this);
+  GtkWidget* toggle_step_item =
+      gtk_menu_item_new_with_label("Toggle Step               T");
+  g_signal_connect_swapped(
+      toggle_step_item, "activate",
+      G_CALLBACK(+[](Gui* gui) { gui->toggle_selected_step(); }), this);
   gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), toggle_step_item);
 
-  GtkWidget* add_step_item = gtk_menu_item_new_with_label("Add Step                  Ctrl+A");
-  g_signal_connect_swapped(add_step_item, "activate",
-                           G_CALLBACK(+[](Gui* gui) { gui->add_step_to_selected(); }),
-                           this);
+  GtkWidget* add_step_item =
+      gtk_menu_item_new_with_label("Add Step                  Ctrl+A");
+  g_signal_connect_swapped(
+      add_step_item, "activate",
+      G_CALLBACK(+[](Gui* gui) { gui->add_step_to_selected(); }), this);
   gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), add_step_item);
 
-  GtkWidget* insert_step_item = gtk_menu_item_new_with_label("Insert Step               Ctrl+I");
-  g_signal_connect_swapped(insert_step_item, "activate",
-                           G_CALLBACK(+[](Gui* gui) { gui->insert_step_before_selected(); }),
-                           this);
+  GtkWidget* insert_step_item =
+      gtk_menu_item_new_with_label("Insert Step               Ctrl+I");
+  g_signal_connect_swapped(
+      insert_step_item, "activate",
+      G_CALLBACK(+[](Gui* gui) { gui->insert_step_before_selected(); }), this);
   gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), insert_step_item);
 
-  GtkWidget* remove_step_item = gtk_menu_item_new_with_label("Remove Step               Ctrl+D");
-  g_signal_connect_swapped(remove_step_item, "activate",
-                           G_CALLBACK(+[](Gui* gui) { gui->remove_selected_step(); }),
-                           this);
+  GtkWidget* remove_step_item =
+      gtk_menu_item_new_with_label("Remove Step               Ctrl+D");
+  g_signal_connect_swapped(
+      remove_step_item, "activate",
+      G_CALLBACK(+[](Gui* gui) { gui->remove_selected_step(); }), this);
   gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), remove_step_item);
 
-  gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), gtk_separator_menu_item_new());
+  gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu),
+                        gtk_separator_menu_item_new());
 
   // Sequence operations
-  GtkWidget* add_seq_item = gtk_menu_item_new_with_label("Add Sequence              Ctrl+Shift+A");
-  g_signal_connect_swapped(add_seq_item, "activate",
-                           G_CALLBACK(+[](Gui* gui) { gui->add_new_sequence(); }),
-                           this);
+  GtkWidget* add_seq_item =
+      gtk_menu_item_new_with_label("Add Sequence              Ctrl+Shift+A");
+  g_signal_connect_swapped(
+      add_seq_item, "activate",
+      G_CALLBACK(+[](Gui* gui) { gui->add_new_sequence(); }), this);
   gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), add_seq_item);
 
-  GtkWidget* remove_seq_item = gtk_menu_item_new_with_label("Remove Sequence           Ctrl+Shift+D");
-  g_signal_connect_swapped(remove_seq_item, "activate",
-                           G_CALLBACK(+[](Gui* gui) { gui->remove_selected_sequence(); }),
-                           this);
+  GtkWidget* remove_seq_item =
+      gtk_menu_item_new_with_label("Remove Sequence           Ctrl+Shift+D");
+  g_signal_connect_swapped(
+      remove_seq_item, "activate",
+      G_CALLBACK(+[](Gui* gui) { gui->remove_selected_sequence(); }), this);
   gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), remove_seq_item);
 
-  GtkWidget* dup_seq_item = gtk_menu_item_new_with_label("Duplicate Sequence        Ctrl+Shift+C");
-  g_signal_connect_swapped(dup_seq_item, "activate",
-                           G_CALLBACK(+[](Gui* gui) { gui->duplicate_selected_sequence(); }),
-                           this);
+  GtkWidget* dup_seq_item =
+      gtk_menu_item_new_with_label("Duplicate Sequence        Ctrl+Shift+C");
+  g_signal_connect_swapped(
+      dup_seq_item, "activate",
+      G_CALLBACK(+[](Gui* gui) { gui->duplicate_selected_sequence(); }), this);
   gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), dup_seq_item);
 
-  gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), gtk_separator_menu_item_new());
+  gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu),
+                        gtk_separator_menu_item_new());
 
   // Expand/collapse operations
-  GtkWidget* expand_all_item = gtk_menu_item_new_with_label("Expand All                Ctrl+E");
-  g_signal_connect_swapped(expand_all_item, "activate",
-                           G_CALLBACK(+[](Gui* gui) { gui->expand_all_sequences(); }),
-                           this);
+  GtkWidget* expand_all_item =
+      gtk_menu_item_new_with_label("Expand All                Ctrl+E");
+  g_signal_connect_swapped(
+      expand_all_item, "activate",
+      G_CALLBACK(+[](Gui* gui) { gui->expand_all_sequences(); }), this);
   gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), expand_all_item);
 
-  GtkWidget* collapse_all_item = gtk_menu_item_new_with_label("Collapse All              Ctrl+W");
-  g_signal_connect_swapped(collapse_all_item, "activate",
-                           G_CALLBACK(+[](Gui* gui) { gui->collapse_all_sequences(); }),
-                           this);
+  GtkWidget* collapse_all_item =
+      gtk_menu_item_new_with_label("Collapse All              Ctrl+W");
+  g_signal_connect_swapped(
+      collapse_all_item, "activate",
+      G_CALLBACK(+[](Gui* gui) { gui->collapse_all_sequences(); }), this);
   gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), collapse_all_item);
 
-  GtkWidget* toggle_expand_item = gtk_menu_item_new_with_label("Toggle Sequence           Ctrl+T");
-  g_signal_connect_swapped(toggle_expand_item, "activate",
-                           G_CALLBACK(+[](Gui* gui) { gui->toggle_selected_sequence_expand(); }),
-                           this);
+  GtkWidget* toggle_expand_item =
+      gtk_menu_item_new_with_label("Toggle Sequence           Ctrl+T");
+  g_signal_connect_swapped(
+      toggle_expand_item, "activate",
+      G_CALLBACK(+[](Gui* gui) { gui->toggle_selected_sequence_expand(); }),
+      this);
   gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), toggle_expand_item);
 
-  gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), gtk_separator_menu_item_new());
+  gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu),
+                        gtk_separator_menu_item_new());
 
   // BPM editing
-  GtkWidget* edit_bpm_item = gtk_menu_item_new_with_label("Edit BPM                  Ctrl+B");
+  GtkWidget* edit_bpm_item =
+      gtk_menu_item_new_with_label("Edit BPM                  Ctrl+B");
   g_signal_connect_swapped(edit_bpm_item, "activate",
                            G_CALLBACK(+[](Gui* gui) { gui->edit_bpm(); }),
                            this);
@@ -244,8 +260,6 @@ void Gui<T_event_params>::render(const Display_state& state) {
   if (state == last_state_) {
     return;
   }
-
-  std::cout << "[DEBUG] Rendering GUI update..." << std::endl;
 
   // Check if we need to rebuild the entire grid (structure changed)
   bool need_rebuild = false;
@@ -452,7 +466,8 @@ void Gui<T_event_params>::create_duration_row(
     gtk_entry_set_width_chars(GTK_ENTRY(entry), 8);
     gtk_widget_set_size_request(entry, 70, 30);
 
-    // Store cell info for event handling (use SIZE_MAX for param_idx to indicate duration)
+    // Store cell info for event handling (use SIZE_MAX for param_idx to
+    // indicate duration)
     CellWidget cell_widget{entry, seq_idx, step_idx, SIZE_MAX};
     std::string key = make_cell_key(seq_idx, step_idx, SIZE_MAX);
     cell_widgets_[key] = cell_widget;
@@ -513,11 +528,13 @@ void Gui<T_event_params>::update_playhead_highlighting(
   // Add new playhead highlighting
   for (std::size_t seq_idx = 0; seq_idx < state.sequencers.size(); ++seq_idx) {
     const auto& seq = state.sequencers[seq_idx];
-    std::size_t current_step = seq.current_step_idx;
+    std::size_t playing_step = (seq.current_step_idx - 2) % seq.num_steps;
+    std::cout << "[DEBUG] CUR PLAYING STEP: " << playing_step << std::endl;
 
     // Highlight all parameters for the current step of this sequence
     for (std::size_t param_idx = 0; param_idx < seq.num_params; ++param_idx) {
-      std::string key = make_cell_key(seq_idx, current_step, param_idx);
+      std::string key = make_cell_key(seq_idx, playing_step, param_idx);
+      std::cout << "[DEBUG] cell key: " << key << std::endl;
       auto it = cell_widgets_.find(key);
       if (it != cell_widgets_.end()) {
         GtkStyleContext* context =
@@ -649,8 +666,8 @@ void Gui<T_event_params>::commit_cell_edit(Gui<T_event_params>* gui,
         } else {
           std::istringstream iss(new_value_str);
           if (!(iss >> duration_value)) {
-            std::cerr << "[ERROR] Failed to parse duration value: " << new_value_str
-                      << std::endl;
+            std::cerr << "[ERROR] Failed to parse duration value: "
+                      << new_value_str << std::endl;
             return;
           }
         }
@@ -661,9 +678,8 @@ void Gui<T_event_params>::commit_cell_edit(Gui<T_event_params>* gui,
 
         // Update the duration in controller
         try {
-          gui->controller_->update_step_duration(it->second.seq_idx,
-                                                 it->second.step_idx,
-                                                 duration_value);
+          gui->controller_->update_step_duration(
+              it->second.seq_idx, it->second.step_idx, duration_value);
         } catch (const std::exception& e) {
           std::cerr << "[ERROR] Failed to update duration: " << e.what()
                     << std::endl;
@@ -876,7 +892,8 @@ gboolean Gui<T_event_params>::on_cell_key_press(GtkWidget* widget,
           std::string duration_str = oss.str();
           // Remove trailing zeros
           if (duration_str.find('.') != std::string::npos) {
-            duration_str.erase(duration_str.find_last_not_of('0') + 1, std::string::npos);
+            duration_str.erase(duration_str.find_last_not_of('0') + 1,
+                               std::string::npos);
             if (!duration_str.empty() && duration_str.back() == '.') {
               duration_str.pop_back();
             }
@@ -884,7 +901,8 @@ gboolean Gui<T_event_params>::on_cell_key_press(GtkWidget* widget,
           gtk_entry_set_text(GTK_ENTRY(widget), duration_str.c_str());
         } else if (cell.param_idx < step_state.param_values.size()) {
           // Parameter cell - revert to original parameter value
-          const std::string& original_value = step_state.param_values[cell.param_idx];
+          const std::string& original_value =
+              step_state.param_values[cell.param_idx];
           gtk_entry_set_text(GTK_ENTRY(widget), original_value.c_str());
         }
       }
@@ -937,7 +955,8 @@ void Gui<T_event_params>::toggle_selected_step() {
   auto state = controller_->get_display_state();
   if (state.selected_seq_idx && state.selected_step_idx) {
     try {
-      controller_->toggle_step(*state.selected_seq_idx, *state.selected_step_idx);
+      controller_->toggle_step(*state.selected_seq_idx,
+                               *state.selected_step_idx);
       std::cout << "[INFO] Toggled step " << *state.selected_step_idx
                 << " in sequence " << *state.selected_seq_idx << std::endl;
     } catch (const std::exception& e) {
@@ -952,7 +971,8 @@ void Gui<T_event_params>::add_step_to_selected() {
   if (state.selected_seq_idx) {
     try {
       controller_->add_step(*state.selected_seq_idx);
-      std::cout << "[INFO] Added step to sequence " << *state.selected_seq_idx << std::endl;
+      std::cout << "[INFO] Added step to sequence " << *state.selected_seq_idx
+                << std::endl;
     } catch (const std::exception& e) {
       std::cerr << "[ERROR] Failed to add step: " << e.what() << std::endl;
     }
@@ -964,7 +984,8 @@ void Gui<T_event_params>::insert_step_before_selected() {
   auto state = controller_->get_display_state();
   if (state.selected_seq_idx && state.selected_step_idx) {
     try {
-      controller_->insert_step(*state.selected_seq_idx, *state.selected_step_idx);
+      controller_->insert_step(*state.selected_seq_idx,
+                               *state.selected_step_idx);
       std::cout << "[INFO] Inserted step at " << *state.selected_step_idx
                 << " in sequence " << *state.selected_seq_idx << std::endl;
     } catch (const std::exception& e) {
@@ -978,7 +999,8 @@ void Gui<T_event_params>::remove_selected_step() {
   auto state = controller_->get_display_state();
   if (state.selected_seq_idx && state.selected_step_idx) {
     try {
-      controller_->remove_step(*state.selected_seq_idx, *state.selected_step_idx);
+      controller_->remove_step(*state.selected_seq_idx,
+                               *state.selected_step_idx);
       std::cout << "[INFO] Removed step " << *state.selected_step_idx
                 << " from sequence " << *state.selected_seq_idx << std::endl;
     } catch (const std::exception& e) {
@@ -1022,12 +1044,14 @@ void Gui<T_event_params>::remove_selected_sequence() {
   if (state.selected_seq_idx) {
     try {
       controller_->remove_sequence(*state.selected_seq_idx);
-      std::cout << "[INFO] Removed sequence " << *state.selected_seq_idx << std::endl;
+      std::cout << "[INFO] Removed sequence " << *state.selected_seq_idx
+                << std::endl;
 
       // Clean up expanded state
       expanded_seqs_.erase(*state.selected_seq_idx);
     } catch (const std::exception& e) {
-      std::cerr << "[ERROR] Failed to remove sequence: " << e.what() << std::endl;
+      std::cerr << "[ERROR] Failed to remove sequence: " << e.what()
+                << std::endl;
     }
   }
 }
@@ -1038,12 +1062,14 @@ void Gui<T_event_params>::duplicate_selected_sequence() {
   if (state.selected_seq_idx) {
     try {
       controller_->duplicate_sequence(*state.selected_seq_idx);
-      std::cout << "[INFO] Duplicated sequence " << *state.selected_seq_idx << std::endl;
+      std::cout << "[INFO] Duplicated sequence " << *state.selected_seq_idx
+                << std::endl;
 
       // Expand the duplicate
       expanded_seqs_[controller_->size() - 1] = true;
     } catch (const std::exception& e) {
-      std::cerr << "[ERROR] Failed to duplicate sequence: " << e.what() << std::endl;
+      std::cerr << "[ERROR] Failed to duplicate sequence: " << e.what()
+                << std::endl;
     }
   }
 }
@@ -1083,7 +1109,8 @@ void Gui<T_event_params>::toggle_selected_sequence_expand() {
     rebuild_grid(new_state);
     last_state_ = new_state;
 
-    std::cout << "[INFO] Toggled expansion for sequence " << seq_idx << std::endl;
+    std::cout << "[INFO] Toggled expansion for sequence " << seq_idx
+              << std::endl;
   }
 }
 
@@ -1107,9 +1134,9 @@ void Gui<T_event_params>::load_from_json(const std::string& filename) {
     last_state_ = state;
 
     // Show success dialog
-    GtkWidget* dialog = gtk_message_dialog_new(
-        GTK_WINDOW(window_), GTK_DIALOG_MODAL, GTK_MESSAGE_INFO,
-        GTK_BUTTONS_OK, "File Loaded");
+    GtkWidget* dialog =
+        gtk_message_dialog_new(GTK_WINDOW(window_), GTK_DIALOG_MODAL,
+                               GTK_MESSAGE_INFO, GTK_BUTTONS_OK, "File Loaded");
 
     std::ostringstream msg;
     msg << "Loaded " << controller_->size() << " sequences from:\n" << filename;
@@ -1220,14 +1247,11 @@ void Gui<T_event_params>::save_to_json(const std::string& filename) {
   }
 }
 
-template <typename T_event_params>
-void Gui<T_event_params>::edit_bpm() {
+template <typename T_event_params> void Gui<T_event_params>::edit_bpm() {
   // Create dialog with entry field for BPM
   GtkWidget* dialog = gtk_dialog_new_with_buttons(
-      "Edit BPM", GTK_WINDOW(window_), GTK_DIALOG_MODAL,
-      "_OK", GTK_RESPONSE_OK,
-      "_Cancel", GTK_RESPONSE_CANCEL,
-      NULL);
+      "Edit BPM", GTK_WINDOW(window_), GTK_DIALOG_MODAL, "_OK", GTK_RESPONSE_OK,
+      "_Cancel", GTK_RESPONSE_CANCEL, NULL);
 
   GtkWidget* content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
 
@@ -1388,7 +1412,8 @@ gboolean Gui<T_event_params>::on_window_key_press(GtkWidget* widget,
   bool ctrl_pressed = (event->state & GDK_CONTROL_MASK) != 0;
   bool shift_pressed = (event->state & GDK_SHIFT_MASK) != 0;
 
-  // F10 to show menu (handled by GTK automatically, but we can add custom handling if needed)
+  // F10 to show menu (handled by GTK automatically, but we can add custom
+  // handling if needed)
   if (event->keyval == GDK_KEY_F10) {
     return FALSE; // Let GTK handle menu activation
   }
@@ -1420,7 +1445,8 @@ gboolean Gui<T_event_params>::on_window_key_press(GtkWidget* widget,
   }
 
   // Insert step (Ctrl+I)
-  if ((event->keyval == GDK_KEY_i || event->keyval == GDK_KEY_I) && ctrl_pressed && !shift_pressed) {
+  if ((event->keyval == GDK_KEY_i || event->keyval == GDK_KEY_I) &&
+      ctrl_pressed && !shift_pressed) {
     gui->insert_step_before_selected();
     return TRUE;
   }
@@ -1439,36 +1465,40 @@ gboolean Gui<T_event_params>::on_window_key_press(GtkWidget* widget,
   }
 
   // Duplicate sequence (Ctrl+Shift+C)
-  if ((event->keyval == GDK_KEY_c || event->keyval == GDK_KEY_C) && ctrl_pressed && shift_pressed) {
+  if ((event->keyval == GDK_KEY_c || event->keyval == GDK_KEY_C) &&
+      ctrl_pressed && shift_pressed) {
     gui->duplicate_selected_sequence();
     return TRUE;
   }
 
   // Expand all (Ctrl+E)
-  if ((event->keyval == GDK_KEY_e || event->keyval == GDK_KEY_E) && ctrl_pressed && !shift_pressed) {
+  if ((event->keyval == GDK_KEY_e || event->keyval == GDK_KEY_E) &&
+      ctrl_pressed && !shift_pressed) {
     gui->expand_all_sequences();
     return TRUE;
   }
 
   // Collapse all (Ctrl+W)
-  if ((event->keyval == GDK_KEY_w || event->keyval == GDK_KEY_W) && ctrl_pressed && !shift_pressed) {
+  if ((event->keyval == GDK_KEY_w || event->keyval == GDK_KEY_W) &&
+      ctrl_pressed && !shift_pressed) {
     gui->collapse_all_sequences();
     return TRUE;
   }
 
   // Edit BPM (Ctrl+B)
-  if ((event->keyval == GDK_KEY_b || event->keyval == GDK_KEY_B) && ctrl_pressed && !shift_pressed) {
+  if ((event->keyval == GDK_KEY_b || event->keyval == GDK_KEY_B) &&
+      ctrl_pressed && !shift_pressed) {
     gui->edit_bpm();
     return TRUE;
   }
 
   // Load file (Ctrl+L)
-  if ((event->keyval == GDK_KEY_l || event->keyval == GDK_KEY_L) && ctrl_pressed && !shift_pressed) {
+  if ((event->keyval == GDK_KEY_l || event->keyval == GDK_KEY_L) &&
+      ctrl_pressed && !shift_pressed) {
     // Show file chooser dialog
     GtkWidget* dialog = gtk_file_chooser_dialog_new(
-        "Load Session", GTK_WINDOW(gui->window_),
-        GTK_FILE_CHOOSER_ACTION_OPEN, "_Cancel",
-        GTK_RESPONSE_CANCEL, "_Open", GTK_RESPONSE_ACCEPT, NULL);
+        "Load Session", GTK_WINDOW(gui->window_), GTK_FILE_CHOOSER_ACTION_OPEN,
+        "_Cancel", GTK_RESPONSE_CANCEL, "_Open", GTK_RESPONSE_ACCEPT, NULL);
 
     if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
       char* filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));

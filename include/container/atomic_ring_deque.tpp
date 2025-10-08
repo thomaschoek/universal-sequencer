@@ -57,27 +57,14 @@ template <typename T> T Atomic_ring_deque<T>::next() {
 }
 
 template <typename T>
-typename Atomic_ring_deque<T>::Base_deque::Index
+inline typename Atomic_ring_deque<T>::Base_deque::Index
 Atomic_ring_deque<T>::get_pos() const {
   std::scoped_lock lck = Atomic_deque<T>::get_lock();
   if (Unatomic_base_deque::empty()) {
     return 0;
   }
-
-  // Get current iterator position
-  auto iter_pos = static_cast<typename Base_deque::Index>(
-      std::distance(Unatomic_base_deque::cbegin(), iterator_));
-
-  // The iterator points to the NEXT step to play (because next() does
-  // *iterator_++), so subtract 1 to get the current/last played step.
-  // Handle wraparound for ring buffer.
-  if (iter_pos == 0) {
-    // Iterator wrapped to beginning, last played was the end
-    return Unatomic_base_deque::size() - 1;
-  } else {
-    // Normal case: subtract 1 to get last played position
-    return iter_pos - 1;
-  }
+  return static_cast<const Base_deque::Index>(iterator_ -
+                                              Unatomic_base_deque::cbegin());
 }
 
 } // namespace container

@@ -118,7 +118,7 @@ void Atomic_sequencer<Event_t>::set_pos(Step_idx idx) {
 }
 
 template <Sequencable_updatable Event_t>
-typename Atomic_sequencer<Event_t>::Step_idx
+inline typename Atomic_sequencer<Event_t>::Step_idx
 Atomic_sequencer<Event_t>::get_pos() const {
   std::scoped_lock lck{mutex_};
   return Atomic_ring_deque::get_pos();
