@@ -99,12 +99,12 @@ void Atomic_sequencer<Event_t>::start(Time_point start_time) {
     return;
   }
 
-  while (Atomic_ring_deque::empty()) {
+  if (Atomic_ring_deque::empty()) {
 // Wait until user adds something to the sequence
 #ifndef NDEBUG
     std::cout << "I CAN HAZ STEPS? NO! IS EMPTY!" << std::endl;
 #endif
-    std::this_thread::sleep_for(std::chrono::seconds{1});
+    return;
   }
 
   runner_thread_ = std::jthread(
