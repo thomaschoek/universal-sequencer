@@ -303,9 +303,10 @@ TEST_CASE("Atomic_sequencer: set_pos operation", "[atomic_sequencer]") {
   SECTION("Set position before starting") {
     seq.set_pos(2);
     seq.start();
-    std::this_thread::sleep_for(60ms);
+    std::this_thread::sleep_for(40ms);
 
     // Should start from position 2 (1320 Hz)
+    // With 40ms sleep and 50ms event duration, we should be within first event
     REQUIRE(last_freq == 1320);
     seq.stop();
   }
@@ -314,9 +315,10 @@ TEST_CASE("Atomic_sequencer: set_pos operation", "[atomic_sequencer]") {
     seq.set_pos(2);
     seq.set_pos(); // Reset to beginning
     seq.start();
-    std::this_thread::sleep_for(60ms);
+    std::this_thread::sleep_for(40ms);
 
     // Should start from position 0 (440 Hz)
+    // With 40ms sleep and 50ms event duration, we should be within first event
     REQUIRE(last_freq == 440);
     seq.stop();
   }

@@ -787,8 +787,13 @@ gboolean Gui<T_event_params>::on_cell_key_press(GtkWidget* widget,
     // Commit edits before navigating
     commit_cell_edit(gui, GTK_ENTRY(widget));
     // Move to previous parameter
-    if (cell.param_idx > 0) {
-      gui->controller_->select(cell.seq_idx, cell.step_idx);
+    gui->controller_->select(cell.seq_idx, cell.step_idx);
+    if (cell.param_idx == SIZE_MAX) {
+      // Duration cell - move to last parameter
+      gui->controller_->select_prev_param();
+      handled = true;
+    } else if (cell.param_idx > 0) {
+      // Regular parameter cell - move up
       gui->controller_->select_param(cell.param_idx - 1);
       handled = true;
     }
