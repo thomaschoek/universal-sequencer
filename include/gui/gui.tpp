@@ -528,6 +528,12 @@ void Gui<T_event_params>::update_playhead_highlighting(
   // Add new playhead highlighting
   for (std::size_t seq_idx = 0; seq_idx < state.sequencers.size(); ++seq_idx) {
     const auto& seq = state.sequencers[seq_idx];
+
+    // Skip sequences with no steps to avoid division by zero
+    if (seq.num_steps == 0) {
+      continue;
+    }
+
     std::size_t playing_step = (seq.current_step_idx - 2) % seq.num_steps;
     std::cout << "[DEBUG] CUR PLAYING STEP: " << playing_step << std::endl;
 

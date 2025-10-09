@@ -26,7 +26,8 @@ Atomic_sequencer<Event_t>::Atomic_sequencer(Atomic_sequencer&& other) noexcept {
   Time_point restart_time = other.next_step_time_.load();
   handler_ = std::move(other.handler_);
   mutex_.unlock();
-  Atomic_ring_deque{std::move(other)};
+  // Move the base class data using assignment operator
+  Atomic_ring_deque::operator=(std::move(other));
   if (was_other_running) {
     start(restart_time); // Restart the new sequencer
   }
