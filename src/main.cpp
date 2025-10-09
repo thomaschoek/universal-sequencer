@@ -45,9 +45,15 @@ int main(int argc, char** argv) {
   std::cout << "[INFO] Created controller with " << controller->size()
             << " sequences" << std::endl;
 
-  // Set up audio output
-  RealTimeAudioOutput synth_out_1, synth_out_2;
-  Synthesizer synth_1{synth_out_1}, synth_2{synth_out_2};
+  // Set up audio output - create a pool of synthesizers
+  constexpr std::size_t SYNTH_POOL_SIZE = 10;
+  std::vector<std::unique_ptr<RealTimeAudioOutput>> synth_outputs;
+  std::vector<std::unique_ptr<Synthesizer>> synths;
+
+  for (std::size_t i = 0; i < SYNTH_POOL_SIZE; ++i) {
+    synth_outputs.push_back(std::make_unique<RealTimeAudioOutput>());
+    synths.push_back(std::make_unique<Synthesizer>(*synth_outputs.back()));
+  }
 
   // Create handlers that convert Vector_event to Oscillation_event for audio
   // playback
@@ -70,13 +76,39 @@ int main(int argc, char** argv) {
     };
   };
 
+  // Set handlers for initial sequences
   std::vector<std::function<void(VectorEvent&&)>> handlers;
-  handlers.push_back(create_handler(synth_1));
-  handlers.push_back(create_handler(synth_2));
-
+  for (std::size_t i = 0; i < controller->size() && i < SYNTH_POOL_SIZE; ++i) {
+    handlers.push_back(create_handler(*synths[i]));
+  }
   controller->set_handlers(handlers);
 
-  std::cout << "[INFO] Audio output configured" << std::endl;
+  // Set up handler factory for dynamically added sequences
+  // Use a shared index to cycle through the synth pool
+  auto next_synth_idx = std::make_shared<std::atomic<std::size_t>>(controller->size());
+  controller->set_handler_factory([&synths, next_synth_idx]() {
+    std::size_t idx = (*next_synth_idx)++ % synths.size();
+    std::cout << "[INFO] Creating handler using synth " << idx << std::endl;
+
+    // Create handler using the lambda from above
+    return [synth_ptr = synths[idx].get()](const VectorEvent&& event) {
+      Oscillation_event osc_event;
+      if (event.params.size() >= 1)
+        osc_event.frequency = event.params[0];
+      if (event.params.size() >= 2)
+        osc_event.amplitude = event.params[1];
+      if (event.params.size() >= 3)
+        osc_event.phase = event.params[2];
+      osc_event.duration = event.duration;
+      osc_event.offset = event.offset;
+
+      std::ignore = std::async(std::launch::async,
+                               [synth_ptr, osc_event]() { synth_ptr->play(osc_event); });
+    };
+  });
+
+  std::cout << "[INFO] Audio output configured with " << SYNTH_POOL_SIZE
+            << " synthesizers" << std::endl;
 
   // Create user interface with controller
   auto ui = std::make_unique<User_interface<double>>(controller);
