@@ -799,8 +799,13 @@ gboolean Gui<T_event_params>::on_cell_key_press(GtkWidget* widget,
     commit_cell_edit(gui, GTK_ENTRY(widget));
     // Move to next parameter
     gui->controller_->select(cell.seq_idx, cell.step_idx);
-    gui->controller_->select_param(cell.param_idx);
-    gui->controller_->select_next_param();
+    // If we're on a duration cell, wrap to param 0
+    if (cell.param_idx == SIZE_MAX) {
+      gui->controller_->select_param(0);
+    } else {
+      gui->controller_->select_param(cell.param_idx);
+      gui->controller_->select_next_param();
+    }
     handled = true;
     break;
 
@@ -809,7 +814,8 @@ gboolean Gui<T_event_params>::on_cell_key_press(GtkWidget* widget,
     commit_cell_edit(gui, GTK_ENTRY(widget));
     // Move to previous step (wrap around)
     gui->controller_->select(cell.seq_idx, cell.step_idx);
-    gui->controller_->select_param(cell.param_idx);
+    // Use param 0 if we're on a duration cell (SIZE_MAX)
+    gui->controller_->select_param(cell.param_idx == SIZE_MAX ? 0 : cell.param_idx);
     gui->controller_->select_prev_step();
     handled = true;
     break;
@@ -819,7 +825,8 @@ gboolean Gui<T_event_params>::on_cell_key_press(GtkWidget* widget,
     commit_cell_edit(gui, GTK_ENTRY(widget));
     // Move to next step
     gui->controller_->select(cell.seq_idx, cell.step_idx);
-    gui->controller_->select_param(cell.param_idx);
+    // Use param 0 if we're on a duration cell (SIZE_MAX)
+    gui->controller_->select_param(cell.param_idx == SIZE_MAX ? 0 : cell.param_idx);
     gui->controller_->select_next_step();
     handled = true;
     break;
@@ -834,7 +841,8 @@ gboolean Gui<T_event_params>::on_cell_key_press(GtkWidget* widget,
 
     // Update selection in controller
     gui->controller_->select(cell.seq_idx, cell.step_idx);
-    gui->controller_->select_param(cell.param_idx);
+    // Use param 0 if we're on a duration cell (SIZE_MAX)
+    gui->controller_->select_param(cell.param_idx == SIZE_MAX ? 0 : cell.param_idx);
 
     if (shift_pressed) {
       // Shift+Tab: move to previous step
@@ -870,14 +878,16 @@ gboolean Gui<T_event_params>::on_cell_key_press(GtkWidget* widget,
   case GDK_KEY_Page_Up:
     // Move to previous sequence
     gui->controller_->select_prev_seq();
-    gui->controller_->select_param(cell.param_idx);
+    // Use param 0 if we're on a duration cell (SIZE_MAX)
+    gui->controller_->select_param(cell.param_idx == SIZE_MAX ? 0 : cell.param_idx);
     handled = true;
     break;
 
   case GDK_KEY_Page_Down:
     // Move to next sequence
     gui->controller_->select_next_seq();
-    gui->controller_->select_param(cell.param_idx);
+    // Use param 0 if we're on a duration cell (SIZE_MAX)
+    gui->controller_->select_param(cell.param_idx == SIZE_MAX ? 0 : cell.param_idx);
     handled = true;
     break;
 
