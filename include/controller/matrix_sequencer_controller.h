@@ -74,6 +74,11 @@ public:
   // Load session from JSON
   void load_from_json(const std::string& filename);
 
+  // Handler factory management
+  using Handler = typename Sequencer::Handler;
+  using Handler_factory = std::function<Handler()>;
+  void set_handler_factory(Handler_factory factory);
+
 private:
   std::optional<Seq_idx> selected_seq_idx_;
   std::optional<Step_idx> selected_step_idx_;
@@ -83,6 +88,10 @@ private:
   // Track toggled steps: map<seq_idx, set<step_idx>>
   std::map<Seq_idx, std::set<Step_idx>> toggled_steps_;
   mutable std::mutex toggled_steps_mutex_;
+
+  // Handler factory for auto-assigning handlers to new sequences
+  Handler_factory handler_factory_;
+  mutable std::mutex handler_factory_mutex_;
 };
 
 } // namespace controller

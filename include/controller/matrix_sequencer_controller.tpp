@@ -563,6 +563,16 @@ void Matrix_sequencer_controller<T_event_params>::add_sequence(std::size_t num_s
     auto& last_seq = Base_sequencer::operator[](Base_sequencer::size() - 1);
     std::cout << "[DEBUG] Last sequence has " << last_seq.size() << " steps" << std::endl;
   }
+
+  // Auto-assign handler if factory is configured
+  {
+    std::scoped_lock lck{handler_factory_mutex_};
+    if (handler_factory_) {
+      Seq_idx new_seq_idx = Base_sequencer::size() - 1;
+      Base_sequencer::set_handler(new_seq_idx, handler_factory_());
+      std::cout << "[INFO] Handler auto-assigned to new sequence " << new_seq_idx << std::endl;
+    }
+  }
 }
 
 template <typename T_event_params>
@@ -644,6 +654,16 @@ void Matrix_sequencer_controller<T_event_params>::duplicate_sequence(Seq_idx seq
     auto it = toggled_steps_.find(seq_idx);
     if (it != toggled_steps_.end()) {
       toggled_steps_[Base_sequencer::size() - 1] = it->second;
+    }
+  }
+
+  // Auto-assign handler if factory is configured
+  {
+    std::scoped_lock lck{handler_factory_mutex_};
+    if (handler_factory_) {
+      Seq_idx new_seq_idx = Base_sequencer::size() - 1;
+      Base_sequencer::set_handler(new_seq_idx, handler_factory_());
+      std::cout << "[INFO] Handler auto-assigned to duplicated sequence " << new_seq_idx << std::endl;
     }
   }
 }
@@ -771,6 +791,16 @@ void Matrix_sequencer_controller<T_event_params>::load_from_json(const std::stri
 
   std::cout << "[INFO] Loaded " << Base_sequencer::size() << " sequences from "
             << filename << std::endl;
+}
+
+// Handler factory management
+
+template <typename T_event_params>
+void Matrix_sequencer_controller<T_event_params>::set_handler_factory(
+    Handler_factory factory) {
+  std::scoped_lock lck{handler_factory_mutex_};
+  handler_factory_ = factory;
+  std::cout << "[INFO] Handler factory configured" << std::endl;
 }
 
 } // namespace controller
