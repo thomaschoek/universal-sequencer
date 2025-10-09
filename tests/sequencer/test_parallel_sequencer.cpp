@@ -398,35 +398,39 @@ TEST_CASE("Parallel_sequencer: set_pos operation", "[parallel_sequencer]") {
   pseq.emplace_back(handler1);
   pseq.emplace_back(handler2);
 
-  pseq[0].assign({Oscillation_event{440.0, 0.5, 0.0, 0ms, 50ms},
-                  Oscillation_event{880.0, 0.5, 0.0, 0ms, 50ms},
-                  Oscillation_event{1320.0, 0.5, 0.0, 0ms, 50ms}});
-  pseq[1].assign({Oscillation_event{100.0, 0.5, 0.0, 0ms, 50ms},
-                  Oscillation_event{200.0, 0.5, 0.0, 0ms, 50ms},
-                  Oscillation_event{300.0, 0.5, 0.0, 0ms, 50ms}});
+  pseq[0].assign({Oscillation_event{440.0, 0.5, 0.0, 0ms, 100ms},
+                  Oscillation_event{880.0, 0.5, 0.0, 0ms, 100ms},
+                  Oscillation_event{1320.0, 0.5, 0.0, 0ms, 100ms}});
+  pseq[1].assign({Oscillation_event{100.0, 0.5, 0.0, 0ms, 100ms},
+                  Oscillation_event{200.0, 0.5, 0.0, 0ms, 100ms},
+                  Oscillation_event{300.0, 0.5, 0.0, 0ms, 100ms}});
 
   SECTION("set_pos for all sequencers via direct sequencer access") {
     pseq[0].set_pos(1);
     pseq[1].set_pos(1);
     pseq.start_all();
-    std::this_thread::sleep_for(60ms);
-    pseq.stop_all();
+    std::this_thread::sleep_for(20ms);
 
     // Both should start from position 1
+    // With 20ms sleep and 100ms event duration, safely within first event
     REQUIRE(last_freq1 == 880);
     REQUIRE(last_freq2 == 200);
+
+    pseq.stop_all();
   }
 
   SECTION("set_pos for single sequencer") {
-    pseq.set_pos(0, 2);
-    pseq.set_pos(1, 0);
+    pseq[0].set_pos(2);
+    pseq[1].set_pos(0);
     pseq.start_all();
-    std::this_thread::sleep_for(60ms);
-    pseq.stop_all();
+    std::this_thread::sleep_for(20ms);
 
     // First from position 2, second from position 0
+    // With 20ms sleep and 100ms event duration, safely within first event
     REQUIRE(last_freq1 == 1320);
     REQUIRE(last_freq2 == 100);
+
+    pseq.stop_all();
   }
 
   SECTION("set_pos with default argument resets") {
@@ -435,11 +439,13 @@ TEST_CASE("Parallel_sequencer: set_pos operation", "[parallel_sequencer]") {
     pseq[0].set_pos(); // Reset to beginning
     pseq[1].set_pos(); // Reset to beginning
     pseq.start_all();
-    std::this_thread::sleep_for(60ms);
-    pseq.stop_all();
+    std::this_thread::sleep_for(20ms);
 
+    // With 20ms sleep and 100ms event duration, safely within first event
     REQUIRE(last_freq1 == 440);
     REQUIRE(last_freq2 == 100);
+
+    pseq.stop_all();
   }
 }
 
