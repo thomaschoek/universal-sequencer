@@ -1,6 +1,7 @@
 #ifndef MICRO_COMPOSER_ATOMIC_VECTOR_H
 #define MICRO_COMPOSER_ATOMIC_VECTOR_H
 
+#include <atomic>
 #include <functional>
 #include <initializer_list>
 #include <mutex>
@@ -15,6 +16,8 @@ public:
   using Base_vector = std::vector<T>;
   using Index = typename Base_vector::size_type;
   using Initializer_list = std::initializer_list<T>;
+  using Iterator = Base_vector::iterator;
+  using Const_iterator = Base_vector::const_iterator;
 
   // Constructors
   Atomic_vector() = default;
@@ -26,12 +29,13 @@ public:
   Atomic_vector(std::vector<T>&&);
 
   // Run anything under lock
-  std::scoped_lock<std::mutex> get_lock() const;
+  const std::scoped_lock<std::mutex> get_lock() const noexcept;
   template <typename Return_type, typename... Args>
   const Return_type
   under_lock(std::function<Return_type(std::vector<T>&, Args...)>, Args...);
 
   // Thread-safe CRUD operations
+  void assign(size_t, const T&);
   void assign(Initializer_list);
   void assign(const std::vector<T>&);
 

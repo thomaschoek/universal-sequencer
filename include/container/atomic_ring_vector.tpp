@@ -29,7 +29,7 @@ Atomic_ring_vector<T>::Atomic_ring_vector(std::vector<T>&& vec)
 }
 
 template <typename T>
-void Atomic_ring_vector<T>::set_pos(typename Base_vector::Index pos) {
+void Atomic_ring_vector<T>::set_next(typename Base_vector::Index pos) {
   std::scoped_lock lck = Atomic_vector<T>::get_lock();
   if (Unatomic_base_vector::empty()) {
     iterator_ = Unatomic_base_vector::cbegin();
@@ -37,23 +37,29 @@ void Atomic_ring_vector<T>::set_pos(typename Base_vector::Index pos) {
   }
   if (pos >= Unatomic_base_vector::size()) {
     throw std::out_of_range(
-        "[ERROR] In Atomic_ring_vector::set_pos: Position out of range.");
+        "[ERROR] In Atomic_ring_vector::set_next: Position out of range.");
   }
   iterator_ = Unatomic_base_vector::cbegin() + pos;
 }
 
 template <typename T> T Atomic_ring_vector<T>::next() {
-  std::scoped_lock lck = Atomic_vector<T>::get_lock();
-  if (Unatomic_base_vector::empty()) {
-    throw std::out_of_range(
-        "Attempted to get next event from an empty sequence");
+  static T buffer;
+  static Const_iterator itr = Unatomic_base_vector::cbegin();
+
+  std::ignore = prio_access_pending_.test_and_set(std::memory_order_release);
+  const std::scoped_lock lck = Base_vector::get_lock();
+
+  if (itr >= Unatomic_base_vector::cend()) {
+    itr = Unatomic_base_vector::cbegin();
   }
-  if (iterator_ >= Unatomic_base_vector::cend() ||
-      iterator_ < Unatomic_base_vector::cbegin()) {
-    iterator_ = Unatomic_base_vector::cbegin();
-  }
-  // Return a copy of the current step's value, then increment the step iterator
-  return *iterator_++;
+
+  buffer = *itr++;
+
+  prio_access_pending_.clear();
+
+  iterator_.store(itr, std::memory_order_release);
+
+  return buffer;
 }
 
 template <typename T>
@@ -68,10 +74,16 @@ Atomic_ring_vector<T>::get_pos() const {
 }
 
 // CRUD operations that handle iterator invalidation
+template <typename T>
+void Atomic_ring_vector<T>::assign(size_t n, const T& value) {
+  std::scoped_lock lck = Atomic_vector<T>::get_lock();
+  Unatomic_base_vector::assign(n, value);
+  iterator_ = Unatomic_base_vector::cbegin();
+}
 
 template <typename T>
 void Atomic_ring_vector<T>::assign(typename Base_vector::Initializer_list seq) {
-  std::scoped_lock lck = Atomic_vector<T>::get_lock();
+  std::scoped_lock lck = get_lock();
   Unatomic_base_vector::assign(seq);
   iterator_ = Unatomic_base_vector::cbegin();
 }
@@ -83,8 +95,7 @@ void Atomic_ring_vector<T>::assign(const std::vector<T>& vec) {
   iterator_ = Unatomic_base_vector::cbegin();
 }
 
-template <typename T>
-void Atomic_ring_vector<T>::push_back(const T& value) {
+template <typename T> void Atomic_ring_vector<T>::push_back(const T& value) {
   std::scoped_lock lck = Atomic_vector<T>::get_lock();
   // Save current position as index
   typename Base_vector::Index current_pos = 0;
@@ -95,7 +106,8 @@ void Atomic_ring_vector<T>::push_back(const T& value) {
 
   Unatomic_base_vector::push_back(value);
 
-  // Restore iterator position (push_back may invalidate iterators if reallocation occurs)
+  // Restore iterator position (push_back may invalidate iterators if
+  // reallocation occurs)
   if (!Unatomic_base_vector::empty()) {
     iterator_ = Unatomic_base_vector::cbegin() + current_pos;
   } else {
@@ -104,7 +116,8 @@ void Atomic_ring_vector<T>::push_back(const T& value) {
 }
 
 template <typename T>
-void Atomic_ring_vector<T>::insert(typename Base_vector::Index pos, const T& value) {
+void Atomic_ring_vector<T>::insert(typename Base_vector::Index pos,
+                                   const T& value) {
   std::scoped_lock lck = Atomic_vector<T>::get_lock();
   if (pos > Unatomic_base_vector::size()) {
     throw std::out_of_range(
@@ -165,11 +178,20 @@ void Atomic_ring_vector<T>::erase(typename Base_vector::Index pos) {
   }
 }
 
-template <typename T>
-void Atomic_ring_vector<T>::clear() noexcept {
+template <typename T> void Atomic_ring_vector<T>::clear() noexcept {
   std::scoped_lock lck = Atomic_vector<T>::get_lock();
   Unatomic_base_vector::clear();
   iterator_ = Unatomic_base_vector::cbegin();
+}
+
+// Private
+template <typename T>
+const std::scoped_lock<std::mutex>
+Atomic_ring_vector<T>::get_lock() const noexcept {
+  while (prio_access_pending_.test_and_set(std::memory_order_acquire))
+    ;
+  prio_access_pending_.clear();
+  return Base_vector::get_lock();
 }
 
 } // namespace container
