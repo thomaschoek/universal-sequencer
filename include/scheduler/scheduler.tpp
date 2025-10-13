@@ -38,7 +38,7 @@ void Scheduler::start(const Time_point start_time, const bool repeat) {
       });
 }
 
-void Scheduler::stop(const Time_point stop_time) {
+void Scheduler::pause(const Time_point stop_time) {
   if (stop_time < Clock::now()) {
     throw std::invalid_argument("Stop time cannot be in the past!");
   }
@@ -51,6 +51,11 @@ void Scheduler::stop(const Time_point stop_time) {
   if (runner_.joinable()) {
     runner_.join();
   }
+}
+
+void Scheduler::reset(const Time_point reset_time, size_t reset_pos) {
+  pause(reset_time);
+  set_pos(reset_pos);
 }
 
 inline bool Scheduler::is_running() const { return runner_.joinable(); }

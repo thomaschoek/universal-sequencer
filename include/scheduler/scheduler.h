@@ -30,7 +30,7 @@ public:
   void start(const Time_point start_time = Clock::now(),
              const bool repeat = false);
   void pause(const Time_point pause_time = Clock::now());
-  void stop(const Time_point stop_time = Clock::now());
+  void reset(const Time_point reset_time = Clock::now(), size_t reset_pos = 0);
   bool is_running() const;
 
   // Set the handler function to be called on each tick
@@ -39,6 +39,7 @@ public:
   // Duration container methods
   bool empty();
   size_t size();
+  void set_pos(size_t = 0);
   void assign(size_t, const Duration&);
   void push_back(const Duration&);
   void insert(size_t, const Duration&);
