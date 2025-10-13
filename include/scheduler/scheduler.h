@@ -30,13 +30,14 @@ public:
   void start(const Time_point start_time = Clock::now(),
              const bool repeat = false);
   void pause(const Time_point pause_time = Clock::now());
-  void reset(const Time_point reset_time = Clock::now(), size_t reset_pos = 0);
+  void reset(const Time_point reset_time = Clock::now(),
+             const size_t reset_pos = 0);
   bool is_running() const;
 
   // Set the handler function to be called on each tick
   void set_handler(const std::function<void()>& handler);
 
-  // Duration container methods
+  // Thread-safe time signature CRUD operations
   bool empty();
   size_t size();
   void set_pos(size_t = 0);

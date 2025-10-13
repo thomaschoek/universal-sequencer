@@ -53,7 +53,7 @@ void Scheduler::pause(const Time_point stop_time) {
   }
 }
 
-void Scheduler::reset(const Time_point reset_time, size_t reset_pos) {
+void Scheduler::reset(const Time_point reset_time, const size_t reset_pos) {
   pause(reset_time);
   set_pos(reset_pos);
 }
@@ -63,6 +63,52 @@ inline bool Scheduler::is_running() const { return runner_.joinable(); }
 void Scheduler::set_handler(const std::function<void()>& handler) {
   std::scoped_lock lock(mutex_);
   schedule_ = handler;
+}
+
+// Time signature CRUD operations
+//
+inline bool Scheduler::empty() { return intervals_.empty(); }
+inline size_t Scheduler::size() { return intervals_.size(); }
+void Scheduler::set_pos(size_t pos) { intervals_.set_pos(pos); }
+void Scheduler::assign(size_t n, const Duration& dur) {
+  if (dur <= min_duration_) {
+    throw std::invalid_argument(std::string(
+        "Durations must be at least %lld ms", min_duration_.count()));
+  }
+  intervals_.assign(n, dur);
+}
+void Scheduler::push_back(const Duration& dur) {
+  if (dur <= min_duration_) {
+    throw std::invalid_argument(std::string(
+        "Durations must be at least %lld ms", min_duration_.count()));
+  }
+  intervals_.push_back(dur);
+}
+void Scheduler::insert(size_t pos, const Duration& dur) {
+  if (dur <= min_duration_) {
+    throw std::invalid_argument(std::string(
+        "Durations must be at least %lld ms", min_duration_.count()));
+  }
+  intervals_.insert(pos, dur);
+}
+void Scheduler::erase(size_t pos) { intervals_.erase(pos); }
+void Scheduler::assign(Initializer_list durations) {
+  for (const auto& dur : durations) {
+    if (dur <= min_duration_) {
+      throw std::invalid_argument(std::string(
+          "Durations must be at least %lld ms", min_duration_.count()));
+    }
+  }
+  intervals_.assign(durations);
+}
+void Scheduler::assign(const std::vector<Duration>& durations) {
+  for (const auto& dur : durations) {
+    if (dur <= min_duration_) {
+      throw std::invalid_argument(std::string(
+          "Durations must be at least %lld ms", min_duration_.count()));
+    }
+  }
+  intervals_.assign(durations);
 }
 
 // PRIVATE
