@@ -1,5 +1,5 @@
-#ifndef MICRO_COMPOSER_VARIABLE_CLOCK_H
-#define MICRO_COMPOSER_VARIABLE_CLOCK_H
+#ifndef MICRO_COMPOSER_REPEATING_SCHEDULER_H
+#define MICRO_COMPOSER_REPEATING_SCHEDULER_H
 
 #include <atomic>
 #include <chrono>
@@ -12,21 +12,19 @@
 
 namespace Micro_composer {
 
-namespace sequencer {
+namespace scheduler {
 
-namespace transport {
-
-class Sequencer_transport {
+class Repeating_scheduler {
 public:
   using Clock = std::chrono::steady_clock;
   using Time_point = Clock::time_point;
   using Duration = Clock::duration;
   using Time_signature = container::Atomic_ring_vector<Duration>;
   using Initializer_list = std::initializer_list<Duration>;
-  using Handler = std::function<void()>;
+  using Callback = std::function<void()>;
 
-  Sequencer_transport() = default;
-  explicit Sequencer_transport(Handler handler,
+  Repeating_scheduler() = default;
+  explicit Repeating_scheduler(Callback handler,
                                Initializer_list durations = {});
 
   // Thread-safe transport control
@@ -56,15 +54,13 @@ private:
   std::jthread runner_;
   Time_signature intervals_;
   std::atomic<Time_point> next_tick_;
-  Handler tick_ = []() {};
+  Callback schedule_ = []() {};
   std::mutex mutex_;
   static constexpr const Duration min_duration_{std::chrono::milliseconds(10)};
   static constexpr const Duration busy_wait_{std::chrono::milliseconds(5)};
 };
 
-} // namespace transport
-
-} // namespace sequencer
+} // namespace scheduler
 
 } // namespace Micro_composer
 

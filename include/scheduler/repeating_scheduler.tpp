@@ -1,17 +1,15 @@
-#include "./sequencer_clock.h"
+#include "./repeating_scheduler.h"
 
 namespace Micro_composer {
 
-namespace sequencer {
-
-namespace transport {
+namespace scheduler {
 
 // PUBLIC
 // Constructors
 
-Sequencer_transport::Sequencer_transport(Handler handler,
+Repeating_scheduler::Repeating_scheduler(Callback handler,
                                          Initializer_list durations)
-    : tick_(handler) {
+    : schedule_(handler) {
   for (const auto& dur : durations) {
     if (dur <= min_duration_) {
       throw std::invalid_argument(std::string(
@@ -21,7 +19,7 @@ Sequencer_transport::Sequencer_transport(Handler handler,
   }
 }
 
-void Sequencer_transport::start(const Time_point start_time) {
+void Repeating_scheduler::start(const Time_point start_time) {
   if (start_time < Clock::now()) {
     throw std::invalid_argument("Start time cannot be in the past!");
   }
@@ -36,7 +34,7 @@ void Sequencer_transport::start(const Time_point start_time) {
   });
 }
 
-void Sequencer_transport::stop(const Time_point stop_time) {
+void Repeating_scheduler::stop(const Time_point stop_time) {
   if (stop_time < Clock::now()) {
     throw std::invalid_argument("Stop time cannot be in the past!");
   }
@@ -51,18 +49,18 @@ void Sequencer_transport::stop(const Time_point stop_time) {
   }
 }
 
-inline bool Sequencer_transport::is_running() const {
+inline bool Repeating_scheduler::is_running() const {
   return runner_.joinable();
 }
 
-void Sequencer_transport::set_handler(const std::function<void()>& handler) {
+void Repeating_scheduler::set_handler(const std::function<void()>& handler) {
   std::scoped_lock lock(mutex_);
-  tick_ = handler;
+  schedule_ = handler;
 }
 
 // PRIVATE
 
-void Sequencer_transport::run(std::stop_token st, const Time_point initial_tick,
+void Repeating_scheduler::run(std::stop_token st, const Time_point initial_tick,
                               const size_t initial_i) {
   if (intervals_.empty()) {
     return;
@@ -72,13 +70,13 @@ void Sequencer_transport::run(std::stop_token st, const Time_point initial_tick,
   }
 
   intervals_.set_pos(initial_i);
-  Time_point next_tick = initial_tick;
+  Time_point t_next = initial_tick;
   while (!intervals_.empty()) {
     // Inform other threads of new time interval start with memory order release
-    next_tick_.store(next_tick, std::memory_order_release);
+    next_tick_.store(t_next, std::memory_order_release);
 
     // Wait until approximate time
-    std::this_thread::sleep_until(next_tick - busy_wait_);
+    std::this_thread::sleep_until(t_next - busy_wait_);
 
     // Check whether stop was requested at any point during wait
     if (st.stop_requested()) {
@@ -86,19 +84,16 @@ void Sequencer_transport::run(std::stop_token st, const Time_point initial_tick,
     }
 
     // Busy-wait until precise time
-    while (Clock::now() < next_tick)
+    while (Clock::now() < t_next)
       ;
-
-    // "Tick", whatever that may be! (God save us all)
-    tick_();
+    // Call injected code
+    schedule_();
 
     // Schedule next tick
-    next_tick += intervals_.next();
+    t_next += intervals_.next();
   }
 }
 
-} // namespace transport
-
-} // namespace sequencer
+} // namespace scheduler
 
 } // namespace Micro_composer
