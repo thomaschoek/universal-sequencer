@@ -67,5 +67,110 @@ Atomic_ring_vector<T>::get_pos() const {
                                                Unatomic_base_vector::cbegin());
 }
 
+// CRUD operations that handle iterator invalidation
+
+template <typename T>
+void Atomic_ring_vector<T>::assign(typename Base_vector::Initializer_list seq) {
+  std::scoped_lock lck = Atomic_vector<T>::get_lock();
+  Unatomic_base_vector::assign(seq);
+  iterator_ = Unatomic_base_vector::cbegin();
+}
+
+template <typename T>
+void Atomic_ring_vector<T>::assign(const std::vector<T>& vec) {
+  std::scoped_lock lck = Atomic_vector<T>::get_lock();
+  Unatomic_base_vector::assign(vec.begin(), vec.end());
+  iterator_ = Unatomic_base_vector::cbegin();
+}
+
+template <typename T>
+void Atomic_ring_vector<T>::push_back(const T& value) {
+  std::scoped_lock lck = Atomic_vector<T>::get_lock();
+  // Save current position as index
+  typename Base_vector::Index current_pos = 0;
+  if (!Unatomic_base_vector::empty()) {
+    current_pos = static_cast<typename Base_vector::Index>(
+        iterator_ - Unatomic_base_vector::cbegin());
+  }
+
+  Unatomic_base_vector::push_back(value);
+
+  // Restore iterator position (push_back may invalidate iterators if reallocation occurs)
+  if (!Unatomic_base_vector::empty()) {
+    iterator_ = Unatomic_base_vector::cbegin() + current_pos;
+  } else {
+    iterator_ = Unatomic_base_vector::cbegin();
+  }
+}
+
+template <typename T>
+void Atomic_ring_vector<T>::insert(typename Base_vector::Index pos, const T& value) {
+  std::scoped_lock lck = Atomic_vector<T>::get_lock();
+  if (pos > Unatomic_base_vector::size()) {
+    throw std::out_of_range(
+        "[ERROR] In Atomic_ring_vector::insert: Position out of range.");
+  }
+
+  // Save current position as index
+  typename Base_vector::Index current_pos = 0;
+  if (!Unatomic_base_vector::empty()) {
+    current_pos = static_cast<typename Base_vector::Index>(
+        iterator_ - Unatomic_base_vector::cbegin());
+  }
+
+  Unatomic_base_vector::insert(Unatomic_base_vector::begin() + pos, value);
+
+  // Adjust iterator position if insertion was before current position
+  if (pos <= current_pos) {
+    current_pos++;
+  }
+
+  iterator_ = Unatomic_base_vector::cbegin() + current_pos;
+}
+
+template <typename T>
+void Atomic_ring_vector<T>::erase(typename Base_vector::Index pos) {
+  std::scoped_lock lck = Atomic_vector<T>::get_lock();
+  if (pos >= Unatomic_base_vector::size()) {
+    throw std::out_of_range(
+        "[ERROR] In Atomic_ring_vector::erase: Position out of range.");
+  }
+
+  // Save current position as index
+  typename Base_vector::Index current_pos = 0;
+  if (!Unatomic_base_vector::empty()) {
+    current_pos = static_cast<typename Base_vector::Index>(
+        iterator_ - Unatomic_base_vector::cbegin());
+  }
+
+  Unatomic_base_vector::erase(Unatomic_base_vector::begin() + pos);
+
+  // Adjust iterator position
+  if (Unatomic_base_vector::empty()) {
+    iterator_ = Unatomic_base_vector::cbegin();
+  } else if (pos < current_pos) {
+    // Erased element was before current position, decrement
+    current_pos--;
+    iterator_ = Unatomic_base_vector::cbegin() + current_pos;
+  } else if (pos == current_pos) {
+    // Erased element was at current position
+    // If we're now past the end, wrap to beginning
+    if (current_pos >= Unatomic_base_vector::size()) {
+      current_pos = 0;
+    }
+    iterator_ = Unatomic_base_vector::cbegin() + current_pos;
+  } else {
+    // Erased element was after current position, no adjustment needed
+    iterator_ = Unatomic_base_vector::cbegin() + current_pos;
+  }
+}
+
+template <typename T>
+void Atomic_ring_vector<T>::clear() noexcept {
+  std::scoped_lock lck = Atomic_vector<T>::get_lock();
+  Unatomic_base_vector::clear();
+  iterator_ = Unatomic_base_vector::cbegin();
+}
+
 } // namespace container
 } // namespace Micro_composer

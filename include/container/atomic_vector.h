@@ -26,13 +26,14 @@ public:
   Atomic_vector(std::vector<T>&&);
 
   // Run anything under lock
-  std::scoped_lock<std::mutex> get_lock();
+  std::scoped_lock<std::mutex> get_lock() const;
   template <typename Return_type, typename... Args>
   const Return_type
   under_lock(std::function<Return_type(std::vector<T>&, Args...)>, Args...);
 
   // Thread-safe CRUD operations
   void assign(Initializer_list);
+  void assign(const std::vector<T>&);
 
   void push_back(const T&);
   void push_back(T&&);

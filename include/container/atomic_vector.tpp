@@ -39,7 +39,7 @@ const Return_t Atomic_vector<T>::under_lock(
 }
 
 template <typename T>
-inline std::scoped_lock<std::mutex> Atomic_vector<T>::get_lock() {
+inline std::scoped_lock<std::mutex> Atomic_vector<T>::get_lock() const {
   return std::scoped_lock{mutex_};
 }
 
@@ -60,6 +60,11 @@ Atomic_vector<T>::Atomic_vector(std::vector<T>&& vec)
 template <typename T> void Atomic_vector<T>::assign(Initializer_list seq) {
   std::scoped_lock lck{mutex_};
   Base_vector::assign(seq);
+}
+
+template <typename T> void Atomic_vector<T>::assign(const std::vector<T>& vec) {
+  std::scoped_lock lck{mutex_};
+  Base_vector::assign(vec.begin(), vec.end());
 }
 
 template <typename T> void Atomic_vector<T>::push_back(const T& value) {

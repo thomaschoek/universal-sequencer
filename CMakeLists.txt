@@ -22,6 +22,7 @@ include_directories(include ${GTK3_INCLUDE_DIRS})
 add_executable(MicroComposer
     src/main.cpp
     src/synth/synth_output.cpp
+    src/scheduler/scheduler.cpp
 )
 
 # Link GTK3 and glib

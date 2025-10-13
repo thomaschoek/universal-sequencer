@@ -26,6 +26,14 @@ public:
   void set_pos(typename Base_vector::Index = 0);
   typename Base_vector::Index get_pos() const;
 
+  // Override CRUD operations to handle iterator invalidation
+  void assign(typename Base_vector::Initializer_list);
+  void assign(const std::vector<T>&);
+  void push_back(const T&);
+  void insert(typename Base_vector::Index, const T&);
+  void erase(typename Base_vector::Index);
+  void clear() noexcept;
+
 private:
   // Workaround: only for use under lock to avoid double locking
   using Unatomic_base_vector = Base_vector::Base_vector;

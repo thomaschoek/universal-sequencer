@@ -62,7 +62,7 @@ private:
   Time_signature intervals_;
   std::atomic<Time_point> next_tick_;
   Callback schedule_ = []() {};
-  std::mutex mutex_;
+  mutable std::mutex mutex_;
   static constexpr const Duration min_duration_{std::chrono::milliseconds(10)};
   static constexpr const Duration busy_wait_{std::chrono::milliseconds(5)};
 };
