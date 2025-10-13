@@ -7,7 +7,8 @@
 #include <initializer_list>
 #include <mutex>
 #include <thread>
-#include <vector>
+
+#include "container/atomic_vector.h"
 
 namespace Micro_composer {
 
@@ -20,9 +21,7 @@ public:
   using Clock = std::chrono::steady_clock;
   using Time_point = Clock::time_point;
   using Duration = Clock::duration;
-  using Intervals = std::vector<Duration>;
-  using Size_type = Intervals::size_type;
-  using Iterator = Intervals::iterator;
+  using Intervals = container::Atomic_vector<Duration>;
   using Initializer_list = std::initializer_list<Duration>;
   using Handler = std::function<void()>;
 
@@ -40,10 +39,12 @@ public:
   void set_handler(const std::function<void()>& handler);
 
   // Duration container methods
-  void assign(Size_type, const Duration&);
+  bool empty();
+  size_t size();
+  void assign(size_t, const Duration&);
   void push_back(const Duration&);
-  void insert(Size_type, const Duration&);
-  void erase(Size_type);
+  void insert(size_t, const Duration&);
+  void erase(size_t);
   void assign(Initializer_list);
   void assign(const std::vector<Duration>&);
 
@@ -51,10 +52,10 @@ private:
   void run(std::stop_token,
            const Time_point initial_tick = Clock::now() + min_duration_ +
                                            busy_wait_,
-           const Size_type initial_i = 0);
+           const size_t initial_i = 0);
   std::jthread runner_;
   Intervals intervals_;
-  std::atomic<Iterator> interval_itr_{intervals_.begin()};
+  std::atomic<size_t> interval_itr_{0};
   std::atomic<Time_point> next_tick_;
   Handler handler_ = []() {};
   std::mutex mutex_;
