@@ -8,7 +8,7 @@
 #include <mutex>
 #include <thread>
 
-#include "container/atomic_vector.h"
+#include "container/atomic_ring_vector.h"
 
 namespace Micro_composer {
 
@@ -21,7 +21,7 @@ public:
   using Clock = std::chrono::steady_clock;
   using Time_point = Clock::time_point;
   using Duration = Clock::duration;
-  using Intervals = container::Atomic_vector<Duration>;
+  using Time_signature = container::Atomic_ring_vector<Duration>;
   using Initializer_list = std::initializer_list<Duration>;
   using Handler = std::function<void()>;
 
@@ -54,10 +54,9 @@ private:
                                            busy_wait_,
            const size_t initial_i = 0);
   std::jthread runner_;
-  Intervals intervals_;
-  std::atomic<size_t> interval_itr_{0};
+  Time_signature intervals_;
   std::atomic<Time_point> next_tick_;
-  Handler handler_ = []() {};
+  Handler tick_ = []() {};
   std::mutex mutex_;
   static constexpr const Duration min_duration_{std::chrono::milliseconds(10)};
   static constexpr const Duration busy_wait_{std::chrono::milliseconds(5)};

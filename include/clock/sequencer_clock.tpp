@@ -11,7 +11,7 @@ namespace transport {
 
 Sequencer_transport::Sequencer_transport(Handler handler,
                                          Initializer_list durations)
-    : handler_(handler) {
+    : tick_(handler) {
   for (const auto& dur : durations) {
     if (dur <= min_duration_) {
       throw std::invalid_argument(std::string(
@@ -57,59 +57,43 @@ inline bool Sequencer_transport::is_running() const {
 
 void Sequencer_transport::set_handler(const std::function<void()>& handler) {
   std::scoped_lock lock(mutex_);
-  handler_ = handler;
+  tick_ = handler;
 }
 
 // PRIVATE
 
 void Sequencer_transport::run(std::stop_token st, const Time_point initial_tick,
-                              const Size_type initial_i) {
-  {
-    // Validate preconditions under lock
-    std::scoped_lock lock(mutex_);
-    if (intervals_.empty()) {
+                              const size_t initial_i) {
+  if (intervals_.empty()) {
+    return;
+  }
+  if (initial_tick < Clock::now()) {
+    throw std::invalid_argument("Initial tick cannot be in the past!");
+  }
+
+  intervals_.set_pos(initial_i);
+  Time_point next_tick = initial_tick;
+  while (!intervals_.empty()) {
+    // Inform other threads of new time interval start with memory order release
+    next_tick_.store(next_tick, std::memory_order_release);
+
+    // Wait until approximate time
+    std::this_thread::sleep_until(next_tick - busy_wait_);
+
+    // Check whether stop was requested at any point during wait
+    if (st.stop_requested()) {
       return;
     }
-    if (initial_i >= intervals_.size()) {
-      throw std::out_of_range(
-          "Initial index out of range of intervals container");
-    }
-    if (initial_tick < Clock::now()) {
-      throw std::invalid_argument("Initial tick cannot be in the past!");
-    }
-  }
-  Time_point next_tick = initial_tick;
-  Iterator i_interval = Iterator{intervals_.begin() + initial_i};
-  while (!intervals_.empty()) {
-    while (i_interval < intervals_.end()) {
-      // Inform other threads when next tick expected
-      next_tick_.store(next_tick, std::memory_order_release);
 
-      // Wait until approximate time
-      std::this_thread::sleep_until(next_tick - busy_wait_);
+    // Busy-wait until precise time
+    while (Clock::now() < next_tick)
+      ;
 
-      // Check whether stop was requested
-      if (st.stop_requested()) {
-        return;
-      }
+    // "Tick", whatever that may be! (God save us all)
+    tick_();
 
-      // Busy-wait until precise time
-      while (Clock::now() < next_tick)
-        ;
-
-      // Handle tick event
-      handler_();
-
-      // Schedule next tick
-      next_tick += *i_interval;
-      // Inform other threads we are done with the interval pointed to by the
-      // shared (atomic) interval_itr_ with memory order release. Any thread
-      // other than this one should call
-      // interval_itr_.load(std::memory_order_acquire) BEFORE doing so.
-      interval_itr_.store(i_interval++, std::memory_order_release);
-    }
-    // Reset interval iterator to beginning of intervals container
-    i_interval = intervals_.begin();
+    // Schedule next tick
+    next_tick += intervals_.next();
   }
 }
 
