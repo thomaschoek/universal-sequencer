@@ -1,7 +1,6 @@
 #ifndef MICRO_COMPOSER_ATOMIC_VECTOR_H
 #define MICRO_COMPOSER_ATOMIC_VECTOR_H
 
-#include <atomic>
 #include <functional>
 #include <initializer_list>
 #include <mutex>
@@ -60,6 +59,8 @@ public:
   Index capacity() const noexcept;
   bool empty() const noexcept;
 
+  Const_iterator cbegin() const noexcept;
+  Const_iterator cend() const noexcept;
   T front();
   T back();
   T at(Index);

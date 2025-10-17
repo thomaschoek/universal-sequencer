@@ -58,7 +58,7 @@ Atomic_vector<T>::Atomic_vector(std::vector<T>&& vec)
 // CRUD Operations
 template <typename T> void Atomic_vector<T>::assign(size_t n, const T& value) {
   std::scoped_lock lck{mutex_};
-  Base_vector::assign(n, new std::atomic<T>{value});
+  Base_vector::assign(n, value);
 }
 
 template <typename T> void Atomic_vector<T>::assign(Initializer_list seq) {
@@ -179,6 +179,20 @@ Atomic_vector<T>::capacity() const noexcept {
 template <typename T> inline bool Atomic_vector<T>::empty() const noexcept {
   std::scoped_lock lck{mutex_};
   return Base_vector::empty();
+}
+
+template <typename T>
+typename Atomic_vector<T>::Const_iterator inline Atomic_vector<T>::cbegin()
+    const noexcept {
+  std::scoped_lock lck = Atomic_vector<T>::get_lock();
+  return Base_vector::cbegin();
+}
+
+template <typename T>
+typename Atomic_vector<T>::Const_iterator inline Atomic_vector<T>::cend()
+    const noexcept {
+  std::scoped_lock lck{mutex_};
+  return Base_vector::cend();
 }
 
 template <typename T> inline T Atomic_vector<T>::front() {
