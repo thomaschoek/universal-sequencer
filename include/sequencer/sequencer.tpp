@@ -9,8 +9,7 @@ namespace sequencer {
 // Constructors
 
 template <Has_duration T>
-Sequencer<T>::Sequencer(const Callback callback, Data_init_list data)
-    : callback_(callback), data_(data) {}
+Sequencer<T>::Sequencer(Data_init_list data) : events_(data) {}
 
 // Transport
 
@@ -23,7 +22,7 @@ void Sequencer<T>::start(const Time_point start_time, const bool repeat) {
     return;
   }
   std::scoped_lock lock(transport_mutex_);
-  runner_ =
+  producer_ =
       std::jthread([this, start_time, repeat](std::stop_token stop_token) {
         // Ensure synchronization with other transports: add static
         // min_duration_ and busy_wait_time_ to the actual start time
@@ -44,9 +43,9 @@ template <Has_duration T> void Sequencer<T>::pause(const Time_point stop_time) {
   }
   std::scoped_lock lock(transport_mutex_);
   std::this_thread::sleep_until(stop_time);
-  runner_.request_stop();
-  if (runner_.joinable()) {
-    runner_.join();
+  producer_.request_stop();
+  if (producer_.joinable()) {
+    producer_.join();
   }
 }
 
@@ -57,7 +56,27 @@ void Sequencer<T>::reset(const Time_point reset_time, const size_t reset_pos) {
 }
 
 template <Has_duration T> inline bool Sequencer<T>::is_running() const {
-  return runner_.joinable();
+  return producer_.joinable();
+}
+
+// Wait for events to be scheduled by the sequencer and execute handler as they
+// arrive
+template <Has_duration T> void Sequencer<T>::listen(Event_handler handler) {
+  while (is_running()) {
+    handler(std::forward<T>(consume()));
+  }
+}
+
+// Synchronize with buffer populator thread and consume the event buffer
+template <Has_duration T> T&& Sequencer<T>::consume() {
+  if (is_running()) {
+    std::this_thread::sleep_until(t_next_.load(std::memory_order_acquire) -
+                                  busy_wait_);
+  }
+  const T* atomically_loaded_ptr =
+      event_buffer_.load(std::memory_order_acquire);
+  assert(atomically_loaded_ptr != nullptr);
+  return std::forward(*atomically_loaded_ptr);
 }
 
 // Get the time of the next scheduled tick
@@ -67,34 +86,26 @@ Sequencer<T>::Time_point Sequencer<T>::t_next() const {
   return t_next_.load(std::memory_order_acquire);
 }
 
-// Callback CRUD
-
-template <Has_duration T>
-void Sequencer<T>::set_callback(const Callback handler) {
-  const auto lock{lock_callback()};
-  callback_ = handler;
-}
-
 // Time signature CRUD thread-safe operations
 
 template <Has_duration T>
 inline std::vector<T> Sequencer<T>::data() const noexcept {
-  return data_.data();
+  return events_.data();
 }
 
 template <Has_duration T> inline bool Sequencer<T>::empty() {
   await_runner_idle();
-  return data_.empty();
+  return events_.empty();
 }
 
 template <Has_duration T> inline size_t Sequencer<T>::size() {
   await_runner_idle();
-  return data_.size();
+  return events_.size();
 }
 
 template <Has_duration T> void Sequencer<T>::set_next(size_t pos) {
   await_runner_idle();
-  data_.set_next(pos);
+  events_.set_next(pos);
 }
 
 template <Has_duration T> void Sequencer<T>::assign(size_t n, const T& event) {
@@ -103,19 +114,19 @@ template <Has_duration T> void Sequencer<T>::assign(size_t n, const T& event) {
         "Durations must be at least %lld ms", min_duration_.count()));
   }
   await_runner_idle();
-  data_.assign(n, event);
+  events_.assign(n, event);
 }
 template <Has_duration T> void Sequencer<T>::push_back(const T& event) {
   if (event <= min_duration_) {
     throw std::invalid_argument(std::string(
         "Durations must be at least %lld ms", min_duration_.count()));
   }
-  data_.push_back(event);
+  events_.push_back(event);
 }
 
 template <Has_duration T> void Sequencer<T>::pop_back() {
   await_runner_idle();
-  data_.pop_back();
+  events_.pop_back();
 }
 
 template <Has_duration T>
@@ -124,22 +135,22 @@ void Sequencer<T>::insert(size_t pos, const T& event) {
     throw std::invalid_argument(std::string(
         "Durations must be at least %lld ms", min_duration_.count()));
   }
-  data_.insert(pos, event);
+  events_.insert(pos, event);
 }
 template <Has_duration T> void Sequencer<T>::erase(size_t pos) {
-  data_.erase(pos);
+  events_.erase(pos);
 }
 template <Has_duration T> void Sequencer<T>::assign(Data_init_list events) {
-  data_.assign(events);
+  events_.assign(events);
 }
 template <Has_duration T>
 void Sequencer<T>::assign(const std::vector<T>& events) {
-  data_.assign(events);
+  events_.assign(events);
 }
 
 template <Has_duration T> void Sequencer<T>::clear() noexcept {
   await_runner_idle();
-  data_.clear();
+  events_.clear();
 }
 
 // PRIVATE
@@ -162,27 +173,28 @@ inline void Sequencer<T>::schedule(const std::stop_token st,
   // Busy-wait until precise time
   while (Clock::now() < t_next)
     ;
-  // Call injected code
-  callback_(std::forward(event));
+
+  // Write event to atomic buffer for retrieval by consumer threads
+  event_buffer_.store(std::forward<T>(event), std::memory_order_release);
 }
 
 template <Has_duration T>
 void Sequencer<T>::once(const std::stop_token st, const Time_point initial_tick,
                         const size_t initial_i) {
-  if (data_.empty()) {
+  if (events_.empty()) {
     return;
   }
   if (initial_tick < Clock::now()) {
     throw std::invalid_argument("Initial tick cannot be in the past!");
   }
 
-  data_.set_next(initial_i);
+  events_.set_next(initial_i);
   Time_point t_next = initial_tick;
   T event;
   Duration event_dur;
   size_t i = 1;
-  while (!data_.empty() && ++i < data_.size(), event = data_.next()) {
-    event_dur = event;
+  while (!events_.empty() && ++i < events_.size(), event = events_.next()) {
+    event_dur = static_cast<Duration>(event);
     schedule(st, t_next, std::move(event));
     t_next += event_dur;
   }
@@ -192,19 +204,19 @@ template <Has_duration T>
 void Sequencer<T>::repeat(const std::stop_token st,
                           const Time_point initial_tick,
                           const size_t initial_i) {
-  if (data_.empty()) {
+  if (events_.empty()) {
     return;
   }
   if (initial_tick < Clock::now()) {
     throw std::invalid_argument("Initial tick cannot be in the past!");
   }
 
-  data_.set_next(initial_i);
+  events_.set_next(initial_i);
   Time_point t_next = initial_tick;
   T event;
   Duration event_dur;
-  while (!data_.empty(), event = data_.next()) {
-    event_dur = event;
+  while (!events_.empty(), event = events_.next()) {
+    event_dur = static_cast<Duration>(event);
     schedule(st, t_next, std::move(event));
     t_next += event_dur;
   }
@@ -223,16 +235,6 @@ template <Has_duration T> inline void Sequencer<T>::await_runner_idle() {
     // that could contend with the runner thread will execute while the runner
     // thread is sleeping
     std::this_thread::yield();
-}
-
-template <Has_duration T>
-std::scoped_lock<std::mutex> Sequencer<T>::lock_callback() {
-  auto t_next = t_next_.load(std::memory_order_acquire);
-  if (Clock::now() >= t_next - busy_wait_) {
-    std::this_thread::sleep_until(t_next + busy_wait_);
-  }
-
-  return std::scoped_lock{callback_mutex_};
 }
 
 } // namespace sequencer

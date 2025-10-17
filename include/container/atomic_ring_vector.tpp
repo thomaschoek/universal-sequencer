@@ -55,9 +55,8 @@ template <typename T> T Atomic_ring_vector<T>::next() {
 
   buffer = *itr++;
 
-  prio_access_pending_.clear();
-
   iterator_.store(itr, std::memory_order_release);
+  prio_access_pending_.clear();
 
   return buffer;
 }

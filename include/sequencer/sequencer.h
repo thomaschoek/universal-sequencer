@@ -29,10 +29,10 @@ public:
   using Container = container::Atomic_ring_vector<T>;
   using Const_iterator = Container::Const_iterator;
   using Data_init_list = std::initializer_list<T>;
-  using Callback = std::function<void(T&&)>;
+  using Event_handler = std::function<void(T&&)>;
 
   Sequencer() = default;
-  explicit Sequencer(const Callback, Data_init_list = {});
+  explicit Sequencer(Data_init_list = {});
 
   void schedule(const std::stop_token, const Time_point, T&&);
 
@@ -44,11 +44,9 @@ public:
              const size_t reset_pos = 0);
   bool is_running() const;
 
-  // Get the time of the next scheduled tick
+  void listen(Event_handler);
+  // Get the time of the next scheduled event
   Time_point t_next() const;
-
-  // Set the handler function to be called on each tick
-  void set_callback(const Callback handler);
 
   // Thread-safe time signature CRUD operations
   std::vector<Duration> time_signature() const noexcept;
@@ -69,6 +67,9 @@ protected:
   static constexpr const Duration min_duration_{std::chrono::milliseconds(10)};
   static constexpr const Duration busy_wait_{std::chrono::milliseconds(5)};
 
+  // Consume the event buffer
+  T&& consume();
+
 private:
   void once(const std::stop_token,
             const Time_point initial_tick = Clock::now() + min_duration_ +
@@ -79,19 +80,14 @@ private:
                                               busy_wait_,
               const size_t initial_i = 0);
 
-  // The callback that will be scheduled
-  Callback callback_ = []() {};
-
   void await_runner_idle();
-
-  std::scoped_lock<std::mutex> lock_callback();
-  mutable std::mutex callback_mutex_;
 
   mutable std::mutex transport_mutex_;
 
-  std::jthread runner_;
-  Container data_;
+  std::jthread producer_;
+  Container events_;
   std::atomic<Time_point> t_next_;
+  std::atomic<T*> event_buffer_{nullptr};
 };
 
 } // namespace sequencer
