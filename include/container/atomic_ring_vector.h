@@ -42,7 +42,7 @@ private:
   // Warning: only for use under lock (to avoid double locking)
   using Unatomic_base_vector = Base_vector::Base_vector;
   const std::scoped_lock<std::mutex> get_lock() const noexcept;
-  mutable std::atomic<Const_iterator> iterator_{Base_vector::begin()};
+  mutable std::atomic<Const_iterator> iterator_{Base_vector::cbegin()};
   mutable std::atomic_flag prio_access_pending_;
 };
 

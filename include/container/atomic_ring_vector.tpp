@@ -69,8 +69,9 @@ Atomic_ring_vector<T>::get_pos() const {
   if (Unatomic_base_vector::empty()) {
     return 0;
   }
-  return static_cast<const Base_vector::Index>(iterator_ -
-                                               Unatomic_base_vector::cbegin());
+  return static_cast<const Base_vector::Index>(
+      iterator_.load(std::memory_order_acquire) -
+      Unatomic_base_vector::cbegin());
 }
 
 // CRUD operations that handle iterator invalidation
@@ -101,7 +102,8 @@ template <typename T> void Atomic_ring_vector<T>::push_back(const T& value) {
   typename Base_vector::Index current_pos = 0;
   if (!Unatomic_base_vector::empty()) {
     current_pos = static_cast<typename Base_vector::Index>(
-        iterator_ - Unatomic_base_vector::cbegin());
+        iterator_.load(std::memory_order_acquire) -
+        Unatomic_base_vector::cbegin());
   }
 
   Unatomic_base_vector::push_back(value);
@@ -128,7 +130,8 @@ void Atomic_ring_vector<T>::insert(typename Base_vector::Index pos,
   typename Base_vector::Index current_pos = 0;
   if (!Unatomic_base_vector::empty()) {
     current_pos = static_cast<typename Base_vector::Index>(
-        iterator_ - Unatomic_base_vector::cbegin());
+        iterator_.load(std::memory_order_acquire) -
+        Unatomic_base_vector::cbegin());
   }
 
   Unatomic_base_vector::insert(Unatomic_base_vector::begin() + pos, value);
@@ -153,7 +156,8 @@ void Atomic_ring_vector<T>::erase(typename Base_vector::Index pos) {
   typename Base_vector::Index current_pos = 0;
   if (!Unatomic_base_vector::empty()) {
     current_pos = static_cast<typename Base_vector::Index>(
-        iterator_ - Unatomic_base_vector::cbegin());
+        iterator_.load(std::memory_order_acquire) -
+        Unatomic_base_vector::cbegin());
   }
 
   Unatomic_base_vector::erase(Unatomic_base_vector::begin() + pos);
