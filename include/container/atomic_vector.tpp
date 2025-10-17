@@ -56,11 +56,6 @@ Atomic_vector<T>::Atomic_vector(std::vector<T>&& vec)
 }
 
 // CRUD Operations
-template <typename T> void Atomic_vector<T>::assign(size_t n, const T& value) {
-  std::scoped_lock lck{mutex_};
-  Base_vector::assign(n, value);
-}
-
 template <typename T> void Atomic_vector<T>::assign(Initializer_list seq) {
   std::scoped_lock lck{mutex_};
   Base_vector::assign(seq);
@@ -106,21 +101,20 @@ template <typename T> void Atomic_vector<T>::insert(Index pos, T&& value) {
   Base_vector::insert(Base_vector::begin() + pos, std::forward<T>(value));
 }
 
-template <typename T>
-void Atomic_vector<T>::replace(Index pos, const T& value) {
+template <typename T> void Atomic_vector<T>::assign(Index pos, const T& value) {
   std::scoped_lock lck{mutex_};
   if (pos >= Base_vector::size()) {
     throw std::out_of_range(
-        "[ERROR] In Atomic_vector::replace: Position out of range.");
+        "[ERROR] In Atomic_vector::assign: Position out of range.");
   }
   Base_vector::at(pos) = value;
 }
 
-template <typename T> void Atomic_vector<T>::replace(Index pos, T&& value) {
+template <typename T> void Atomic_vector<T>::assign(Index pos, T&& value) {
   std::scoped_lock lck{mutex_};
   if (pos >= Base_vector::size()) {
     throw std::out_of_range(
-        "[ERROR] In Atomic_vector::replace: Position out of range.");
+        "[ERROR] In Atomic_vector::assign: Position out of range.");
   }
   Base_vector::at(pos) = std::forward<T>(value);
 }

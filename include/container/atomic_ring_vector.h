@@ -30,7 +30,8 @@ public:
   typename Base_vector::Index get_pos() const;
 
   // Override CRUD operations to handle iterator invalidation
-  void assign(size_t, const T&);
+  void assign(Index, const T&);
+  void assign(Index, T&&);
   void assign(typename Base_vector::Initializer_list);
   void assign(const std::vector<T>&);
   void push_back(const T&);

@@ -162,12 +162,12 @@ TEST_CASE("Atomic_vector: Replace operations", "[atomic_vector]") {
   vec.push_back(3);
 
   SECTION("Replace at position") {
-    vec.replace(1, 20);
+    vec.assign(1, 20);
     REQUIRE(vec.at(1) == 20);
   }
 
   SECTION("Replace out of range throws") {
-    REQUIRE_THROWS_AS(vec.replace(10, 20), std::out_of_range);
+    REQUIRE_THROWS_AS(vec.assign(10, 20), std::out_of_range);
   }
 }
 

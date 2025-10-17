@@ -34,7 +34,8 @@ public:
   under_lock(std::function<Return_type(std::vector<T>&, Args...)>, Args...);
 
   // Thread-safe CRUD operations
-  void assign(size_t, const T&);
+  void assign(Index, const T&);
+  void assign(Index, T&&);
   void assign(Initializer_list);
   void assign(const std::vector<T>&);
 
@@ -46,8 +47,6 @@ public:
   void insert(Index, T&&);
 
   template <typename... Args> void update(Index, Args...);
-  void replace(Index, const T&);
-  void replace(Index, T&&);
 
   void pop_back();
   void erase(Index);

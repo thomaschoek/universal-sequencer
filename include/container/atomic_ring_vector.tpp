@@ -75,10 +75,12 @@ Atomic_ring_vector<T>::get_pos() const {
 
 // CRUD operations that handle iterator invalidation
 template <typename T>
-void Atomic_ring_vector<T>::assign(size_t n, const T& value) {
-  std::scoped_lock lck = Atomic_vector<T>::get_lock();
-  Unatomic_base_vector::assign(n, value);
-  iterator_ = Unatomic_base_vector::cbegin();
+void Atomic_ring_vector<T>::assign(Index n, const T& value) {
+  Base_vector::assign(n, value);
+}
+
+template <typename T> void Atomic_ring_vector<T>::assign(Index n, T&& value) {
+  Base_vector::assign(n, std::forward<T>(value));
 }
 
 template <typename T>

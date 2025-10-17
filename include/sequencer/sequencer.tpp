@@ -113,8 +113,8 @@ template <Has_duration T_event> void Sequencer<T_event>::set_next(size_t pos) {
 template <Has_duration T_event>
 void Sequencer<T_event>::assign(size_t n, const T_event& event) {
   if (static_cast<Duration>(event) < min_duration_) {
-    throw std::invalid_argument(std::string(
-        "Durations must be at least %lld ms", min_duration_.count()));
+    throw std::invalid_argument("Durations must be at least " +
+                                std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(min_duration_).count()) + " ms");
   }
   await_scheduler_idle();
   events_.assign(n, event);
@@ -122,8 +122,8 @@ void Sequencer<T_event>::assign(size_t n, const T_event& event) {
 template <Has_duration T_event>
 void Sequencer<T_event>::push_back(const T_event& event) {
   if (static_cast<Duration>(event) < min_duration_) {
-    throw std::invalid_argument(std::string(
-        "Durations must be at least %lld ms", min_duration_.count()));
+    throw std::invalid_argument("Durations must be at least " +
+                                std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(min_duration_).count()) + " ms");
   }
   events_.push_back(event);
 }
@@ -136,8 +136,8 @@ template <Has_duration T_event> void Sequencer<T_event>::pop_back() {
 template <Has_duration T_event>
 void Sequencer<T_event>::insert(size_t pos, const T_event& event) {
   if (static_cast<Duration>(event) < min_duration_) {
-    throw std::invalid_argument(std::string(
-        "Durations must be at least %lld ms", min_duration_.count()));
+    throw std::invalid_argument("Durations must be at least " +
+                                std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(min_duration_).count()) + " ms");
   }
   events_.insert(pos, event);
 }
