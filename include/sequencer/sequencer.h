@@ -17,8 +17,9 @@ namespace sequencer {
 
 template <typename T>
 concept Has_duration = requires {
-  std::convertible_to<typename T::Duration,
-                      std::chrono::steady_clock::duration>;
+  typename T::Duration;
+  requires std::convertible_to<typename T::Duration,
+                                std::chrono::steady_clock::duration>;
 };
 
 template <Has_duration T_event> class Sequencer {
@@ -31,7 +32,6 @@ public:
   using Data_init_list = std::initializer_list<T_event>;
   using Event_handler = std::function<void(T_event&&)>;
 
-  Sequencer() = default;
   explicit Sequencer(Data_init_list = {});
 
   void schedule(const std::stop_token, const Time_point, T_event&&);
@@ -83,15 +83,19 @@ private:
   void await_scheduler_idle();
 
   mutable std::mutex transport_mutex_;
+  mutable std::mutex buffer_mutex_;
 
   std::jthread scheduler_;
   Container events_;
   std::atomic<Time_point> t_next_;
-  std::atomic<T_event*> buffer_{nullptr};
+  T_event buffer_event_;
+  std::atomic<bool> buffer_ready_{false};
 };
 
 } // namespace sequencer
 
 } // namespace Micro_composer
+
+#include "sequencer.tpp"
 
 #endif
