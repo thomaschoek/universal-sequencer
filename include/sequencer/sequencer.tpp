@@ -147,7 +147,7 @@ template <Has_duration T> void Sequencer<T>::clear() noexcept {
 //
 template <Has_duration T>
 inline void Sequencer<T>::schedule(const std::stop_token st,
-                                   const Time_point t_next) {
+                                   const Time_point t_next, T&& event) {
   // Inform other threads of new time interval start with memory order release
   t_next_.store(t_next, std::memory_order_release);
 
@@ -163,7 +163,7 @@ inline void Sequencer<T>::schedule(const std::stop_token st,
   while (Clock::now() < t_next)
     ;
   // Call injected code
-  callback_();
+  callback_(std::forward(event));
 }
 
 template <Has_duration T>
@@ -178,11 +178,13 @@ void Sequencer<T>::once(const std::stop_token st, const Time_point initial_tick,
 
   data_.set_next(initial_i);
   Time_point t_next = initial_tick;
-  size_t i = 0;
-  while (!data_.empty() && ++i < data_.size()) {
-    // Schedule next tick
-    schedule(st, t_next);
-    t_next += data_.next();
+  T event;
+  Duration event_dur;
+  size_t i = 1;
+  while (!data_.empty() && ++i < data_.size(), event = data_.next()) {
+    event_dur = event;
+    schedule(st, t_next, std::move(event));
+    t_next += event_dur;
   }
 }
 
@@ -199,9 +201,12 @@ void Sequencer<T>::repeat(const std::stop_token st,
 
   data_.set_next(initial_i);
   Time_point t_next = initial_tick;
-  while (!data_.empty()) {
-    schedule(st, t_next);
-    t_next += data_.next();
+  T event;
+  Duration event_dur;
+  while (!data_.empty(), event = data_.next()) {
+    event_dur = event;
+    schedule(st, t_next, std::move(event));
+    t_next += event_dur;
   }
 }
 

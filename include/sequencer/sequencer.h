@@ -29,12 +29,12 @@ public:
   using Container = container::Atomic_ring_vector<T>;
   using Const_iterator = Container::Const_iterator;
   using Data_init_list = std::initializer_list<T>;
-  using Callback = std::function<void()>;
+  using Callback = std::function<void(T&&)>;
 
   Sequencer() = default;
   explicit Sequencer(const Callback, Data_init_list = {});
 
-  void schedule(const std::stop_token, const Time_point);
+  void schedule(const std::stop_token, const Time_point, T&&);
 
   // Thread-safe transport control
   void start(const Time_point start_time = Clock::now(),
