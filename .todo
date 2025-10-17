@@ -132,3 +132,20 @@ private:
 - fix sequencers going out of sync issue
 - make steps togglable, either through property on fundamental Step struct or just a non-zero or zero entry in the vector being parsed as a boolean... 
 - add steps / sequences from GUI
+
+## Lock free Sequencer
+
+To make the Sequencer properly lock free, we could try the following:
+
+class Sequencer {
+...
+private:
+std::atomic<Const_iterator> iterator_;
+
+}
+
+Then the `scheduler_` thread can increment the iterator after each event's duration.
+
+The consumer thread can dereference the iterator each iteration. However, if other threads are modifying the sequence, dereferencing the iterator may be dangerous as the position referred to by the iterator may no longer be part of the sequence.
+
+But maybe all we have to do to fix that is make any CRUD operation on the `events_` container check whether the operation invalidates the iterator and, if so, set the iterator back to a valid position, atomically with memory_order_release. Then any atomic load of the iterator with memory_order_acquire should always load a valid iterator...
