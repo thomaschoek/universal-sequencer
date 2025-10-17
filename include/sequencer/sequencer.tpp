@@ -11,6 +11,27 @@ namespace sequencer {
 template <Has_duration T_event>
 Sequencer<T_event>::Sequencer(Data_init_list data) : events_(data) {}
 
+template <Has_duration T_event>
+Sequencer<T_event>::Sequencer(const std::vector<T_event>& data) : events_(data) {}
+
+template <Has_duration T_event>
+Sequencer<T_event>::Sequencer(std::vector<T_event>&& data) : events_(std::move(data)) {}
+
+template <Has_duration T_event>
+Sequencer<T_event>::Sequencer(Sequencer&& other) noexcept
+  : events_(other.events_.data()),
+    buffer_(std::move(other.buffer_)) {
+  // Stop the other sequencer if it's running
+  if (other.is_scheduling()) {
+    other.pause(Clock::now());
+  }
+
+  // Copy atomic values (can't be moved)
+  t_next_.store(other.t_next_.load(std::memory_order_acquire), std::memory_order_release);
+
+  // Note: scheduler_ and transport_mutex_ are default-initialized (stopped/unlocked)
+}
+
 // Transport
 
 template <Has_duration T_event>

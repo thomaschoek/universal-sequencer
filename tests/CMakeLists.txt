@@ -18,6 +18,7 @@ add_executable(tests
     sequencer/test_atomic_sequencer.cpp
     sequencer/test_parallel_sequencer.cpp
     sequencer/test_sequencer.cpp
+    sequencer/test_poly_sequencer.cpp
     controller/test_parallel_sequencer_controller.cpp
     controller/test_matrix_sequencer_controller.cpp
 )

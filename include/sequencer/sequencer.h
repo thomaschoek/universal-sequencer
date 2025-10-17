@@ -31,6 +31,9 @@ public:
   using Event_handler = std::function<void(T_event&&)>;
 
   explicit Sequencer(Data_init_list = {});
+  explicit Sequencer(const std::vector<T_event>&);
+  explicit Sequencer(std::vector<T_event>&&);
+  Sequencer(Sequencer&&) noexcept;
 
   void schedule(const std::stop_token, const Time_point, const T_event&);
 
