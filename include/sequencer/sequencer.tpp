@@ -1,27 +1,21 @@
-#include "scheduler/scheduler.h"
+#include "sequencer.h"
 #include <cassert>
 
 namespace Micro_composer {
 
-namespace scheduler {
+namespace sequencer {
 
 // PUBLIC
 // Constructors
 
-Scheduler::Scheduler(const Callback callback, Time_sig_init_list durations)
-    : callback_(callback) {
-  for (const auto& dur : durations) {
-    if (dur <= min_duration_) {
-      throw std::invalid_argument(std::string(
-          "Durations must be at least %lld ms", min_duration_.count()));
-    }
-    time_sig_.push_back(new Atomic_dur{dur});
-  }
-}
+template <Has_duration T>
+Sequencer<T>::Sequencer(const Callback callback, Data_init_list data)
+    : callback_(callback), data_(data) {}
 
 // Transport
 
-void Scheduler::start(const Time_point start_time, const bool repeat) {
+template <Has_duration T>
+void Sequencer<T>::start(const Time_point start_time, const bool repeat) {
   if (start_time < Clock::now()) {
     throw std::invalid_argument("Start time cannot be in the past!");
   }
@@ -41,7 +35,7 @@ void Scheduler::start(const Time_point start_time, const bool repeat) {
       });
 }
 
-void Scheduler::pause(const Time_point stop_time) {
+template <Has_duration T> void Sequencer<T>::pause(const Time_point stop_time) {
   if (stop_time < Clock::now()) {
     throw std::invalid_argument("Stop time cannot be in the past!");
   }
@@ -56,116 +50,104 @@ void Scheduler::pause(const Time_point stop_time) {
   }
 }
 
-void Scheduler::reset(const Time_point reset_time, const size_t reset_pos) {
+template <Has_duration T>
+void Sequencer<T>::reset(const Time_point reset_time, const size_t reset_pos) {
   pause(reset_time);
   set_next(reset_pos);
 }
 
-inline bool Scheduler::is_running() const { return runner_.joinable(); }
+template <Has_duration T> inline bool Sequencer<T>::is_running() const {
+  return runner_.joinable();
+}
 
 // Get the time of the next scheduled tick
 
-Scheduler::Time_point Scheduler::t_next() const {
+template <Has_duration T>
+Sequencer<T>::Time_point Sequencer<T>::t_next() const {
   return t_next_.load(std::memory_order_acquire);
 }
 
 // Callback CRUD
 
-void Scheduler::set_callback(const Callback handler) {
+template <Has_duration T>
+void Sequencer<T>::set_callback(const Callback handler) {
   const auto lock{lock_callback()};
   callback_ = handler;
 }
 
 // Time signature CRUD thread-safe operations
 
-inline std::vector<Scheduler::Duration>
-Scheduler::time_signature() const noexcept {
-  std::vector<Atomic_dur*> time_sig = time_sig_.data();
-  std::vector<Duration> durations;
-  for (const auto& atomic_dur_ptr : time_sig) {
-    durations.push_back(atomic_dur_ptr->load(std::memory_order_relaxed));
-  }
-  return durations;
+template <Has_duration T>
+inline std::vector<T> Sequencer<T>::data() const noexcept {
+  return data_.data();
 }
 
-inline bool Scheduler::empty() {
+template <Has_duration T> inline bool Sequencer<T>::empty() {
   await_runner_idle();
-  return time_sig_.empty();
+  return data_.empty();
 }
 
-inline size_t Scheduler::size() {
+template <Has_duration T> inline size_t Sequencer<T>::size() {
   await_runner_idle();
-  return time_sig_.size();
+  return data_.size();
 }
 
-void Scheduler::set_next(size_t pos) {
+template <Has_duration T> void Sequencer<T>::set_next(size_t pos) {
   await_runner_idle();
-  time_sig_.set_next(pos);
+  data_.set_next(pos);
 }
 
-void Scheduler::assign(size_t n, const Duration& dur) {
-  if (dur <= min_duration_) {
+template <Has_duration T> void Sequencer<T>::assign(size_t n, const T& event) {
+  if (event <= min_duration_) {
     throw std::invalid_argument(std::string(
         "Durations must be at least %lld ms", min_duration_.count()));
   }
   await_runner_idle();
-  time_sig_.assign(n, new Atomic_dur{dur});
+  data_.assign(n, event);
 }
-void Scheduler::push_back(const Duration& dur) {
-  if (dur <= min_duration_) {
+template <Has_duration T> void Sequencer<T>::push_back(const T& event) {
+  if (event <= min_duration_) {
     throw std::invalid_argument(std::string(
         "Durations must be at least %lld ms", min_duration_.count()));
   }
-  time_sig_.push_back(new Atomic_dur{dur});
+  data_.push_back(event);
 }
 
-void Scheduler::pop_back() {
+template <Has_duration T> void Sequencer<T>::pop_back() {
   await_runner_idle();
-  time_sig_.pop_back();
+  data_.pop_back();
 }
 
-void Scheduler::insert(size_t pos, const Duration& dur) {
-  if (dur <= min_duration_) {
+template <Has_duration T>
+void Sequencer<T>::insert(size_t pos, const T& event) {
+  if (event <= min_duration_) {
     throw std::invalid_argument(std::string(
         "Durations must be at least %lld ms", min_duration_.count()));
   }
-  time_sig_.insert(pos, new Atomic_dur{dur});
+  data_.insert(pos, event);
 }
-void Scheduler::erase(size_t pos) { time_sig_.erase(pos); }
-void Scheduler::assign(Time_sig_init_list durations) {
-  std::vector<Atomic_dur*> tmp;
-  for (const auto& dur : durations) {
-    if (dur <= min_duration_) {
-      throw std::invalid_argument(std::string(
-          "Durations must be at least %lld ms", min_duration_.count()));
-    }
-    tmp.push_back(new Atomic_dur{dur});
-  }
-  time_sig_.assign(tmp);
+template <Has_duration T> void Sequencer<T>::erase(size_t pos) {
+  data_.erase(pos);
 }
-void Scheduler::assign(const std::vector<Duration>& durations) {
-  std::vector<Atomic_dur*> tmp;
-  for (const auto& dur : durations) {
-    if (dur <= min_duration_) {
-      throw std::invalid_argument(std::string(
-          "Durations must be at least %lld ms", min_duration_.count()));
-    }
-    tmp.push_back(new Atomic_dur{dur});
-  }
-  await_runner_idle();
-  time_sig_.assign(tmp);
+template <Has_duration T> void Sequencer<T>::assign(Data_init_list events) {
+  data_.assign(events);
+}
+template <Has_duration T>
+void Sequencer<T>::assign(const std::vector<T>& events) {
+  data_.assign(events);
 }
 
-void Scheduler::clear() noexcept {
+template <Has_duration T> void Sequencer<T>::clear() noexcept {
   await_runner_idle();
-  time_sig_.clear();
+  data_.clear();
 }
 
 // PRIVATE
 //
 //
-inline void Scheduler::schedule(const std::stop_token st,
-                                const Time_point t_next) {
+template <Has_duration T>
+inline void Sequencer<T>::schedule(const std::stop_token st,
+                                   const Time_point t_next) {
   // Inform other threads of new time interval start with memory order release
   t_next_.store(t_next, std::memory_order_release);
 
@@ -184,50 +166,46 @@ inline void Scheduler::schedule(const std::stop_token st,
   callback_();
 }
 
-inline Scheduler::Duration Scheduler::load_t_next() {
-  const Atomic_dur* ptr_to_atomic = time_sig_.next();
-  assert(ptr_to_atomic != nullptr);
-  Duration t_next = ptr_to_atomic->load(std::memory_order_relaxed);
-  return t_next;
-}
-
-void Scheduler::once(const std::stop_token st, const Time_point initial_tick,
-                     const size_t initial_i) {
-  if (time_sig_.empty()) {
+template <Has_duration T>
+void Sequencer<T>::once(const std::stop_token st, const Time_point initial_tick,
+                        const size_t initial_i) {
+  if (data_.empty()) {
     return;
   }
   if (initial_tick < Clock::now()) {
     throw std::invalid_argument("Initial tick cannot be in the past!");
   }
 
-  time_sig_.set_next(initial_i);
+  data_.set_next(initial_i);
   Time_point t_next = initial_tick;
   size_t i = 0;
-  while (!time_sig_.empty() && ++i < time_sig_.size()) {
+  while (!data_.empty() && ++i < data_.size()) {
     // Schedule next tick
     schedule(st, t_next);
-    t_next += load_t_next();
+    t_next += data_.next();
   }
 }
 
-void Scheduler::repeat(const std::stop_token st, const Time_point initial_tick,
-                       const size_t initial_i) {
-  if (time_sig_.empty()) {
+template <Has_duration T>
+void Sequencer<T>::repeat(const std::stop_token st,
+                          const Time_point initial_tick,
+                          const size_t initial_i) {
+  if (data_.empty()) {
     return;
   }
   if (initial_tick < Clock::now()) {
     throw std::invalid_argument("Initial tick cannot be in the past!");
   }
 
-  time_sig_.set_next(initial_i);
+  data_.set_next(initial_i);
   Time_point t_next = initial_tick;
-  while (!time_sig_.empty()) {
+  while (!data_.empty()) {
     schedule(st, t_next);
-    t_next += load_t_next();
+    t_next += data_.next();
   }
 }
 
-inline void Scheduler::await_runner_idle() {
+template <Has_duration T> inline void Sequencer<T>::await_runner_idle() {
   while (is_running() && t_next_.load(std::memory_order_acquire) < Clock::now())
     // If t_next_ is less than now, it means we are in the (presumably very
     // small) time window where either the callback is executing or load_t_next
@@ -242,7 +220,8 @@ inline void Scheduler::await_runner_idle() {
     std::this_thread::yield();
 }
 
-std::scoped_lock<std::mutex> Scheduler::lock_callback() {
+template <Has_duration T>
+std::scoped_lock<std::mutex> Sequencer<T>::lock_callback() {
   auto t_next = t_next_.load(std::memory_order_acquire);
   if (Clock::now() >= t_next - busy_wait_) {
     std::this_thread::sleep_until(t_next + busy_wait_);
@@ -251,6 +230,6 @@ std::scoped_lock<std::mutex> Scheduler::lock_callback() {
   return std::scoped_lock{callback_mutex_};
 }
 
-} // namespace scheduler
+} // namespace sequencer
 
 } // namespace Micro_composer

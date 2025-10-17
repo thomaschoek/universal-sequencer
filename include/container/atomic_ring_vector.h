@@ -38,6 +38,8 @@ public:
   void erase(typename Base_vector::Index);
   void clear() noexcept;
 
+  std::vector<T> data() const noexcept;
+
 private:
   // Warning: only for use under lock (to avoid double locking)
   using Unatomic_base_vector = Base_vector::Base_vector;

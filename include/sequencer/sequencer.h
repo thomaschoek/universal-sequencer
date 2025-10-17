@@ -1,8 +1,9 @@
-#ifndef MICRO_COMPOSER_SCHEDULER_H
-#define MICRO_COMPOSER_SCHEDULER_H
+#ifndef MICRO_COMPOSER_SEQUENCER_H
+#define MICRO_COMPOSER_SEQUENCER_H
 
 #include <atomic>
 #include <chrono>
+#include <concepts>
 #include <functional>
 #include <initializer_list>
 #include <mutex>
@@ -12,21 +13,26 @@
 
 namespace Micro_composer {
 
-namespace scheduler {
+namespace sequencer {
 
-class Scheduler {
+template <typename T>
+concept Has_duration = requires {
+  std::convertible_to<typename T::Duration,
+                      std::chrono::steady_clock::duration>;
+};
+
+template <Has_duration T> class Sequencer {
 public:
   using Clock = std::chrono::steady_clock;
   using Time_point = Clock::time_point;
   using Duration = Clock::duration;
-  using Atomic_dur = std::atomic<Duration>;
-  using Time_signature = container::Atomic_ring_vector<Atomic_dur*>;
-  using Const_iterator = Time_signature::Const_iterator;
-  using Time_sig_init_list = std::initializer_list<Duration>;
+  using Container = container::Atomic_ring_vector<T>;
+  using Const_iterator = Container::Const_iterator;
+  using Data_init_list = std::initializer_list<T>;
   using Callback = std::function<void()>;
 
-  Scheduler() = default;
-  explicit Scheduler(const Callback, Time_sig_init_list = {});
+  Sequencer() = default;
+  explicit Sequencer(const Callback, Data_init_list = {});
 
   void schedule(const std::stop_token, const Time_point);
 
@@ -46,16 +52,17 @@ public:
 
   // Thread-safe time signature CRUD operations
   std::vector<Duration> time_signature() const noexcept;
+  std::vector<T> data() const noexcept;
   bool empty();
   size_t size();
   void set_next(size_t = 0);
-  void assign(size_t, const Duration&);
-  void push_back(const Duration&);
+  void assign(size_t, const T&);
+  void push_back(const T&);
   void pop_back();
-  void insert(size_t, const Duration&);
+  void insert(size_t, const T&);
   void erase(size_t);
-  void assign(Time_sig_init_list);
-  void assign(const std::vector<Duration>&);
+  void assign(Data_init_list);
+  void assign(const std::vector<T>&);
   void clear() noexcept;
 
 protected:
@@ -63,7 +70,6 @@ protected:
   static constexpr const Duration busy_wait_{std::chrono::milliseconds(5)};
 
 private:
-  Duration load_t_next();
   void once(const std::stop_token,
             const Time_point initial_tick = Clock::now() + min_duration_ +
                                             busy_wait_,
@@ -84,11 +90,11 @@ private:
   mutable std::mutex transport_mutex_;
 
   std::jthread runner_;
-  Time_signature time_sig_;
+  Container data_;
   std::atomic<Time_point> t_next_;
 };
 
-} // namespace scheduler
+} // namespace sequencer
 
 } // namespace Micro_composer
 

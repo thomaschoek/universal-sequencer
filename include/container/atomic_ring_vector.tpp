@@ -188,6 +188,12 @@ template <typename T> void Atomic_ring_vector<T>::clear() noexcept {
   iterator_ = Unatomic_base_vector::cbegin();
 }
 
+template <typename T>
+std::vector<T> Atomic_ring_vector<T>::data() const noexcept {
+  std::scoped_lock lck = Atomic_vector<T>::get_lock();
+  return *this;
+}
+
 // Private
 template <typename T>
 const std::scoped_lock<std::mutex>
