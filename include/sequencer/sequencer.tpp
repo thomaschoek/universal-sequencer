@@ -67,20 +67,18 @@ inline bool Sequencer<T_event>::is_scheduling() const {
 template <Has_duration T_event>
 void Sequencer<T_event>::listen(Event_handler handler) {
   while (is_scheduling()) {
-    handler(std::forward<T_event>(consume()));
+    consume();
   }
 }
 
 // Synchronize with scheduler thread and consume the scheduled event buffer
-template <Has_duration T_event> T_event&& Sequencer<T_event>::consume() {
-  assert(is_scheduling() && "Sequencer::consume: Sequencer is not running!");
-  std::this_thread::sleep_until(t_next_.load(std::memory_order_acquire) -
-                                busy_wait_);
-  const T_event* atomically_loaded_ptr =
-      buffer_.load(std::memory_order_acquire);
-  assert(atomically_loaded_ptr != nullptr &&
-         "Sequencer::consume: No event in buffer!");
-  return std::forward(*atomically_loaded_ptr);
+template <Has_duration T_event> inline T_event&& Sequencer<T_event>::consume() {
+  const Time_point t_next = t_next_.load(std::memory_order_acquire);
+  std::this_thread::sleep_until(t_next - busy_wait_);
+  while (Clock::now() < t_next) {
+    ;
+  }
+  handler(std::move(buffer_));
 }
 
 // Get the time of the next scheduled tick
@@ -114,7 +112,7 @@ template <Has_duration T_event> void Sequencer<T_event>::set_next(size_t pos) {
 
 template <Has_duration T_event>
 void Sequencer<T_event>::assign(size_t n, const T_event& event) {
-  if (static_cast<Duration>(event) <= min_duration_) {
+  if (static_cast<Duration>(event) < min_duration_) {
     throw std::invalid_argument(std::string(
         "Durations must be at least %lld ms", min_duration_.count()));
   }
@@ -123,7 +121,7 @@ void Sequencer<T_event>::assign(size_t n, const T_event& event) {
 }
 template <Has_duration T_event>
 void Sequencer<T_event>::push_back(const T_event& event) {
-  if (static_cast<Duration>(event) <= min_duration_) {
+  if (static_cast<Duration>(event) < min_duration_) {
     throw std::invalid_argument(std::string(
         "Durations must be at least %lld ms", min_duration_.count()));
   }
@@ -137,7 +135,7 @@ template <Has_duration T_event> void Sequencer<T_event>::pop_back() {
 
 template <Has_duration T_event>
 void Sequencer<T_event>::insert(size_t pos, const T_event& event) {
-  if (static_cast<Duration>(event) <= min_duration_) {
+  if (static_cast<Duration>(event) < min_duration_) {
     throw std::invalid_argument(std::string(
         "Durations must be at least %lld ms", min_duration_.count()));
   }
@@ -166,24 +164,14 @@ template <Has_duration T_event> void Sequencer<T_event>::clear() noexcept {
 template <Has_duration T_event>
 inline void Sequencer<T_event>::schedule(const std::stop_token st,
                                          const Time_point t_next,
-                                         T_event&& event) {
+                                         const T_event& event) {
   // Inform other threads of new time interval start with memory order release
   t_next_.store(t_next, std::memory_order_release);
 
+  buffer_ = event;
+
   // Wait until approximate time
-  std::this_thread::sleep_until(t_next - busy_wait_);
-
-  // Check whether stop was requested at any point during wait
-  if (st.stop_requested()) {
-    return;
-  }
-
-  // Busy-wait until precise time
-  while (Clock::now() < t_next)
-    ;
-
-  // Write event to atomic buffer for retrieval by consumer threads
-  buffer_.store(&event, std::memory_order_release);
+  std::this_thread::sleep_until(t_next);
 }
 
 template <Has_duration T_event>

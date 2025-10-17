@@ -32,7 +32,7 @@ public:
 
   explicit Sequencer(Data_init_list = {});
 
-  void schedule(const std::stop_token, const Time_point, T_event&&);
+  void schedule(const std::stop_token, const Time_point, const T_event&);
 
   // Thread-safe transport control
   void start(const Time_point start_time = Clock::now(),
@@ -85,7 +85,7 @@ private:
   std::jthread scheduler_;
   Container events_;
   std::atomic<Time_point> t_next_;
-  std::atomic<T_event*> buffer_{nullptr};
+  T_event buffer_;
 };
 
 } // namespace sequencer
