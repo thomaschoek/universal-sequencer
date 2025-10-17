@@ -74,24 +74,13 @@ void Sequencer<T_event>::listen(Event_handler handler) {
 // Synchronize with scheduler thread and consume the scheduled event buffer
 template <Has_duration T_event> T_event&& Sequencer<T_event>::consume() {
   assert(is_scheduling() && "Sequencer::consume: Sequencer is not running!");
-
-  auto target_time = t_next_.load(std::memory_order_acquire);
-  std::this_thread::sleep_until(target_time - busy_wait_);
-
-  // Wait for buffer to be ready with timeout
-  auto timeout = target_time + std::chrono::milliseconds(100);
-  while (!buffer_ready_.load(std::memory_order_acquire)) {
-    if (Clock::now() > timeout || !is_scheduling()) {
-      // Timeout or scheduler stopped, return a default event
-      static thread_local T_event default_event;
-      return std::move(default_event);
-    }
-    std::this_thread::yield();
-  }
-
-  std::scoped_lock lock(buffer_mutex_);
-  buffer_ready_.store(false, std::memory_order_release);
-  return std::move(buffer_event_);
+  std::this_thread::sleep_until(t_next_.load(std::memory_order_acquire) -
+                                busy_wait_);
+  const T_event* atomically_loaded_ptr =
+      buffer_.load(std::memory_order_acquire);
+  assert(atomically_loaded_ptr != nullptr &&
+         "Sequencer::consume: No event in buffer!");
+  return std::forward(*atomically_loaded_ptr);
 }
 
 // Get the time of the next scheduled tick
@@ -125,18 +114,18 @@ template <Has_duration T_event> void Sequencer<T_event>::set_next(size_t pos) {
 
 template <Has_duration T_event>
 void Sequencer<T_event>::assign(size_t n, const T_event& event) {
-  if (static_cast<Duration>(event) <= min_duration_) {
-    throw std::invalid_argument("Durations must be at least " +
-                                std::to_string(min_duration_.count()) + " ms");
+  if (event <= min_duration_) {
+    throw std::invalid_argument(std::string(
+        "Durations must be at least %lld ms", min_duration_.count()));
   }
   await_scheduler_idle();
-  events_.replace(n, event);
+  events_.assign(n, event);
 }
 template <Has_duration T_event>
 void Sequencer<T_event>::push_back(const T_event& event) {
-  if (static_cast<Duration>(event) <= min_duration_) {
-    throw std::invalid_argument("Durations must be at least " +
-                                std::to_string(min_duration_.count()) + " ms");
+  if (event <= min_duration_) {
+    throw std::invalid_argument(std::string(
+        "Durations must be at least %lld ms", min_duration_.count()));
   }
   events_.push_back(event);
 }
@@ -148,9 +137,9 @@ template <Has_duration T_event> void Sequencer<T_event>::pop_back() {
 
 template <Has_duration T_event>
 void Sequencer<T_event>::insert(size_t pos, const T_event& event) {
-  if (static_cast<Duration>(event) <= min_duration_) {
-    throw std::invalid_argument("Durations must be at least " +
-                                std::to_string(min_duration_.count()) + " ms");
+  if (event <= min_duration_) {
+    throw std::invalid_argument(std::string(
+        "Durations must be at least %lld ms", min_duration_.count()));
   }
   events_.insert(pos, event);
 }
@@ -193,12 +182,8 @@ inline void Sequencer<T_event>::schedule(const std::stop_token st,
   while (Clock::now() < t_next)
     ;
 
-  // Write event to buffer for retrieval by consumer threads
-  {
-    std::scoped_lock lock(buffer_mutex_);
-    buffer_event_ = std::move(event);
-    buffer_ready_.store(true, std::memory_order_release);
-  }
+  // Write event to atomic buffer for retrieval by consumer threads
+  buffer_.store(std::forward<T_event>(event), std::memory_order_release);
 }
 
 template <Has_duration T_event>
@@ -215,8 +200,7 @@ void Sequencer<T_event>::once(const std::stop_token st,
   events_.set_next(initial_i);
   Time_point t_next = initial_tick;
   Duration event_dur;
-  for (size_t i = 0; i < events_.size() && !st.stop_requested(); ++i) {
-    T_event evt = events_.next();
+  for (const auto& evt : events_, !st.stop_requested()) {
     event_dur = static_cast<Duration>(evt);
     schedule(st, t_next, std::move(evt));
     t_next += event_dur;
@@ -236,9 +220,9 @@ void Sequencer<T_event>::repeat(const std::stop_token st,
 
   events_.set_next(initial_i);
   Time_point t_next = initial_tick;
+  T_event event;
   Duration event_dur;
-  while (!st.stop_requested() && !events_.empty()) {
-    T_event event = events_.next();
+  while (!st.stop_requested() && !events_.empty(), event = events_.next()) {
     event_dur = static_cast<Duration>(event);
     schedule(st, t_next, std::move(event));
     t_next += event_dur;

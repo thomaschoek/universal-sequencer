@@ -17,9 +17,7 @@ namespace sequencer {
 
 template <typename T>
 concept Has_duration = requires {
-  typename T::Duration;
-  requires std::convertible_to<typename T::Duration,
-                                std::chrono::steady_clock::duration>;
+  requires std::convertible_to<T, std::chrono::steady_clock::duration>;
 };
 
 template <Has_duration T_event> class Sequencer {
@@ -83,13 +81,11 @@ private:
   void await_scheduler_idle();
 
   mutable std::mutex transport_mutex_;
-  mutable std::mutex buffer_mutex_;
 
   std::jthread scheduler_;
   Container events_;
   std::atomic<Time_point> t_next_;
-  T_event buffer_event_;
-  std::atomic<bool> buffer_ready_{false};
+  std::atomic<T_event*> buffer_{nullptr};
 };
 
 } // namespace sequencer
