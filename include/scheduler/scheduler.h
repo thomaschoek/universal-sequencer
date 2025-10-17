@@ -38,6 +38,9 @@ public:
              const size_t reset_pos = 0);
   bool is_running() const;
 
+  // Get the time of the next scheduled tick
+  Time_point t_next() const;
+
   // Set the handler function to be called on each tick
   void set_callback(const Callback handler);
 

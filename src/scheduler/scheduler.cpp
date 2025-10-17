@@ -63,6 +63,12 @@ void Scheduler::reset(const Time_point reset_time, const size_t reset_pos) {
 
 inline bool Scheduler::is_running() const { return runner_.joinable(); }
 
+// Get the time of the next scheduled tick
+
+Scheduler::Time_point Scheduler::t_next() const {
+  return t_next_.load(std::memory_order_acquire);
+}
+
 // Callback CRUD
 
 void Scheduler::set_callback(const Callback handler) {
