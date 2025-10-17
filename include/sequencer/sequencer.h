@@ -21,20 +21,20 @@ concept Has_duration = requires {
                       std::chrono::steady_clock::duration>;
 };
 
-template <Has_duration T> class Sequencer {
+template <Has_duration T_event> class Sequencer {
 public:
   using Clock = std::chrono::steady_clock;
   using Time_point = Clock::time_point;
   using Duration = Clock::duration;
-  using Container = container::Atomic_ring_vector<T>;
+  using Container = container::Atomic_ring_vector<T_event>;
   using Const_iterator = Container::Const_iterator;
-  using Data_init_list = std::initializer_list<T>;
-  using Event_handler = std::function<void(T&&)>;
+  using Data_init_list = std::initializer_list<T_event>;
+  using Event_handler = std::function<void(T_event&&)>;
 
   Sequencer() = default;
   explicit Sequencer(Data_init_list = {});
 
-  void schedule(const std::stop_token, const Time_point, T&&);
+  void schedule(const std::stop_token, const Time_point, T_event&&);
 
   // Thread-safe transport control
   void start(const Time_point start_time = Clock::now(),
@@ -42,7 +42,7 @@ public:
   void pause(const Time_point pause_time = Clock::now());
   void reset(const Time_point reset_time = Clock::now(),
              const size_t reset_pos = 0);
-  bool is_running() const;
+  bool is_scheduling() const;
 
   void listen(Event_handler);
   // Get the time of the next scheduled event
@@ -50,17 +50,17 @@ public:
 
   // Thread-safe time signature CRUD operations
   std::vector<Duration> time_signature() const noexcept;
-  std::vector<T> data() const noexcept;
+  std::vector<T_event> data() const noexcept;
   bool empty();
   size_t size();
   void set_next(size_t = 0);
-  void assign(size_t, const T&);
-  void push_back(const T&);
+  void assign(size_t, const T_event&);
+  void push_back(const T_event&);
   void pop_back();
-  void insert(size_t, const T&);
+  void insert(size_t, const T_event&);
   void erase(size_t);
   void assign(Data_init_list);
-  void assign(const std::vector<T>&);
+  void assign(const std::vector<T_event>&);
   void clear() noexcept;
 
 protected:
@@ -68,7 +68,7 @@ protected:
   static constexpr const Duration busy_wait_{std::chrono::milliseconds(5)};
 
   // Consume the event buffer
-  T&& consume();
+  T_event&& consume();
 
 private:
   void once(const std::stop_token,
@@ -80,14 +80,14 @@ private:
                                               busy_wait_,
               const size_t initial_i = 0);
 
-  void await_runner_idle();
+  void await_scheduler_idle();
 
   mutable std::mutex transport_mutex_;
 
-  std::jthread producer_;
+  std::jthread scheduler_;
   Container events_;
   std::atomic<Time_point> t_next_;
-  std::atomic<T*> event_buffer_{nullptr};
+  std::atomic<T_event*> buffer_{nullptr};
 };
 
 } // namespace sequencer
