@@ -88,6 +88,21 @@ inline bool Sequencer<T_event>::is_scheduling() const {
 
 template <sequencable::Sequencable T_event>
 T_event&& Sequencer<T_event>::get() noexcept {
+  if (!is_scheduling()) {
+    throw std::runtime_error("Sequencer is not scheduling!");
+  }
+  while (output_.empty()) {
+    if (!is_scheduling()) {
+      throw std::runtime_error("Sequencer has stopped scheduling!");
+    }
+    const Time_point t_next = t_next_.load(std::memory_order_acquire);
+    if (t_next > Clock::now()) {
+      std::this_thread::sleep_until(t_next - busy_wait_duration_);
+      while (Clock::now() < t_next) {
+        std::this_thread::yield();
+      }
+    }
+  }
   T_event evt = output_.front();
   output_.pop();
   return evt;

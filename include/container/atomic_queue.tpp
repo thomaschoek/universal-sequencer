@@ -36,20 +36,20 @@ Atomic_queue<T>::Atomic_queue(Atomic_queue&& other) noexcept
 template <typename T> void Atomic_queue<T>::push(const T& value) {
   is_populating_.store(true, std::memory_order_release);
   Base_queue::push(value);
+  size_.store(Base_queue::size(), std::memory_order_release);
   is_populating_.store(false, std::memory_order_release);
 }
 
 template <typename T> void Atomic_queue<T>::push(T&& value) {
   is_populating_.store(true, std::memory_order_release);
   Base_queue::push(std::forward<T>(value));
+  size_.store(Base_queue::size(), std::memory_order_release);
   is_populating_.store(false, std::memory_order_release);
 }
 
 template <typename T> void Atomic_queue<T>::pop() {
   std::scoped_lock lck{lock()};
-  if (!Base_queue::empty()) {
-    Base_queue::pop();
-  }
+  Base_queue::pop();
 }
 
 template <typename T> T Atomic_queue<T>::front() {
@@ -65,12 +65,11 @@ template <typename T> T Atomic_queue<T>::back() {
 template <typename T>
 typename Atomic_queue<T>::Size_type Atomic_queue<T>::size() const noexcept {
   std::scoped_lock lck{lock()};
-  return Base_queue::size();
+  return size_.load(std::memory_order_acquire);
 }
 
 template <typename T> bool Atomic_queue<T>::empty() const noexcept {
-  std::scoped_lock lck{lock()};
-  return Base_queue::empty();
+  return size() == 0;
 }
 
 // Private
