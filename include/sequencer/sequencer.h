@@ -50,7 +50,6 @@ public:
              const size_t reset_pos = 0);
   bool is_scheduling() const;
 
-  void listen(Event_handler);
   // Get the time of the next scheduled event
   Time_point t_next() const;
 
@@ -72,9 +71,6 @@ public:
 protected:
   static constexpr const Duration min_duration_{std::chrono::milliseconds(10)};
   static constexpr const Duration busy_wait_{std::chrono::milliseconds(5)};
-
-  // Consume the event buffer
-  T_event&& consume();
 
 private:
   Time_point once(const std::stop_token,

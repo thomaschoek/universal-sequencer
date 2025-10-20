@@ -14,7 +14,7 @@ namespace container {
 template <typename T> class Atomic_vector : protected std::vector<T> {
 public:
   using Base_vector = std::vector<T>;
-  using Index = typename Base_vector::size_type;
+  using Size_type = Base_vector::size_type;
   using Initializer_list = std::initializer_list<T>;
   using Iterator = Base_vector::iterator;
   using Const_iterator = Base_vector::const_iterator;
@@ -35,8 +35,8 @@ public:
   under_lock(std::function<Return_type(std::vector<T>&, Args...)>, Args...);
 
   // Thread-safe CRUD operations
-  void assign(Index, const T&);
-  void assign(Index, T&&);
+  void assign(Size_type, const T&);
+  void assign(Size_type, T&&);
   void assign(Initializer_list);
   void assign(const std::vector<T>&);
 
@@ -44,19 +44,19 @@ public:
   void push_back(T&&);
   template <typename... Args> void emplace_back(Args&&...);
 
-  void insert(Index, const T&);
-  void insert(Index, T&&);
+  void insert(Size_type, const T&);
+  void insert(Size_type, T&&);
 
-  template <typename... Args> void update(Index, Args...);
+  template <typename... Args> void update(Size_type, Args...);
 
   void pop_back();
-  void erase(Index);
+  void erase(Size_type);
 
   void clear() noexcept;
-  void reserve(Index);
+  void reserve(Size_type);
 
-  Index size() const noexcept;
-  Index capacity() const noexcept;
+  Size_type size() const noexcept;
+  Size_type capacity() const noexcept;
   bool empty() const noexcept;
 
   Iterator begin() noexcept;
@@ -65,12 +65,12 @@ public:
   Const_iterator cend() const noexcept;
   T front();
   T back();
-  T at(Index);
+  T at(Size_type);
 
   // WARNING: References returned are only safe while no other thread
   // modifies the vector structure (add/remove elements)
-  T& operator[](Index);
-  const T& operator[](Index) const;
+  T& operator[](Size_type);
+  const T& operator[](Size_type) const;
 
   const Base_vector& data() const noexcept;
 
@@ -81,7 +81,7 @@ private:
   mutable std::atomic<Iterator> end_;
   mutable std::atomic<Const_iterator> cbegin_;
   mutable std::atomic<Const_iterator> cend_;
-  mutable std::atomic<Index> size_{0};
+  mutable std::atomic<Size_type> size_{0};
 };
 
 } // namespace container

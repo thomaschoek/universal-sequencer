@@ -94,7 +94,8 @@ void Atomic_vector<T>::emplace_back(Args&&... args) {
   update_dimensions();
 }
 
-template <typename T> void Atomic_vector<T>::insert(Index pos, const T& value) {
+template <typename T>
+void Atomic_vector<T>::insert(Size_type pos, const T& value) {
   std::scoped_lock lck{mutex_};
   if (pos > Base_vector::size()) {
     throw std::out_of_range(
@@ -104,7 +105,7 @@ template <typename T> void Atomic_vector<T>::insert(Index pos, const T& value) {
   update_dimensions();
 }
 
-template <typename T> void Atomic_vector<T>::insert(Index pos, T&& value) {
+template <typename T> void Atomic_vector<T>::insert(Size_type pos, T&& value) {
   std::scoped_lock lck{mutex_};
   if (pos > Base_vector::size()) {
     throw std::out_of_range(
@@ -114,7 +115,8 @@ template <typename T> void Atomic_vector<T>::insert(Index pos, T&& value) {
   update_dimensions();
 }
 
-template <typename T> void Atomic_vector<T>::assign(Index pos, const T& value) {
+template <typename T>
+void Atomic_vector<T>::assign(Size_type pos, const T& value) {
   std::scoped_lock lck{mutex_};
   if (pos >= Base_vector::size()) {
     throw std::out_of_range(
@@ -123,7 +125,7 @@ template <typename T> void Atomic_vector<T>::assign(Index pos, const T& value) {
   Base_vector::operator[](pos) = value;
 }
 
-template <typename T> void Atomic_vector<T>::assign(Index pos, T&& value) {
+template <typename T> void Atomic_vector<T>::assign(Size_type pos, T&& value) {
   std::scoped_lock lck{mutex_};
   if (pos >= Base_vector::size()) {
     throw std::out_of_range(
@@ -134,7 +136,7 @@ template <typename T> void Atomic_vector<T>::assign(Index pos, T&& value) {
 
 template <typename T>
 template <typename... Args>
-void Atomic_vector<T>::update(Index pos, Args... args) {
+void Atomic_vector<T>::update(Size_type pos, Args... args) {
   std::scoped_lock lck{mutex_};
   if (pos >= Base_vector::size()) {
     throw std::out_of_range(
@@ -151,7 +153,7 @@ template <typename T> void Atomic_vector<T>::pop_back() {
   }
 }
 
-template <typename T> void Atomic_vector<T>::erase(Index pos) {
+template <typename T> void Atomic_vector<T>::erase(Size_type pos) {
   std::scoped_lock lck{mutex_};
   if (pos >= Base_vector::size()) {
     throw std::out_of_range(
@@ -167,20 +169,20 @@ template <typename T> void Atomic_vector<T>::clear() noexcept {
   update_dimensions();
 }
 
-template <typename T> void Atomic_vector<T>::reserve(Index capacity) {
+template <typename T> void Atomic_vector<T>::reserve(Size_type capacity) {
   std::scoped_lock lck{mutex_};
   Base_vector::reserve(capacity);
   update_dimensions();
 }
 
 template <typename T>
-inline typename Atomic_vector<T>::Index
+inline typename Atomic_vector<T>::Size_type
 Atomic_vector<T>::size() const noexcept {
   return size_.load(std::memory_order_acquire);
 }
 
 template <typename T>
-inline typename Atomic_vector<T>::Index
+inline typename Atomic_vector<T>::Size_type
 Atomic_vector<T>::capacity() const noexcept {
   std::scoped_lock lck{mutex_};
   return Base_vector::capacity();
@@ -222,20 +224,20 @@ template <typename T> inline T Atomic_vector<T>::back() {
   return Base_vector::back();
 }
 
-template <typename T> inline T Atomic_vector<T>::at(Index pos) {
+template <typename T> inline T Atomic_vector<T>::at(Size_type pos) {
   // Thread-safe at; returns a copy to prevent exposing a reference whose
   // value might be deleted by another thread.
   std::scoped_lock lck{mutex_};
   return Base_vector::at(pos);
 }
 
-template <typename T> inline T& Atomic_vector<T>::operator[](Index pos) {
+template <typename T> inline T& Atomic_vector<T>::operator[](Size_type pos) {
   std::scoped_lock lck{mutex_};
   return Base_vector::operator[](pos);
 }
 
 template <typename T>
-inline const T& Atomic_vector<T>::operator[](Index pos) const {
+inline const T& Atomic_vector<T>::operator[](Size_type pos) const {
   std::scoped_lock lck{mutex_};
   return Base_vector::operator[](pos);
 }

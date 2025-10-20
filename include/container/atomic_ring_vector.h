@@ -12,7 +12,7 @@ template <typename T> class Atomic_ring_vector : public Atomic_vector<T> {
 public:
   using Base_vector = Atomic_vector<T>;
   using Const_iterator = Base_vector::Const_iterator;
-  using Index = Base_vector::Index;
+  using Size_type = Base_vector::Size_type;
 
   // Constructors
   Atomic_ring_vector() = default;
@@ -26,17 +26,17 @@ public:
   Atomic_ring_vector(std::vector<T>&& vec);
 
   T next();
-  void set_next(typename Base_vector::Index = 0);
-  typename Base_vector::Index get_pos() const;
+  void set_next(typename Base_vector::Size_type = 0);
+  typename Base_vector::Size_type get_pos() const;
 
   // Override CRUD operations to handle iterator invalidation
-  void assign(Index, const T&);
-  void assign(Index, T&&);
+  void assign(Size_type, const T&);
+  void assign(Size_type, T&&);
   void assign(typename Base_vector::Initializer_list);
   void assign(const std::vector<T>&);
   void push_back(const T&);
-  void insert(Index, const T&);
-  void erase(typename Base_vector::Index);
+  void insert(Size_type, const T&);
+  void erase(typename Base_vector::Size_type);
   void clear() noexcept;
 
   std::vector<T> data() const noexcept;

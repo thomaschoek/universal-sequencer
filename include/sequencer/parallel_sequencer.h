@@ -15,7 +15,7 @@ class Parallel_sequencer
 public:
   using Sequencer = Atomic_sequencer<Event_t>;
   using Base_vector = container::Atomic_vector<Sequencer>;
-  using Seq_idx = Base_vector::Index;
+  using Seq_idx = Base_vector::Size_type;
   using Step_idx = Sequencer::Step_idx;
   using Handler = Sequencer::Handler;
   using Clock = Sequencer::Clock;

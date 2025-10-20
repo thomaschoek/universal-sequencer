@@ -29,7 +29,7 @@ Atomic_ring_vector<T>::Atomic_ring_vector(std::vector<T>&& vec)
 }
 
 template <typename T>
-void Atomic_ring_vector<T>::set_next(typename Base_vector::Index pos) {
+void Atomic_ring_vector<T>::set_next(typename Base_vector::Size_type pos) {
   std::scoped_lock lck = Atomic_vector<T>::get_lock();
   if (Unatomic_base_vector::empty()) {
     iterator_ = Unatomic_base_vector::cbegin();
@@ -62,24 +62,25 @@ template <typename T> T Atomic_ring_vector<T>::next() {
 }
 
 template <typename T>
-inline typename Atomic_ring_vector<T>::Base_vector::Index
+inline typename Atomic_ring_vector<T>::Base_vector::Size_type
 Atomic_ring_vector<T>::get_pos() const {
   std::scoped_lock lck = Atomic_vector<T>::get_lock();
   if (Unatomic_base_vector::empty()) {
     return 0;
   }
-  return static_cast<const Base_vector::Index>(
+  return static_cast<const Base_vector::Size_type>(
       iterator_.load(std::memory_order_acquire) -
       Unatomic_base_vector::cbegin());
 }
 
 // CRUD operations that handle iterator invalidation
 template <typename T>
-void Atomic_ring_vector<T>::assign(Index n, const T& value) {
+void Atomic_ring_vector<T>::assign(Size_type n, const T& value) {
   Base_vector::assign(n, value);
 }
 
-template <typename T> void Atomic_ring_vector<T>::assign(Index n, T&& value) {
+template <typename T>
+void Atomic_ring_vector<T>::assign(Size_type n, T&& value) {
   Base_vector::assign(n, std::forward<T>(value));
 }
 
@@ -100,9 +101,9 @@ void Atomic_ring_vector<T>::assign(const std::vector<T>& vec) {
 template <typename T> void Atomic_ring_vector<T>::push_back(const T& value) {
   std::scoped_lock lck = Atomic_vector<T>::get_lock();
   // Save current position as index
-  typename Base_vector::Index current_pos = 0;
+  typename Base_vector::Size_type current_pos = 0;
   if (!Unatomic_base_vector::empty()) {
-    current_pos = static_cast<typename Base_vector::Index>(
+    current_pos = static_cast<typename Base_vector::Size_type>(
         iterator_.load(std::memory_order_acquire) -
         Unatomic_base_vector::cbegin());
   }
@@ -119,7 +120,7 @@ template <typename T> void Atomic_ring_vector<T>::push_back(const T& value) {
 }
 
 template <typename T>
-void Atomic_ring_vector<T>::insert(typename Base_vector::Index pos,
+void Atomic_ring_vector<T>::insert(typename Base_vector::Size_type pos,
                                    const T& value) {
   std::scoped_lock lck = Atomic_vector<T>::get_lock();
   if (pos > Unatomic_base_vector::size()) {
@@ -128,9 +129,9 @@ void Atomic_ring_vector<T>::insert(typename Base_vector::Index pos,
   }
 
   // Save current position as index
-  typename Base_vector::Index current_pos = 0;
+  typename Base_vector::Size_type current_pos = 0;
   if (!Unatomic_base_vector::empty()) {
-    current_pos = static_cast<typename Base_vector::Index>(
+    current_pos = static_cast<typename Base_vector::Size_type>(
         iterator_.load(std::memory_order_acquire) -
         Unatomic_base_vector::cbegin());
   }
@@ -146,7 +147,7 @@ void Atomic_ring_vector<T>::insert(typename Base_vector::Index pos,
 }
 
 template <typename T>
-void Atomic_ring_vector<T>::erase(typename Base_vector::Index pos) {
+void Atomic_ring_vector<T>::erase(typename Base_vector::Size_type pos) {
   std::scoped_lock lck = Atomic_vector<T>::get_lock();
   if (pos >= Unatomic_base_vector::size()) {
     throw std::out_of_range(
@@ -154,9 +155,9 @@ void Atomic_ring_vector<T>::erase(typename Base_vector::Index pos) {
   }
 
   // Save current position as index
-  typename Base_vector::Index current_pos = 0;
+  typename Base_vector::Size_type current_pos = 0;
   if (!Unatomic_base_vector::empty()) {
-    current_pos = static_cast<typename Base_vector::Index>(
+    current_pos = static_cast<typename Base_vector::Size_type>(
         iterator_.load(std::memory_order_acquire) -
         Unatomic_base_vector::cbegin());
   }
