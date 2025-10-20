@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
     Oscillation_event evt;
     evt.frequency = freq;
     evt.duration = std::chrono::milliseconds{250};
-    seq1.push_back(evt);
+    seq2.push_back(evt);
   }
 
   std::vector<std::vector<Oscillation_event>> sequences = {seq1, seq2};

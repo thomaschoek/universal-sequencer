@@ -5,9 +5,9 @@
 #include <chrono>
 #include <initializer_list>
 #include <mutex>
-#include <queue>
 #include <thread>
 
+#include "container/atomic_queue.h"
 #include "sequencable/concepts.h"
 
 namespace Micro_composer {
@@ -21,7 +21,7 @@ public:
   using Duration = Clock::duration;
   using Container = std::vector<T_event>;
   using Size_type = Container::size_type;
-  using Output_queue = std::queue<T_event>;
+  using Output_queue = container::Atomic_queue<T_event>;
   using Data_init_list = std::initializer_list<T_event>;
 
   explicit Sequencer(Data_init_list = {});

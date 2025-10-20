@@ -34,7 +34,9 @@ public:
   bool empty() const noexcept;
 
 private:
+  std::scoped_lock<std::mutex> lock() const noexcept;
   mutable std::mutex mutex_;
+  std::atomic<bool> is_populating_{false};
   Base_queue queue_;
 };
 
