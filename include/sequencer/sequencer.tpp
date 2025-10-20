@@ -86,6 +86,13 @@ inline bool Sequencer<T_event>::is_scheduling() const {
   return scheduler_.joinable();
 }
 
+template <sequencable::Sequencable T_event>
+T_event&& Sequencer<T_event>::get() noexcept {
+  T_event evt = output_.front();
+  output_.pop();
+  return evt;
+}
+
 // Get the time of the next scheduled event
 
 template <sequencable::Sequencable T_event>

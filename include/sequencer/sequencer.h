@@ -29,10 +29,6 @@ public:
   explicit Sequencer(std::vector<T_event>&&);
   Sequencer(Sequencer&&) noexcept;
 
-  void schedule(const std::stop_token, const Time_point, const T_event&);
-
-  const Output_queue& output() const noexcept;
-
   // Thread-safe transport control
   void start(const Time_point start_time = Clock::now() + min_duration_,
              const bool repeat = false);
@@ -40,6 +36,9 @@ public:
   void reset(const Time_point reset_time = Clock::now() + min_duration_,
              const Size_type reset_pos = 0);
   bool is_scheduling() const;
+
+  // Get the next scheduled event from the output queue
+  T_event&& get() noexcept;
 
   // Get the time of the next scheduled event
   Time_point t_next() const;
