@@ -46,16 +46,17 @@ void Sequencer<T_event>::start(const Time_point start_time, const bool repeat) {
     return;
   }
   std::scoped_lock lock(transport_mutex_);
-  scheduler_ =
-      std::jthread([this, start_time, repeat](std::stop_token stop_token) {
-        // Ensure synchronization with other transports: add static
-        // min_duration_ and busy_wait_time_ to the actual start time
-        if (repeat) {
-          this->repeat(stop_token, start_time + min_duration_ + busy_wait_);
-        } else {
-          this->once(stop_token, start_time + min_duration_ + busy_wait_);
-        }
-      });
+  scheduler_ = std::jthread([this, start_time,
+                             repeat](std::stop_token stop_token) {
+    // Ensure synchronization with other transports: add static
+    // min_duration_ and busy_wait_time_ to the actual start time
+    if (repeat) {
+      this->repeat(stop_token,
+                   start_time + min_duration_ + busy_wait_duration_);
+    } else {
+      this->once(stop_token, start_time + min_duration_ + busy_wait_duration_);
+    }
+  });
 }
 
 template <Has_duration T_event>
@@ -186,36 +187,55 @@ Sequencer<T_event>::once(const std::stop_token st,
   if (initial_index >= events_.size()) {
     return initial_time;
   }
-  if (initial_time <= Clock::now() + min_duration_ + busy_wait_) {
+  if (initial_time <= Clock::now() + min_duration_ + busy_wait_duration_) {
     throw std::invalid_argument(
         "For synchronization purposes, initial tick must be at least " +
         std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
-                           min_duration_ + busy_wait_)
+                           min_duration_ + busy_wait_duration_)
                            .count()) +
         " ms in the future!");
   }
 
-  Size_type evt_idx = initial_index;
-  Time_point evt_time = initial_time;
-  t_next_.store(evt_time, std::memory_order_release);
+  Size_type event_idx = initial_index;
+  Time_point next_event_time = initial_time;
+  t_next_.store(initial_time, std::memory_order_release);
 
   do {
-    current_.store(evt_idx, std::memory_order_release);
-    const T_event evt = events_[evt_idx++];
+    // Inform concurrent threads which event we are about to copy
+    current_.store(event_idx, std::memory_order_release);
+    // As other threads may not write to
+    // events_[current_.load(memory_order_acquire)], nor modify the events_
+    // container as a whole without first safeguarding the integrity of the
+    // same, we can now safely copy the shared event into thread local memory
+    const T_event evt = events_[event_idx++];
+
+    // Set scheduled time on event for output queue consumers
+    evt.scheduled_time = next_event_time;
+
+    // Copy event duration to local variable as it will be moved to output queue
+    // right after sleep
     const Duration evt_dur = static_cast<Duration>(evt);
-    std::this_thread::sleep_until(evt_time - busy_wait_);
+
+    std::this_thread::sleep_until(evt.scheduled_time - busy_wait_duration_);
+
     if (st.stop_requested()) {
-      return evt_time;
+      return evt.scheduled_time;
     }
-    while (Clock::now() < evt_time) {
+
+    // Busy-wait until near exact scheduled time
+    while (Clock::now() < evt.scheduled_time) {
       ;
     }
-    output_.push(evt);
-    evt_time += evt_dur;
-    t_next_.store(evt_time, std::memory_order_release);
-  } while (!st.stop_requested() && evt_idx < events_.size());
+    // Publish event to the output queue
+    output_.push(std::move(evt));
 
-  return evt_time;
+    // Update evt_time so next event will schedule right after current's
+    // duration ends
+    next_event_time += evt_dur;
+    t_next_.store(next_event_time, std::memory_order_release);
+  } while (!st.stop_requested() && event_idx < events_.size());
+
+  return next_event_time;
 }
 
 template <Has_duration T_event>
@@ -225,11 +245,11 @@ void Sequencer<T_event>::repeat(const std::stop_token st,
   if (initial_index >= events_.size()) {
     return;
   }
-  if (initial_time <= Clock::now() + min_duration_ + busy_wait_) {
+  if (initial_time <= Clock::now() + min_duration_ + busy_wait_duration_) {
     throw std::invalid_argument(
         "For synchronization purposes, initial tick must be at least " +
         std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
-                           min_duration_ + busy_wait_)
+                           min_duration_ + busy_wait_duration_)
                            .count()) +
         " ms in the future!");
   }

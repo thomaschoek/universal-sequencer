@@ -18,6 +18,9 @@ namespace sequencer {
 
 template <typename T>
 concept Has_duration = requires {
+  {
+    T::scheduled_time
+  } -> std::convertible_to<std::chrono::steady_clock::time_point>;
   requires std::convertible_to<T, std::chrono::steady_clock::duration>;
 };
 
@@ -70,7 +73,8 @@ public:
 
 protected:
   static constexpr const Duration min_duration_{std::chrono::milliseconds(10)};
-  static constexpr const Duration busy_wait_{std::chrono::milliseconds(5)};
+  static constexpr const Duration busy_wait_duration_{
+      std::chrono::milliseconds(5)};
 
 private:
   Time_point once(const std::stop_token,
