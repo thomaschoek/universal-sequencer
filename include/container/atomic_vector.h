@@ -75,7 +75,7 @@ public:
   const Base_vector& data() const noexcept;
 
 private:
-  void update_dimensions();
+  void update_dimensions() noexcept;
   mutable std::mutex mutex_;
   mutable std::atomic<Iterator> begin_;
   mutable std::atomic<Iterator> end_;

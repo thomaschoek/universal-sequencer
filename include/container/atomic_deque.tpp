@@ -238,7 +238,8 @@ Atomic_deque<T>::data() const noexcept {
 
 // Private
 
-template <typename T> void Atomic_deque<T>::update_dimensions() {
+template <typename T>
+inline void Atomic_deque<T>::update_dimensions() noexcept {
   begin_.store(Base_deque::begin(), std::memory_order_release);
   cbegin_.store(Base_deque::cbegin(), std::memory_order_release);
   end_.store(Base_deque::end(), std::memory_order_release);

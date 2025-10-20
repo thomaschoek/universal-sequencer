@@ -249,7 +249,8 @@ Atomic_vector<T>::data() const noexcept {
 
 // Private
 
-template <typename T> void Atomic_vector<T>::update_dimensions() {
+template <typename T>
+inline void Atomic_vector<T>::update_dimensions() noexcept {
   begin_.store(Base_vector::begin(), std::memory_order_release);
   cbegin_.store(Base_vector::cbegin(), std::memory_order_release);
   end_.store(Base_vector::end(), std::memory_order_release);

@@ -69,7 +69,7 @@ public:
   const Base_deque& data() const noexcept;
 
 private:
-  void update_dimensions();
+  void update_dimensions() noexcept;
   mutable std::mutex mutex_;
 
   std::atomic<Index> size_{0};
