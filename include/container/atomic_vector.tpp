@@ -1,4 +1,5 @@
 #include "container/atomic_vector.h"
+#include <atomic>
 #include <mutex>
 #include <stdexcept>
 
@@ -12,14 +13,16 @@ namespace container {
 template <typename T>
 Atomic_vector<T>::Atomic_vector(const Atomic_vector& other)
     : Base_vector(other) {
+  update_dimensions();
   // mutex_ is default-initialized
 }
 
 template <typename T>
 Atomic_vector<T>& Atomic_vector<T>::operator=(const Atomic_vector& other) {
+  std::scoped_lock lck{mutex_};
   if (this != &other) {
-    std::scoped_lock lck{mutex_};
     Base_vector::operator=(other);
+    update_dimensions();
   }
   return *this;
 }
@@ -28,12 +31,14 @@ template <typename T>
 Atomic_vector<T>::Atomic_vector(Atomic_vector&& other) noexcept
     : Base_vector(std::move(other)) {
   // mutex_ is default-initialized
+  update_dimensions();
 }
 
 template <typename T>
 template <typename Return_t, typename... Args>
 const Return_t Atomic_vector<T>::under_lock(
     std::function<Return_t(std::vector<T>&, Args...)> func, Args... args) {
+  // DEPRECATED
   std::scoped_lock lck{mutex_};
   return func(*this, args...);
 }
@@ -53,27 +58,32 @@ template <typename T>
 Atomic_vector<T>::Atomic_vector(std::vector<T>&& vec)
     : Base_vector(std::move(vec)) {
   // mutex_ is default-initialized
+  update_dimensions();
 }
 
 // CRUD Operations
 template <typename T> void Atomic_vector<T>::assign(Initializer_list seq) {
   std::scoped_lock lck{mutex_};
   Base_vector::assign(seq);
+  update_dimensions();
 }
 
 template <typename T> void Atomic_vector<T>::assign(const std::vector<T>& vec) {
   std::scoped_lock lck{mutex_};
   Base_vector::assign(vec.begin(), vec.end());
+  update_dimensions();
 }
 
 template <typename T> void Atomic_vector<T>::push_back(const T& value) {
   std::scoped_lock lck{mutex_};
   Base_vector::push_back(value);
+  update_dimensions();
 }
 
 template <typename T> void Atomic_vector<T>::push_back(T&& value) {
   std::scoped_lock lck{mutex_};
   Base_vector::push_back(std::forward<T>(value));
+  update_dimensions();
 }
 
 template <typename T>
@@ -81,6 +91,7 @@ template <typename... Args>
 void Atomic_vector<T>::emplace_back(Args&&... args) {
   std::scoped_lock lck{mutex_};
   Base_vector::emplace_back(std::forward<Args>(args)...);
+  update_dimensions();
 }
 
 template <typename T> void Atomic_vector<T>::insert(Index pos, const T& value) {
@@ -90,6 +101,7 @@ template <typename T> void Atomic_vector<T>::insert(Index pos, const T& value) {
         "[ERROR] In Atomic_vector::insert: Position out of range.");
   }
   Base_vector::insert(Base_vector::begin() + pos, value);
+  update_dimensions();
 }
 
 template <typename T> void Atomic_vector<T>::insert(Index pos, T&& value) {
@@ -99,6 +111,7 @@ template <typename T> void Atomic_vector<T>::insert(Index pos, T&& value) {
         "[ERROR] In Atomic_vector::insert: Position out of range.");
   }
   Base_vector::insert(Base_vector::begin() + pos, std::forward<T>(value));
+  update_dimensions();
 }
 
 template <typename T> void Atomic_vector<T>::assign(Index pos, const T& value) {
@@ -107,7 +120,7 @@ template <typename T> void Atomic_vector<T>::assign(Index pos, const T& value) {
     throw std::out_of_range(
         "[ERROR] In Atomic_vector::assign: Position out of range.");
   }
-  Base_vector::at(pos) = value;
+  Base_vector::operator[](pos) = value;
 }
 
 template <typename T> void Atomic_vector<T>::assign(Index pos, T&& value) {
@@ -116,7 +129,7 @@ template <typename T> void Atomic_vector<T>::assign(Index pos, T&& value) {
     throw std::out_of_range(
         "[ERROR] In Atomic_vector::assign: Position out of range.");
   }
-  Base_vector::at(pos) = std::forward<T>(value);
+  Base_vector::operator[](pos) = std::forward<T>(value);
 }
 
 template <typename T>
@@ -134,6 +147,7 @@ template <typename T> void Atomic_vector<T>::pop_back() {
   std::scoped_lock lck{mutex_};
   if (!Base_vector::empty()) {
     Base_vector::pop_back();
+    update_dimensions();
   }
 }
 
@@ -144,23 +158,25 @@ template <typename T> void Atomic_vector<T>::erase(Index pos) {
         "[ERROR] In Atomic_vector::erase: Position out of range.");
   }
   Base_vector::erase(Base_vector::begin() + pos);
+  update_dimensions();
 }
 
 template <typename T> void Atomic_vector<T>::clear() noexcept {
   std::scoped_lock lck{mutex_};
   Base_vector::clear();
+  update_dimensions();
 }
 
 template <typename T> void Atomic_vector<T>::reserve(Index capacity) {
   std::scoped_lock lck{mutex_};
   Base_vector::reserve(capacity);
+  update_dimensions();
 }
 
 template <typename T>
 inline typename Atomic_vector<T>::Index
 Atomic_vector<T>::size() const noexcept {
-  std::scoped_lock lck{mutex_};
-  return Base_vector::size();
+  return size_.load(std::memory_order_acquire);
 }
 
 template <typename T>
@@ -171,22 +187,29 @@ Atomic_vector<T>::capacity() const noexcept {
 }
 
 template <typename T> inline bool Atomic_vector<T>::empty() const noexcept {
-  std::scoped_lock lck{mutex_};
-  return Base_vector::empty();
+  return size_.load(std::memory_order_acquire) == 0;
+}
+
+template <typename T>
+typename Atomic_vector<T>::Iterator inline Atomic_vector<T>::begin() noexcept {
+  return begin_.load(std::memory_order_acquire);
+}
+
+template <typename T>
+typename Atomic_vector<T>::Iterator inline Atomic_vector<T>::end() noexcept {
+  return end_.load(std::memory_order_acquire);
 }
 
 template <typename T>
 typename Atomic_vector<T>::Const_iterator inline Atomic_vector<T>::cbegin()
     const noexcept {
-  std::scoped_lock lck = Atomic_vector<T>::get_lock();
-  return Base_vector::cbegin();
+  return cbegin_.load(std::memory_order_acquire);
 }
 
 template <typename T>
 typename Atomic_vector<T>::Const_iterator inline Atomic_vector<T>::cend()
     const noexcept {
-  std::scoped_lock lck{mutex_};
-  return Base_vector::cend();
+  return cend_.load(std::memory_order_acquire);
 }
 
 template <typename T> inline T Atomic_vector<T>::front() {
@@ -221,7 +244,17 @@ template <typename T>
 inline const typename Atomic_vector<T>::Base_vector&
 Atomic_vector<T>::data() const noexcept {
   std::scoped_lock lck{mutex_};
-  return *this;
+  return Base_vector::data();
+}
+
+// Private
+
+template <typename T> void Atomic_vector<T>::update_dimensions() {
+  begin_.store(Base_vector::begin(), std::memory_order_release);
+  cbegin_.store(Base_vector::cbegin(), std::memory_order_release);
+  end_.store(Base_vector::end(), std::memory_order_release);
+  cend_.store(Base_vector::cend(), std::memory_order_release);
+  size_.store(Base_vector::size(), std::memory_order_release);
 }
 
 } // namespace container

@@ -1,6 +1,7 @@
 #ifndef MICRO_COMPOSER_ATOMIC_VECTOR_H
 #define MICRO_COMPOSER_ATOMIC_VECTOR_H
 
+#include <atomic>
 #include <functional>
 #include <initializer_list>
 #include <mutex>
@@ -58,6 +59,8 @@ public:
   Index capacity() const noexcept;
   bool empty() const noexcept;
 
+  Iterator begin() noexcept;
+  Iterator end() noexcept;
   Const_iterator cbegin() const noexcept;
   Const_iterator cend() const noexcept;
   T front();
@@ -72,7 +75,13 @@ public:
   const Base_vector& data() const noexcept;
 
 private:
+  void update_dimensions();
   mutable std::mutex mutex_;
+  mutable std::atomic<Iterator> begin_;
+  mutable std::atomic<Iterator> end_;
+  mutable std::atomic<Const_iterator> cbegin_;
+  mutable std::atomic<Const_iterator> cend_;
+  mutable std::atomic<Index> size_{0};
 };
 
 } // namespace container
