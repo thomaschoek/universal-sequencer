@@ -1,6 +1,7 @@
 #ifndef MICRO_COMPOSER_ATOMIC_DEQUE_H
 #define MICRO_COMPOSER_ATOMIC_DEQUE_H
 
+#include <atomic>
 #include <deque>
 #include <functional>
 #include <initializer_list>
@@ -68,7 +69,15 @@ public:
   const Base_deque& data() const noexcept;
 
 private:
+  void update_dimensions();
   mutable std::mutex mutex_;
+
+  std::atomic<Index> size_{0};
+  std::atomic<typename Base_deque::iterator> begin_{Base_deque::begin()};
+  std::atomic<typename Base_deque::iterator> end_{Base_deque::end()};
+  std::atomic<typename Base_deque::const_iterator> cbegin_{
+      Base_deque::cbegin()};
+  std::atomic<typename Base_deque::const_iterator> cend_{Base_deque::cend()};
 };
 
 } // namespace container
