@@ -30,15 +30,14 @@ public:
   Sequencer(Sequencer&&) noexcept;
 
   // Thread-safe transport control
-  void start(const Time_point start_time = Clock::now() + min_duration_,
+  void start(const Time_point = Clock::now() + min_duration_,
              const bool repeat = false);
-  void pause(const Time_point pause_time = Clock::now() + min_duration_);
-  void reset(const Time_point reset_time = Clock::now() + min_duration_,
-             const Size_type reset_pos = 0);
+  void pause(const Time_point = Clock::now() + min_duration_);
+  void stop(const Time_point = Clock::now(), const Size_type stop_pos = 0);
   bool is_scheduling() const;
 
   // Get the next scheduled event from the output queue
-  T_event&& get() noexcept;
+  T_event&& get_current() noexcept;
 
   // Get the time of the next scheduled event
   Time_point t_next() const;
@@ -48,7 +47,8 @@ public:
   std::vector<T_event> data() const noexcept;
   bool empty();
   Size_type size();
-  void set_next(Size_type = 0);
+  void set_pos(Size_type = 0);
+  Size_type get_pos() const noexcept;
   void assign(Size_type, const T_event&);
   void push_back(const T_event&);
   void pop_back();
@@ -59,16 +59,14 @@ public:
   void clear() noexcept;
 
 protected:
-  static constexpr const Duration min_duration_{std::chrono::milliseconds(10)};
-  static constexpr const Duration busy_wait_duration_{
-      std::chrono::milliseconds(5)};
+  static constexpr const Duration min_duration_{std::chrono::milliseconds{10}};
+  static constexpr const Duration operation_timeout_{std::chrono::seconds{30}};
+  static constexpr const Duration spin_duration_{std::chrono::milliseconds{5}};
 
   // Wait until outside of window where scheduler is loading events_[current_]
-  void await_scheduler_read() const noexcept;
-  void await_current_is_not(const Size_type) const noexcept;
+  Time_point await_scheduler() const noexcept;
 
-  std::scoped_lock<std::mutex> lock_transport() const;
-  std::scoped_lock<std::mutex> lock_events() const;
+  std::scoped_lock<std::mutex> lock_events(Time_point&) const;
 
 private:
   Time_point once(const std::stop_token,
@@ -84,7 +82,6 @@ private:
   Container events_;
 
   std::jthread scheduler_;
-  mutable std::atomic_flag scheduler_has_access_{false};
   std::atomic<Size_type> current_{0};
   Output_queue output_;
   std::atomic<Time_point> t_next_;
