@@ -71,14 +71,17 @@ public:
   void assign(const std::vector<T_event>&);
   void clear() noexcept;
 
-  // Wait until outside of window where scheduler is loading events_[current_]
-  void await_scheduler_access() const noexcept;
-  void await_scheduler_access(const Size_type) const noexcept;
-
 protected:
   static constexpr const Duration min_duration_{std::chrono::milliseconds(10)};
   static constexpr const Duration busy_wait_duration_{
       std::chrono::milliseconds(5)};
+
+  // Wait until outside of window where scheduler is loading events_[current_]
+  void await_scheduler_read() const noexcept;
+  void await_current_is_not(const Size_type) const noexcept;
+
+  std::scoped_lock<std::mutex> lock_transport() const;
+  std::scoped_lock<std::mutex> lock_events() const;
 
 private:
   Time_point once(const std::stop_token,
@@ -89,11 +92,12 @@ private:
               const Size_type initial_index = 0);
 
   mutable std::mutex transport_mutex_;
+  mutable std::mutex data_mutex_;
 
   Container events_;
 
   std::jthread scheduler_;
-  mutable std::atomic_flag is_scheduler_reading_{false};
+  mutable std::atomic_flag scheduler_has_access_{false};
   std::atomic<Size_type> current_{0};
   Output_queue output_;
   std::atomic<Time_point> t_next_;

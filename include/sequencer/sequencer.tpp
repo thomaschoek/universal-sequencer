@@ -98,23 +98,24 @@ Sequencer<T_event>::Time_point Sequencer<T_event>::t_next() const {
 
 template <Has_duration T_event>
 inline std::vector<T_event> Sequencer<T_event>::data() const noexcept {
+  std::scoped_lock lck{lock_events()};
   return events_.data();
 }
 
 template <Has_duration T_event> inline bool Sequencer<T_event>::empty() {
-  await_scheduler_access();
-  return events_.empty();
+  std::scoped_lock lck{lock_events()};
+  return events_.size() == 0;
 }
 
 template <Has_duration T_event>
 inline Sequencer<T_event>::Size_type Sequencer<T_event>::size() {
-  await_scheduler_access();
+  std::scoped_lock lck{lock_events()};
   return events_.size();
 }
 
 template <Has_duration T_event>
 void Sequencer<T_event>::set_next(Size_type pos) {
-  await_scheduler_access();
+  std::scoped_lock lck{lock_events()};
   events_.set_next(pos);
 }
 
@@ -128,7 +129,7 @@ void Sequencer<T_event>::assign(Size_type n, const T_event& event) {
                 .count()) +
         " ms");
   }
-  await_scheduler_access(n);
+  std::scoped_lock lck{lock_events()};
   events_.assign(n, event);
 }
 template <Has_duration T_event>
@@ -141,11 +142,12 @@ void Sequencer<T_event>::push_back(const T_event& event) {
                 .count()) +
         " ms");
   }
+  std::scoped_lock lck{lock_events()};
   events_.push_back(event);
 }
 
 template <Has_duration T_event> void Sequencer<T_event>::pop_back() {
-  await_scheduler_access();
+  std::scoped_lock lck{lock_events()};
   events_.pop_back();
 }
 
@@ -159,13 +161,31 @@ void Sequencer<T_event>::insert(Size_type pos, const T_event& event) {
                 .count()) +
         " ms");
   }
+  if (pos > events_.size()) {
+    throw std::out_of_range("Index out of range!");
+  }
+
   Size_type current{0};
-  while (is_scheduling() &&
-         (current = current_.load(std::memory_order_acquire) == pos)) {
+  while (is_scheduling()) {
+    current = current_.load(std::memory_order_acquire);
+    if (current < pos) {
+      break;
+    } else if (current > pos + 1) {
+      break;
+    }
     std::this_thread::yield();
   }
+
+  std::scoped_lock lck{lock_events()};
   events_.insert(pos, event);
+
   if (current > pos) {
+#ifndef NDEBUG
+    if (is_scheduling()) {
+      assert(current > pos + 1 && "Expected current to be greater than pos + 1 "
+                                  "during on-the-fly insert.");
+    }
+#endif
     if (current < events_.size() - 1) {
       current_.fetch_add(1, std::memory_order_acq_rel);
     } else {
@@ -174,6 +194,9 @@ void Sequencer<T_event>::insert(Size_type pos, const T_event& event) {
   }
 }
 template <Has_duration T_event> void Sequencer<T_event>::erase(Size_type idx) {
+  if (idx >= events_.size()) {
+    throw std::out_of_range("Index out of range!");
+  }
   Size_type current{0};
   while (is_scheduling()) {
     current = current_.load(std::memory_order_acquire);
@@ -182,29 +205,54 @@ template <Has_duration T_event> void Sequencer<T_event>::erase(Size_type idx) {
     }
     std::this_thread::yield();
   }
-  await_scheduler_access();
+  std::scoped_lock lck{lock_events()};
   events_.erase(idx);
   if (current > idx) {
+    // unsigned Size_type idx >= 0; so current > idx implies current > 0
     current_.fetch_sub(1, std::memory_order_acq_rel);
   }
 }
 template <Has_duration T_event>
 void Sequencer<T_event>::assign(Data_init_list events) {
+  std::scoped_lock lck{lock_events()};
   events_.assign(events);
 }
 template <Has_duration T_event>
 void Sequencer<T_event>::assign(const std::vector<T_event>& events) {
+  std::scoped_lock lck{lock_events()};
   events_.assign(events);
 }
 
 template <Has_duration T_event> void Sequencer<T_event>::clear() noexcept {
+  std::scoped_lock lck{lock_events()};
   reset();
   events_.clear();
 }
 
+// PROTECTED
+
+template <Has_duration T_event>
+void Sequencer<T_event>::await_scheduler_read() const noexcept {
+  while (is_scheduling() &&
+         scheduler_has_access_.test_and_set(std::memory_order_acquire))
+    std::this_thread::yield();
+  scheduler_has_access_.clear(std::memory_order_release);
+}
+
+template <Has_duration T_event>
+std::scoped_lock<std::mutex> Sequencer<T_event>::lock_transport() const {
+  await_scheduler_read();
+  return std::scoped_lock<std::mutex>(transport_mutex_);
+}
+
+template <Has_duration T_event>
+std::scoped_lock<std::mutex> Sequencer<T_event>::lock_events() const {
+  await_scheduler_read();
+  return std::scoped_lock<std::mutex>(data_mutex_);
+}
+
 // PRIVATE
-//
-//
+
 template <Has_duration T_event>
 Sequencer<T_event>::Time_point
 Sequencer<T_event>::once(const std::stop_token st,
@@ -222,7 +270,7 @@ Sequencer<T_event>::once(const std::stop_token st,
         " ms in the future!");
   }
 
-  Size_type events_size;
+  Size_type events_sze;
   Size_type event_idx = initial_index;
   Time_point next_event_time = initial_time;
   t_next_.store(initial_time, std::memory_order_release);
@@ -231,15 +279,15 @@ Sequencer<T_event>::once(const std::stop_token st,
   do {
     // Inform concurrent threads which event we are about to copy
     event_idx = current_.load(std::memory_order_acquire);
-    // Load events size with memory order acquire
-    events_size = events_.size();
-    if (events_size == 0) {
+    // Load size of events_ with memory order acquire
+    events_sze = events_.size();
+    if (events_sze == 0) {
       break;
-    } else if (event_idx >= events_size) {
+    } else if (event_idx >= events_sze) {
       event_idx = 0;
     }
 
-    is_scheduler_reading_.test_and_set(std::memory_order_release);
+    scheduler_has_access_.test_and_set(std::memory_order_release);
 
     // As other threads may not write to
     // events_[current_.load(memory_order_acquire)], nor modify the events_
@@ -247,9 +295,9 @@ Sequencer<T_event>::once(const std::stop_token st,
     // same, we can now safely copy the shared event into thread local memory
     const T_event evt = events_[event_idx];
 
-    is_scheduler_reading_.clear(std::memory_order_release);
-
     current_.store(event_idx + 1, std::memory_order_release);
+
+    scheduler_has_access_.clear(std::memory_order_release);
 
     // Set scheduled time on event for output queue consumers
     evt.scheduled_time = next_event_time;
@@ -301,23 +349,6 @@ void Sequencer<T_event>::repeat(const std::stop_token st,
   do {
     t_next = once(st, t_next, current);
   } while (!st.stop_requested() && (current = 0) < events_.size());
-}
-
-template <Has_duration T_event>
-void Sequencer<T_event>::await_scheduler_access() const noexcept {
-  while (is_scheduling() &&
-         is_scheduler_reading_.test_and_set(std::memory_order_acquire))
-    std::this_thread::yield();
-  is_scheduler_reading_.clear(std::memory_order_release);
-}
-
-template <Has_duration T_event>
-void Sequencer<T_event>::await_scheduler_access(
-    const Size_type idx) const noexcept {
-  while (is_scheduling() && current_.load(std::memory_order_acquire) == idx &&
-         is_scheduler_reading_.test_and_set(std::memory_order_acquire))
-    std::this_thread::yield();
-  is_scheduler_reading_.clear();
 }
 
 } // namespace sequencer
