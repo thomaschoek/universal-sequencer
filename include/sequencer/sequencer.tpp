@@ -148,7 +148,7 @@ template <Has_duration T_event> void Sequencer<T_event>::pop_back() {
 }
 
 template <Has_duration T_event>
-void Sequencer<T_event>::insert(size_t pos, const T_event& event) {
+void Sequencer<T_event>::insert(Size_type pos, const T_event& event) {
   if (static_cast<Duration>(event) < min_duration_) {
     throw std::invalid_argument(
         "Durations must be at least " +
@@ -157,10 +157,33 @@ void Sequencer<T_event>::insert(size_t pos, const T_event& event) {
                 .count()) +
         " ms");
   }
+  Size_type current{0};
+  while (is_scheduling() &&
+         (current = current_.load(std::memory_order_acquire) == pos)) {
+    std::this_thread::yield();
+  }
   events_.insert(pos, event);
+  if (current > pos) {
+    if (current < events_.size() - 1) {
+      current_.fetch_add(1, std::memory_order_acq_rel);
+    } else {
+      current_.store(0, std::memory_order_release);
+    }
+  }
 }
-template <Has_duration T_event> void Sequencer<T_event>::erase(size_t pos) {
-  events_.erase(pos);
+template <Has_duration T_event> void Sequencer<T_event>::erase(Size_type idx) {
+  Size_type current{0};
+  while (is_scheduling()) {
+    current = current_.load(std::memory_order_acquire);
+    if (current < idx - 1 || current > idx) {
+      break;
+    }
+    std::this_thread::yield();
+  }
+  events_.erase(idx);
+  if (current > idx) {
+    current_.fetch_sub(1, std::memory_order_acq_rel);
+  }
 }
 template <Has_duration T_event>
 void Sequencer<T_event>::assign(Data_init_list events) {
@@ -196,18 +219,30 @@ Sequencer<T_event>::once(const std::stop_token st,
         " ms in the future!");
   }
 
+  Size_type events_size;
   Size_type event_idx = initial_index;
   Time_point next_event_time = initial_time;
   t_next_.store(initial_time, std::memory_order_release);
+  current_.store(initial_index, std::memory_order_release);
 
   do {
     // Inform concurrent threads which event we are about to copy
-    current_.store(event_idx, std::memory_order_release);
+    event_idx = current_.load(std::memory_order_acquire);
+    // Load events size with memory order acquire
+    events_size = events_.size();
+    if (events_size == 0) {
+      break;
+    } else if (event_idx >= events_size) {
+      event_idx = 0;
+    }
+
     // As other threads may not write to
     // events_[current_.load(memory_order_acquire)], nor modify the events_
     // container as a whole without first safeguarding the integrity of the
     // same, we can now safely copy the shared event into thread local memory
-    const T_event evt = events_[event_idx++];
+    const T_event evt = events_[event_idx];
+
+    current_.store(event_idx + 1, std::memory_order_release);
 
     // Set scheduled time on event for output queue consumers
     evt.scheduled_time = next_event_time;
@@ -233,7 +268,7 @@ Sequencer<T_event>::once(const std::stop_token st,
     // duration ends
     next_event_time += evt_dur;
     t_next_.store(next_event_time, std::memory_order_release);
-  } while (!st.stop_requested() && event_idx < events_.size());
+  } while (!st.stop_requested());
 
   return next_event_time;
 }
@@ -275,6 +310,12 @@ inline void Sequencer<T_event>::await_scheduler_idle() {
     // during that time window. Use this function to ensure that any operation
     // that could contend with the runner thread will execute while the runner
     // thread is sleeping
+    std::this_thread::yield();
+}
+
+template <Has_duration T_event>
+void Sequencer<T_event>::dodge_scheduler(const Size_type idx) const noexcept {
+  while (is_scheduling() && current_.load(std::memory_order_acquire) == idx)
     std::this_thread::yield();
 }
 

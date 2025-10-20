@@ -61,15 +61,18 @@ public:
   std::vector<T_event> data() const noexcept;
   bool empty();
   size_t size();
-  void set_next(size_t = 0);
+  void set_next(Size_type = 0);
   void assign(size_t, const T_event&);
   void push_back(const T_event&);
   void pop_back();
-  void insert(size_t, const T_event&);
-  void erase(size_t);
+  void insert(Size_type, const T_event&);
+  void erase(Size_type);
   void assign(Data_init_list);
   void assign(const std::vector<T_event>&);
   void clear() noexcept;
+
+  // Wait until outside of window where scheduler is loading events_[current_]
+  void dodge_scheduler(const Size_type) const noexcept;
 
 protected:
   static constexpr const Duration min_duration_{std::chrono::milliseconds(10)};
