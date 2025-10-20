@@ -8,9 +8,8 @@ namespace Micro_composer {
 
 namespace controller {
 
-template <sequencer::Has_duration T_event>
-class Poly_sequencer_controller
-    : public sequencer::Poly_sequencer<T_event> {
+template <sequencer::Sequencable T_event>
+class Poly_sequencer_controller : public sequencer::Poly_sequencer<T_event> {
 public:
   using Base_sequencer = sequencer::Poly_sequencer<T_event>;
   using Sequencer_t = typename Base_sequencer::Sequencer_t;

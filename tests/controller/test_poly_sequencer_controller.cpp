@@ -19,7 +19,7 @@ struct Controller_test_event {
 };
 
 // Verify Controller_test_event satisfies Has_duration concept
-static_assert(Has_duration<Controller_test_event>,
+static_assert(Sequencable<Controller_test_event>,
               "Controller_test_event does not satisfy Has_duration concept");
 
 TEST_CASE("Poly_sequencer_controller selection management",

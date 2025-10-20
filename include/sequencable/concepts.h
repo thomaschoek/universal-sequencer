@@ -8,17 +8,19 @@ namespace Micro_composer {
 
 namespace sequencable {
 
+using Clock = std::chrono::steady_clock;
+using Time_point = Clock::time_point;
+using Duration = Clock::duration;
+
 template <typename T>
-concept Sequencable =
-    requires(T t) {
-      {
-        t.duration, t.offset
-      } -> std::convertible_to<std::chrono::duration<double>>;
-      {
-        t.duration, t.offset
-      } -> std::assignable_from<std::chrono::duration<double>>;
-    } && std::default_initializable<T> && std::movable<T> &&
-    std::destructible<T> && std::copyable<T>;
+concept Sequencable = requires(T t) {
+  { t.scheduled_time } -> std::convertible_to<Time_point>;
+  { t.scheduled_time } -> std::assignable_from<Time_point>;
+  { t.duration } -> std::convertible_to<Duration>;
+  { t.duration } -> std::assignable_from<Duration>;
+  requires std::default_initializable<T> && std::movable<T> &&
+               std::destructible<T> && std::copyable<T>;
+};
 
 template <typename T>
 concept Sequencable_parametrized_updatable = Sequencable<T> && requires(T t) {
@@ -31,9 +33,8 @@ concept Vector_sequencable = Sequencable<T> && requires(T t) {
 };
 
 template <typename T, typename... Args>
-concept Sequencable_updatable = Sequencable<T> && requires(T t, Args... args) {
-  t.update(args...);
-};
+concept Sequencable_updatable =
+    Sequencable<T> && requires(T t, Args... args) { t.update(args...); };
 
 } // namespace sequencable
 

@@ -20,7 +20,7 @@ struct Test_event {
 };
 
 // Verify Test_event satisfies Has_duration concept
-static_assert(Has_duration<Test_event>,
+static_assert(Sequencable<Test_event>,
               "Test_event does not satisfy Has_duration concept");
 
 TEST_CASE("Sequencer construction", "[sequencer]") {
@@ -32,8 +32,8 @@ TEST_CASE("Sequencer construction", "[sequencer]") {
 
   SECTION("Initializer list constructor") {
     Sequencer<Test_event> seq({Test_event(std::chrono::milliseconds(100)),
-                                Test_event(std::chrono::milliseconds(200)),
-                                Test_event(std::chrono::milliseconds(150))});
+                               Test_event(std::chrono::milliseconds(200)),
+                               Test_event(std::chrono::milliseconds(150))});
     REQUIRE_FALSE(seq.empty());
     REQUIRE(seq.size() == 3);
   }
@@ -50,9 +50,8 @@ TEST_CASE("Sequencer data operations", "[sequencer]") {
   }
 
   SECTION("push_back rejects events with duration <= min_duration") {
-    REQUIRE_THROWS_AS(
-        seq.push_back(Test_event(std::chrono::milliseconds(5))),
-        std::invalid_argument);
+    REQUIRE_THROWS_AS(seq.push_back(Test_event(std::chrono::milliseconds(5))),
+                      std::invalid_argument);
   }
 
   SECTION("pop_back removes events") {
@@ -107,8 +106,8 @@ TEST_CASE("Sequencer data operations", "[sequencer]") {
 
 TEST_CASE("Sequencer transport control", "[sequencer]") {
   Sequencer<Test_event> seq({Test_event(std::chrono::milliseconds(50)),
-                              Test_event(std::chrono::milliseconds(50)),
-                              Test_event(std::chrono::milliseconds(50))});
+                             Test_event(std::chrono::milliseconds(50)),
+                             Test_event(std::chrono::milliseconds(50))});
 
   SECTION("Sequencer starts in stopped state") {
     REQUIRE_FALSE(seq.is_scheduling());
@@ -171,7 +170,7 @@ TEST_CASE("Sequencer event consumption", "[.][sequencer][timing]") {
     REQUIRE(true);
   }
 }
-#endif  // Disabled timing tests
+#endif // Disabled timing tests
 
 #if 0  // Disabled due to timing synchronization issues
 // TODO: Fix timing synchronization in repeat mode
@@ -207,12 +206,12 @@ TEST_CASE("Sequencer repeat mode", "[.][sequencer][timing]") {
     REQUIRE(received_count.load() >= 2);
   }
 }
-#endif  // Disabled timing tests
+#endif // Disabled timing tests
 
 TEST_CASE("Sequencer position control", "[sequencer]") {
   Sequencer<Test_event> seq({Test_event(std::chrono::milliseconds(50)),
-                              Test_event(std::chrono::milliseconds(50)),
-                              Test_event(std::chrono::milliseconds(50))});
+                             Test_event(std::chrono::milliseconds(50)),
+                             Test_event(std::chrono::milliseconds(50))});
 
   SECTION("set_next changes starting position") {
     seq.set_next(1);

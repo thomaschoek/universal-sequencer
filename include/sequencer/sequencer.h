@@ -3,37 +3,26 @@
 
 #include <atomic>
 #include <chrono>
-#include <concepts>
-#include <functional>
 #include <initializer_list>
 #include <mutex>
+#include <queue>
 #include <thread>
 
-#include "container/atomic_deque.h"
+#include "sequencable/concepts.h"
 
 namespace Micro_composer {
 
 namespace sequencer {
 
-template <typename T>
-concept Has_duration = requires {
-  {
-    T::scheduled_time
-  } -> std::convertible_to<std::chrono::steady_clock::time_point>;
-  requires std::convertible_to<T, std::chrono::steady_clock::duration>;
-};
-
-template <Has_duration T_event> class Sequencer {
+template <sequencable::Sequencable T_event> class Sequencer {
 public:
   using Clock = std::chrono::steady_clock;
   using Time_point = Clock::time_point;
   using Duration = Clock::duration;
   using Container = std::vector<T_event>;
-  using Size_type = Container::Size_type;
-  using Output_queue = container::Atomic_deque<T_event>;
-  using Const_iterator = Container::Const_iterator;
+  using Size_type = Container::size_type;
+  using Output_queue = std::queue<T_event>;
   using Data_init_list = std::initializer_list<T_event>;
-  using Event_handler = std::function<void(T_event&&)>;
 
   explicit Sequencer(Data_init_list = {});
   explicit Sequencer(const std::vector<T_event>&);
@@ -45,10 +34,10 @@ public:
   const Output_queue& output() const noexcept;
 
   // Thread-safe transport control
-  void start(const Time_point start_time = Clock::now(),
+  void start(const Time_point start_time = Clock::now() + min_duration_,
              const bool repeat = false);
-  void pause(const Time_point pause_time = Clock::now());
-  void reset(const Time_point reset_time = Clock::now(),
+  void pause(const Time_point pause_time = Clock::now() + min_duration_);
+  void reset(const Time_point reset_time = Clock::now() + min_duration_,
              const Size_type reset_pos = 0);
   bool is_scheduling() const;
 

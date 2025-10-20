@@ -47,5 +47,12 @@ int main(int argc, char** argv) {
     synths.push_back(std::make_unique<Synthesizer>(*synth_outputs.back()));
   }
 
-  auto sequencer = Sequencer<Oscillation_event>();
+  auto sequencer = Sequencer<Oscillation_event>(sequences[0]);
+  sequencer.start();
+  std::this_thread::sleep_for(std::chrono::seconds(10));
+  sequencer.pause();
+  std::this_thread::sleep_for(std::chrono::seconds(2));
+  sequencer.start();
+  std::this_thread::sleep_for(std::chrono::seconds(5));
+  sequencer.reset();
 }

@@ -8,8 +8,7 @@ namespace Micro_composer {
 namespace sequencable {
 
 struct Oscillation_event : public Event {
-  using Event_offset_t = decltype(Event::offset);
-  using Event_duration_t = decltype(Event::duration);
+  Duration offset;
   double frequency{440.0}; // Frequency in Hz
   double amplitude{0.5};   // Amplitude (0.0 to 1.0)
   double phase{0.0};       // Phase in radians
@@ -21,8 +20,9 @@ struct Oscillation_event : public Event {
       : Event(), frequency(freq), amplitude(amp), phase(ph) {}
 
   explicit Oscillation_event(double freq, double amp, double ph,
-                             Event_offset_t offset, Event_duration_t duration)
-      : Event{offset, duration}, frequency(freq), amplitude(amp), phase(ph) {}
+                             Duration offset, Duration duration)
+      : Event{duration}, offset(offset), frequency(freq), amplitude(amp),
+        phase(ph) {}
 
   void update(double freq = 440.0, double amp = 0.5, double ph = 0.0) {
     frequency = freq;

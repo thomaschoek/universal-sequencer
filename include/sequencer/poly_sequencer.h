@@ -10,7 +10,7 @@ namespace Micro_composer {
 
 namespace sequencer {
 
-template <Has_duration T_event>
+template <Sequencable T_event>
 class Poly_sequencer : public container::Atomic_vector<Sequencer<T_event>> {
 public:
   using Sequencer_t = Sequencer<T_event>;
