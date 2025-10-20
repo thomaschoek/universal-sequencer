@@ -12,24 +12,27 @@ template <Has_duration T_event>
 Sequencer<T_event>::Sequencer(Data_init_list data) : events_(data) {}
 
 template <Has_duration T_event>
-Sequencer<T_event>::Sequencer(const std::vector<T_event>& data) : events_(data) {}
+Sequencer<T_event>::Sequencer(const std::vector<T_event>& data)
+    : events_(data) {}
 
 template <Has_duration T_event>
-Sequencer<T_event>::Sequencer(std::vector<T_event>&& data) : events_(std::move(data)) {}
+Sequencer<T_event>::Sequencer(std::vector<T_event>&& data)
+    : events_(std::move(data)) {}
 
 template <Has_duration T_event>
 Sequencer<T_event>::Sequencer(Sequencer&& other) noexcept
-  : events_(other.events_.data()),
-    buffer_(std::move(other.buffer_)) {
+    : events_(other.events_.data()) {
   // Stop the other sequencer if it's running
   if (other.is_scheduling()) {
     other.pause(Clock::now());
   }
 
   // Copy atomic values (can't be moved)
-  t_next_.store(other.t_next_.load(std::memory_order_acquire), std::memory_order_release);
+  t_next_.store(other.t_next_.load(std::memory_order_acquire),
+                std::memory_order_release);
 
-  // Note: scheduler_ and transport_mutex_ are default-initialized (stopped/unlocked)
+  // Note: scheduler_ and transport_mutex_ are default-initialized
+  // (stopped/unlocked)
 }
 
 // Transport
@@ -83,26 +86,7 @@ inline bool Sequencer<T_event>::is_scheduling() const {
   return scheduler_.joinable();
 }
 
-// Wait for events to be scheduled by the sequencer and execute handler as they
-// arrive
-template <Has_duration T_event>
-void Sequencer<T_event>::listen(Event_handler handler) {
-  while (is_scheduling()) {
-    consume();
-  }
-}
-
-// Synchronize with scheduler thread and consume the scheduled event buffer
-template <Has_duration T_event> inline T_event&& Sequencer<T_event>::consume() {
-  const Time_point t_next = t_next_.load(std::memory_order_acquire);
-  std::this_thread::sleep_until(t_next - busy_wait_);
-  while (Clock::now() < t_next) {
-    ;
-  }
-  handler(std::move(buffer_));
-}
-
-// Get the time of the next scheduled tick
+// Get the time of the next scheduled event
 
 template <Has_duration T_event>
 Sequencer<T_event>::Time_point Sequencer<T_event>::t_next() const {
@@ -134,8 +118,12 @@ template <Has_duration T_event> void Sequencer<T_event>::set_next(size_t pos) {
 template <Has_duration T_event>
 void Sequencer<T_event>::assign(size_t n, const T_event& event) {
   if (static_cast<Duration>(event) < min_duration_) {
-    throw std::invalid_argument("Durations must be at least " +
-                                std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(min_duration_).count()) + " ms");
+    throw std::invalid_argument(
+        "Durations must be at least " +
+        std::to_string(
+            std::chrono::duration_cast<std::chrono::milliseconds>(min_duration_)
+                .count()) +
+        " ms");
   }
   await_scheduler_idle();
   events_.assign(n, event);
@@ -143,8 +131,12 @@ void Sequencer<T_event>::assign(size_t n, const T_event& event) {
 template <Has_duration T_event>
 void Sequencer<T_event>::push_back(const T_event& event) {
   if (static_cast<Duration>(event) < min_duration_) {
-    throw std::invalid_argument("Durations must be at least " +
-                                std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(min_duration_).count()) + " ms");
+    throw std::invalid_argument(
+        "Durations must be at least " +
+        std::to_string(
+            std::chrono::duration_cast<std::chrono::milliseconds>(min_duration_)
+                .count()) +
+        " ms");
   }
   events_.push_back(event);
 }
@@ -157,8 +149,12 @@ template <Has_duration T_event> void Sequencer<T_event>::pop_back() {
 template <Has_duration T_event>
 void Sequencer<T_event>::insert(size_t pos, const T_event& event) {
   if (static_cast<Duration>(event) < min_duration_) {
-    throw std::invalid_argument("Durations must be at least " +
-                                std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(min_duration_).count()) + " ms");
+    throw std::invalid_argument(
+        "Durations must be at least " +
+        std::to_string(
+            std::chrono::duration_cast<std::chrono::milliseconds>(min_duration_)
+                .count()) +
+        " ms");
   }
   events_.insert(pos, event);
 }
@@ -183,61 +179,66 @@ template <Has_duration T_event> void Sequencer<T_event>::clear() noexcept {
 //
 //
 template <Has_duration T_event>
-inline void Sequencer<T_event>::schedule(const std::stop_token st,
-                                         const Time_point t_next,
-                                         const T_event& event) {
-  // Inform other threads of new time interval start with memory order release
-  t_next_.store(t_next, std::memory_order_release);
-
-  buffer_ = event;
-
-  // Wait until approximate time
-  std::this_thread::sleep_until(t_next);
-}
-
-template <Has_duration T_event>
-void Sequencer<T_event>::once(const std::stop_token st,
-                              const Time_point initial_tick,
-                              const size_t initial_i) {
-  if (events_.empty()) {
-    return;
+Sequencer<T_event>::Time_point
+Sequencer<T_event>::once(const std::stop_token st,
+                         const Time_point initial_time,
+                         const Size_type initial_index) {
+  if (initial_index >= events_.size()) {
+    return initial_time;
   }
-  if (initial_tick < Clock::now()) {
-    throw std::invalid_argument("Initial tick cannot be in the past!");
+  if (initial_time <= Clock::now() + min_duration_ + busy_wait_) {
+    throw std::invalid_argument(
+        "For synchronization purposes, initial tick must be at least " +
+        std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
+                           min_duration_ + busy_wait_)
+                           .count()) +
+        " ms in the future!");
   }
 
-  events_.set_next(initial_i);
-  Time_point t_next = initial_tick;
-  Duration event_dur;
-  for (size_t i = 0; i < events_.size() && !st.stop_requested(); ++i) {
-    const T_event& evt = events_.at(i);
-    event_dur = static_cast<Duration>(evt);
-    schedule(st, t_next, T_event(evt));
-    t_next += event_dur;
-  }
+  Size_type evt_idx = initial_index;
+  Time_point evt_time = initial_time;
+  t_next_.store(evt_time, std::memory_order_release);
+
+  do {
+    current_.store(evt_idx, std::memory_order_release);
+    const T_event evt = events_[evt_idx++];
+    const Duration evt_dur = static_cast<Duration>(evt);
+    std::this_thread::sleep_until(evt_time - busy_wait_);
+    if (st.stop_requested()) {
+      return evt_time;
+    }
+    while (Clock::now() < evt_time) {
+      ;
+    }
+    output_.push(evt);
+    evt_time += evt_dur;
+    t_next_.store(evt_time, std::memory_order_release);
+  } while (!st.stop_requested() && evt_idx < events_.size());
+
+  return evt_time;
 }
 
 template <Has_duration T_event>
 void Sequencer<T_event>::repeat(const std::stop_token st,
-                                const Time_point initial_tick,
-                                const size_t initial_i) {
-  if (events_.empty()) {
+                                const Time_point initial_time,
+                                const Size_type initial_index) {
+  if (initial_index >= events_.size()) {
     return;
   }
-  if (initial_tick < Clock::now()) {
-    throw std::invalid_argument("Initial tick cannot be in the past!");
+  if (initial_time <= Clock::now() + min_duration_ + busy_wait_) {
+    throw std::invalid_argument(
+        "For synchronization purposes, initial tick must be at least " +
+        std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
+                           min_duration_ + busy_wait_)
+                           .count()) +
+        " ms in the future!");
   }
 
-  events_.set_next(initial_i);
-  Time_point t_next = initial_tick;
-  T_event event;
-  Duration event_dur;
-  while (!st.stop_requested() && !events_.empty()) {
-    event = events_.next();
-    event_dur = static_cast<Duration>(event);
-    schedule(st, t_next, std::move(event));
-    t_next += event_dur;
-  }
+  Time_point t_next = initial_time;
+  Size_type current = initial_index;
+  do {
+    t_next = once(st, t_next, current);
+  } while (!st.stop_requested() && (current = 0) < events_.size());
 }
 
 template <Has_duration T_event>

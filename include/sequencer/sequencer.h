@@ -27,6 +27,7 @@ public:
   using Time_point = Clock::time_point;
   using Duration = Clock::duration;
   using Container = container::Atomic_ring_vector<T_event>;
+  using Size_type = Container::Size_type;
   using Output_queue = container::Atomic_deque<T_event>;
   using Const_iterator = Container::Const_iterator;
   using Data_init_list = std::initializer_list<T_event>;
@@ -76,14 +77,12 @@ protected:
   T_event&& consume();
 
 private:
-  void once(const std::stop_token,
-            const Time_point initial_tick = Clock::now() + min_duration_ +
-                                            busy_wait_,
-            const size_t initial_i = 0);
+  Time_point once(const std::stop_token,
+                  const Time_point initial_time = Clock::now() + min_duration_,
+                  const Size_type initial_index = 0);
   void repeat(const std::stop_token,
-              const Time_point initial_tick = Clock::now() + min_duration_ +
-                                              busy_wait_,
-              const size_t initial_i = 0);
+              const Time_point initial_time = Clock::now() + min_duration_,
+              const Size_type initial_index = 0);
 
   void await_scheduler_idle();
 
@@ -91,9 +90,9 @@ private:
 
   std::jthread scheduler_;
   Container events_;
+  std::atomic<Size_type> current_{0};
   Output_queue output_;
   std::atomic<Time_point> t_next_;
-  T_event buffer_;
 };
 
 } // namespace sequencer
