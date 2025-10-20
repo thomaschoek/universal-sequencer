@@ -77,7 +77,7 @@ void Sequencer<T_event>::pause(const Time_point stop_time) {
 
 template <Has_duration T_event>
 void Sequencer<T_event>::reset(const Time_point reset_time,
-                               const size_t reset_pos) {
+                               const Size_type reset_pos) {
   pause(reset_time);
   set_next(reset_pos);
 }
@@ -102,22 +102,24 @@ inline std::vector<T_event> Sequencer<T_event>::data() const noexcept {
 }
 
 template <Has_duration T_event> inline bool Sequencer<T_event>::empty() {
-  await_scheduler_idle();
+  await_scheduler_access();
   return events_.empty();
 }
 
-template <Has_duration T_event> inline size_t Sequencer<T_event>::size() {
-  await_scheduler_idle();
+template <Has_duration T_event>
+inline Sequencer<T_event>::Size_type Sequencer<T_event>::size() {
+  await_scheduler_access();
   return events_.size();
 }
 
-template <Has_duration T_event> void Sequencer<T_event>::set_next(size_t pos) {
-  await_scheduler_idle();
+template <Has_duration T_event>
+void Sequencer<T_event>::set_next(Size_type pos) {
+  await_scheduler_access();
   events_.set_next(pos);
 }
 
 template <Has_duration T_event>
-void Sequencer<T_event>::assign(size_t n, const T_event& event) {
+void Sequencer<T_event>::assign(Size_type n, const T_event& event) {
   if (static_cast<Duration>(event) < min_duration_) {
     throw std::invalid_argument(
         "Durations must be at least " +
@@ -126,7 +128,7 @@ void Sequencer<T_event>::assign(size_t n, const T_event& event) {
                 .count()) +
         " ms");
   }
-  await_scheduler_idle();
+  await_scheduler_access(n);
   events_.assign(n, event);
 }
 template <Has_duration T_event>
@@ -143,7 +145,7 @@ void Sequencer<T_event>::push_back(const T_event& event) {
 }
 
 template <Has_duration T_event> void Sequencer<T_event>::pop_back() {
-  await_scheduler_idle();
+  await_scheduler_access();
   events_.pop_back();
 }
 
@@ -180,6 +182,7 @@ template <Has_duration T_event> void Sequencer<T_event>::erase(Size_type idx) {
     }
     std::this_thread::yield();
   }
+  await_scheduler_access();
   events_.erase(idx);
   if (current > idx) {
     current_.fetch_sub(1, std::memory_order_acq_rel);
@@ -195,7 +198,7 @@ void Sequencer<T_event>::assign(const std::vector<T_event>& events) {
 }
 
 template <Has_duration T_event> void Sequencer<T_event>::clear() noexcept {
-  await_scheduler_idle();
+  reset();
   events_.clear();
 }
 
@@ -236,11 +239,15 @@ Sequencer<T_event>::once(const std::stop_token st,
       event_idx = 0;
     }
 
+    is_scheduler_reading_.test_and_set(std::memory_order_release);
+
     // As other threads may not write to
     // events_[current_.load(memory_order_acquire)], nor modify the events_
     // container as a whole without first safeguarding the integrity of the
     // same, we can now safely copy the shared event into thread local memory
     const T_event evt = events_[event_idx];
+
+    is_scheduler_reading_.clear(std::memory_order_release);
 
     current_.store(event_idx + 1, std::memory_order_release);
 
@@ -297,26 +304,20 @@ void Sequencer<T_event>::repeat(const std::stop_token st,
 }
 
 template <Has_duration T_event>
-inline void Sequencer<T_event>::await_scheduler_idle() {
+void Sequencer<T_event>::await_scheduler_access() const noexcept {
   while (is_scheduling() &&
-         t_next_.load(std::memory_order_acquire) < Clock::now())
-    // If t_next_ is less than now, it means we are in the (presumably very
-    // small) time window where either the callback is executing or load_t_next
-    // is being called, but t_next_ has not yet been atomically updated with the
-    // new value - otherwise it would be greater than Clock::now(). We want
-    // load_t_next to be able to acquire the time_sig_ mutex immediately during
-    // this period to prevent scheduler lag and inaccuracy.
-    // Hence, this is a mechanism to minimize contention on the time_sig_ mutex
-    // during that time window. Use this function to ensure that any operation
-    // that could contend with the runner thread will execute while the runner
-    // thread is sleeping
+         is_scheduler_reading_.test_and_set(std::memory_order_acquire))
     std::this_thread::yield();
+  is_scheduler_reading_.clear(std::memory_order_release);
 }
 
 template <Has_duration T_event>
-void Sequencer<T_event>::dodge_scheduler(const Size_type idx) const noexcept {
-  while (is_scheduling() && current_.load(std::memory_order_acquire) == idx)
+void Sequencer<T_event>::await_scheduler_access(
+    const Size_type idx) const noexcept {
+  while (is_scheduling() && current_.load(std::memory_order_acquire) == idx &&
+         is_scheduler_reading_.test_and_set(std::memory_order_acquire))
     std::this_thread::yield();
+  is_scheduler_reading_.clear();
 }
 
 } // namespace sequencer

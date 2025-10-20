@@ -50,7 +50,7 @@ public:
              const bool repeat = false);
   void pause(const Time_point pause_time = Clock::now());
   void reset(const Time_point reset_time = Clock::now(),
-             const size_t reset_pos = 0);
+             const Size_type reset_pos = 0);
   bool is_scheduling() const;
 
   // Get the time of the next scheduled event
@@ -60,9 +60,9 @@ public:
   std::vector<Duration> time_signature() const noexcept;
   std::vector<T_event> data() const noexcept;
   bool empty();
-  size_t size();
+  Size_type size();
   void set_next(Size_type = 0);
-  void assign(size_t, const T_event&);
+  void assign(Size_type, const T_event&);
   void push_back(const T_event&);
   void pop_back();
   void insert(Size_type, const T_event&);
@@ -72,7 +72,8 @@ public:
   void clear() noexcept;
 
   // Wait until outside of window where scheduler is loading events_[current_]
-  void dodge_scheduler(const Size_type) const noexcept;
+  void await_scheduler_access() const noexcept;
+  void await_scheduler_access(const Size_type) const noexcept;
 
 protected:
   static constexpr const Duration min_duration_{std::chrono::milliseconds(10)};
@@ -87,12 +88,12 @@ private:
               const Time_point initial_time = Clock::now() + min_duration_,
               const Size_type initial_index = 0);
 
-  void await_scheduler_idle();
-
   mutable std::mutex transport_mutex_;
 
-  std::jthread scheduler_;
   Container events_;
+
+  std::jthread scheduler_;
+  mutable std::atomic_flag is_scheduler_reading_{false};
   std::atomic<Size_type> current_{0};
   Output_queue output_;
   std::atomic<Time_point> t_next_;
