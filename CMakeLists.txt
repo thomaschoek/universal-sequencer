@@ -19,8 +19,15 @@ pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
 include_directories(include ${GTK3_INCLUDE_DIRS})
 
 # Add original console executable
-add_executable(MicroComposer
+add_executable(MicroComposerCLI
     src/main.cpp
+    src/synth/synth_output.cpp
+    src/scheduler/scheduler.cpp
+)
+
+# Add GUI executable
+add_executable(MicroComposer
+    src/main_gui.cpp
     src/synth/synth_output.cpp
     src/scheduler/scheduler.cpp
 )

@@ -10,7 +10,6 @@
 #include <thread>
 
 #include "container/atomic_deque.h"
-#include "container/atomic_ring_vector.h"
 
 namespace Micro_composer {
 
@@ -29,7 +28,7 @@ public:
   using Clock = std::chrono::steady_clock;
   using Time_point = Clock::time_point;
   using Duration = Clock::duration;
-  using Container = container::Atomic_ring_vector<T_event>;
+  using Container = std::vector<T_event>;
   using Size_type = Container::Size_type;
   using Output_queue = container::Atomic_deque<T_event>;
   using Const_iterator = Container::Const_iterator;
