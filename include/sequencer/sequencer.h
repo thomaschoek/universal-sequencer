@@ -9,6 +9,7 @@
 #include <mutex>
 #include <thread>
 
+#include "container/atomic_deque.h"
 #include "container/atomic_ring_vector.h"
 
 namespace Micro_composer {
@@ -26,6 +27,7 @@ public:
   using Time_point = Clock::time_point;
   using Duration = Clock::duration;
   using Container = container::Atomic_ring_vector<T_event>;
+  using Output_queue = container::Atomic_deque<T_event>;
   using Const_iterator = Container::Const_iterator;
   using Data_init_list = std::initializer_list<T_event>;
   using Event_handler = std::function<void(T_event&&)>;
@@ -36,6 +38,8 @@ public:
   Sequencer(Sequencer&&) noexcept;
 
   void schedule(const std::stop_token, const Time_point, const T_event&);
+
+  const Output_queue& output() const noexcept;
 
   // Thread-safe transport control
   void start(const Time_point start_time = Clock::now(),
@@ -87,6 +91,7 @@ private:
 
   std::jthread scheduler_;
   Container events_;
+  Output_queue output_;
   std::atomic<Time_point> t_next_;
   T_event buffer_;
 };
