@@ -5,6 +5,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 This is a C++ MIDI step sequencer application called micro-composer. The project follows modern C++ standards and best practices. It aims to take full advantage of modern C++ concurrency control features and of a machine's available CPU cores if multiple cores are available. It does not intend to implement audio output, that is the responsibility of a synth app that can receive input from the sequencer implemented in this project.
 
+## Lock-free use case
+
+My specific actual use case is to have a Sequencer producing events with near perfect timing-accuracy, while at the same time have those events, except for the one event currently
+being scheduled i.e. the event 'under playhead', to be modifiable on the fly (while the Sequencer is actively scheduling them in the `scheduler_` thread). So that's why I'm searching for
+ ways to give the `scheduler_` thread lock-free (or as close to lock-free as is safe) priority access to the Sequencer's `events_` container. If it can't be done lock-free, then at least
+ I want the on-the-fly updates to never interfere with the performance of the `scheduler_` thread, so I never want the scheduler thread to be waiting on locks held by on-the-fly update
+functions, while on the other hand I'm perfectly fine with the on-the-fly update functions having a small performance penalty because they are waiting on locks held by the scheduler
+thread or on lock-free thread-safety mechanisms used by the scheduler thread. I want my scheduler thread to be able to do 2 things without any competition from other threads: 1. read the
+ next event from `events_` so that it can get the duration and 2. push that event to the output queue `output_`.
+
 ## Build System
 - Use CMake as the primary build system
 - Standard commands:
