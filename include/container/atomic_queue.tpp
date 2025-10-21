@@ -53,6 +53,21 @@ template <typename T> void Atomic_queue<T>::pop() {
   size_.store(Base_queue::size(), std::memory_order_release);
 }
 
+template <typename T> void Atomic_queue<T>::pop(T& value) {
+  std::scoped_lock lck{lock()};
+  value = Base_queue::front();
+  Base_queue::pop();
+  size_.store(Base_queue::size(), std::memory_order_release);
+}
+
+template <typename T> T Atomic_queue<T>::pop_front() {
+  std::scoped_lock lck{lock()};
+  T value = Base_queue::front();
+  Base_queue::pop();
+  size_.store(Base_queue::size(), std::memory_order_release);
+  return value;
+}
+
 template <typename T> T Atomic_queue<T>::front() {
   std::scoped_lock lck{lock()};
   return Base_queue::front();

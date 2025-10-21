@@ -26,6 +26,8 @@ public:
   void push(T&&);
 
   void pop();
+  void pop(T&);
+  T pop_front();
 
   T front();
   T back();

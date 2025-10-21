@@ -36,13 +36,20 @@ int main(int argc, char** argv) {
   std::vector<std::vector<Oscillation_event>> sequences = {seq1, seq2};
 
   // Set up audio output - create a pool of synthesizers
-  constexpr std::size_t SYNTH_POOL_SIZE = 1;
-  RealTimeAudioOutput synth_output;
-  Synthesizer synth{synth_output};
+  constexpr std::size_t SYNTH_VOICES = 4;
+  std::vector<Synthesizer*> synths;
+  std::vector<Sequencer<Oscillation_event>::Handler> handlers;
+  for (std::size_t i = 0; i < SYNTH_VOICES; ++i) {
+    RealTimeAudioOutput synth_output;
+    synths.emplace_back(new Synthesizer{synth_output});
+    const auto idx = i;
+    handlers.emplace_back(Sequencer<Oscillation_event>::Handler{
+        [&synths, idx](const Oscillation_event& event) {
+          synths[idx]->play(event);
+        }});
+  }
 
   auto sequencer = Sequencer<Oscillation_event>(sequences[0]);
-  Sequencer<Oscillation_event>::Handler sequence_handler =
-      [&synth](const Oscillation_event& event) { synth.play(event); };
 
   std::cout << "[MAIN] Starting sequencer with repeat=true\n";
   auto start_time = Sequencer<Oscillation_event>::Clock::now() +
@@ -51,7 +58,7 @@ int main(int argc, char** argv) {
   sequencer.start(start_time, true);
 
   // Create a consumer thread that plays events from the sequencer
-  std::jthread subscription = sequencer.subscribe(sequence_handler);
+  std::jthread subscription = sequencer.subscribe(handlers[0]);
 
   std::cout << "[MAIN] Playing for 10 seconds...\n";
   std::this_thread::sleep_for(std::chrono::seconds(10));
@@ -59,7 +66,8 @@ int main(int argc, char** argv) {
   std::cout << "[MAIN] Pausing sequencer\n";
   sequencer.pause();
 
-  subscription = sequencer.subscribe(sequence_handler);
+  subscription = sequencer.subscribe(handlers[0]);
+  std::jthread sub2 = sequencer.subscribe(handlers[1]);
 
   std::cout << "[MAIN] Waiting 2 seconds...\n";
   std::this_thread::sleep_for(std::chrono::seconds(2));
@@ -77,6 +85,7 @@ int main(int argc, char** argv) {
 
   std::cout << "[MAIN] Stopping player thread\n";
   subscription.request_stop();
+  sub2.request_stop();
 
   std::cout << "[MAIN] Done!\n";
 }
