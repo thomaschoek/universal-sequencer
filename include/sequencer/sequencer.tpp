@@ -48,14 +48,18 @@ void Sequencer<T_event>::start(const Time_point start_time, const bool repeat) {
     return;
   }
   std::scoped_lock lock(transport_mutex_);
-  scheduler_ =
-      std::jthread([this, start_time, repeat](std::stop_token stop_token) {
+  Size_type start_index = get_pos();
+  if (start_index >= events_.size()) {
+    start_index = 0;
+  }
+  scheduler_ = std::jthread(
+      [this, start_time, start_index, repeat](std::stop_token stop_token) {
         // Ensure synchronization with other transports: add static
         // min_duration_ and busy_wait_time_ to the actual start time
         if (repeat) {
-          this->repeat(stop_token, start_time + min_duration_);
+          this->repeat(stop_token, start_time + min_duration_, start_index);
         } else {
-          this->once(stop_token, start_time + min_duration_);
+          this->once(stop_token, start_time + min_duration_, start_index);
         }
       });
 }
@@ -147,7 +151,8 @@ void Sequencer<T_event>::set_pos(Size_type pos) {
 }
 
 template <sequencable::Sequencable T_event>
-Sequencer<T_event>::Size_type Sequencer<T_event>::get_pos() const noexcept {
+Sequencer<T_event>::Size_type inline Sequencer<T_event>::get_pos()
+    const noexcept {
   return current_.load(std::memory_order_acquire);
 }
 
