@@ -23,6 +23,12 @@ struct Test_event {
   Test_event() = default;
   explicit Test_event(Duration d, int event_id = 0)
       : duration(d), id(event_id) {}
+
+  // Comparison operators (compare event parameters, not scheduled_time)
+  bool operator==(const Test_event& other) const {
+    return id == other.id && duration == other.duration &&
+           scheduled_time == other.scheduled_time;
+  }
 };
 
 // Verify Test_event satisfies Sequencable concept
@@ -195,12 +201,12 @@ TEST_CASE("Sequencer transport control", "[sequencer]") {
 }
 
 TEST_CASE("Sequencer event retrieval", "[sequencer]") {
-  SECTION("get_current throws when not scheduling") {
+  SECTION("await_event throws when not scheduling") {
     Sequencer<Test_event> seq({Test_event(std::chrono::milliseconds(50), 1)});
-    REQUIRE_THROWS_AS(seq.get_current(), std::runtime_error);
+    REQUIRE_THROWS_AS(seq.await_event(), std::runtime_error);
   }
 
-  SECTION("get_current retrieves scheduled events in once mode") {
+  SECTION("await_event retrieves scheduled events in once mode") {
     Sequencer<Test_event> seq({Test_event(std::chrono::milliseconds(50), 1),
                                Test_event(std::chrono::milliseconds(50), 2),
                                Test_event(std::chrono::milliseconds(50), 3)});
@@ -210,15 +216,15 @@ TEST_CASE("Sequencer event retrieval", "[sequencer]") {
     seq.start(start_time, false);
 
     // Retrieve events
-    auto evt1 = seq.get_current();
+    auto evt1 = seq.await_event();
     REQUIRE(evt1.id == 1);
     REQUIRE(evt1.scheduled_time >= start_time);
 
-    auto evt2 = seq.get_current();
+    auto evt2 = seq.await_event();
     REQUIRE(evt2.id == 2);
     REQUIRE(evt2.scheduled_time >= evt1.scheduled_time + evt1.duration);
 
-    auto evt3 = seq.get_current();
+    auto evt3 = seq.await_event();
     REQUIRE(evt3.id == 3);
     REQUIRE(evt3.scheduled_time >= evt2.scheduled_time + evt2.duration);
 
@@ -226,7 +232,7 @@ TEST_CASE("Sequencer event retrieval", "[sequencer]") {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
 
-  SECTION("get_current retrieves events in repeat mode") {
+  SECTION("await_event retrieves events in repeat mode") {
     Sequencer<Test_event> seq({Test_event(std::chrono::milliseconds(40), 1),
                                Test_event(std::chrono::milliseconds(40), 2)});
 
@@ -236,7 +242,7 @@ TEST_CASE("Sequencer event retrieval", "[sequencer]") {
 
     std::vector<int> received_ids;
     for (int i = 0; i < 5; ++i) {
-      auto evt = seq.get_current();
+      auto evt = seq.await_event();
       received_ids.push_back(evt.id);
     }
 
@@ -290,7 +296,7 @@ TEST_CASE("Sequencer position control", "[sequencer]") {
     seq.set_pos(1);
     seq.start(start_time, false);
 
-    auto evt = seq.get_current();
+    auto evt = seq.await_event();
     REQUIRE(evt.id == 2); // Should start from position 1 (second event)
 
     seq.pause(Sequencer<Test_event>::Clock::now() +
@@ -387,8 +393,8 @@ TEST_CASE("Sequencer on-the-fly modifications", "[sequencer][concurrency]") {
     seq.start(start_time, true);
 
     // Get a couple of events
-    auto evt1 = seq.get_current();
-    auto evt2 = seq.get_current();
+    auto evt1 = seq.await_event();
+    auto evt2 = seq.await_event();
 
     // Modify an event that hasn't been scheduled yet
     // Insert waits until it's safe to modify
@@ -411,7 +417,7 @@ TEST_CASE("Sequencer on-the-fly modifications", "[sequencer][concurrency]") {
     seq.start(start_time, true);
 
     // Get first event
-    auto evt1 = seq.get_current();
+    auto evt1 = seq.await_event();
 
     // Erase an event that's far ahead
     // This should be safe since we're not at that position
@@ -434,7 +440,7 @@ TEST_CASE("Sequencer on-the-fly modifications", "[sequencer][concurrency]") {
     seq.start(start_time, true);
 
     // Get first event
-    auto evt1 = seq.get_current();
+    auto evt1 = seq.await_event();
 
     // Insert at end (should be safe)
     seq.push_back(Test_event(std::chrono::milliseconds(40), 99));
@@ -488,7 +494,7 @@ TEST_CASE("Sequencer timing accuracy", "[sequencer][timing]") {
         Sequencer<Test_event>::Clock::now() + std::chrono::milliseconds(100);
     seq.start(start_time, false);
 
-    auto evt1 = seq.get_current();
+    auto evt1 = seq.await_event();
     auto actual1 = Sequencer<Test_event>::Clock::now();
 
     // Check that event was scheduled reasonably close to expected time
@@ -497,7 +503,7 @@ TEST_CASE("Sequencer timing accuracy", "[sequencer][timing]") {
                      .count();
     REQUIRE(std::abs(diff1) < 20); // Within 20ms tolerance
 
-    auto evt2 = seq.get_current();
+    auto evt2 = seq.await_event();
     auto actual2 = Sequencer<Test_event>::Clock::now();
 
     auto diff2 = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -517,8 +523,8 @@ TEST_CASE("Sequencer timing accuracy", "[sequencer][timing]") {
         Sequencer<Test_event>::Clock::now() + std::chrono::milliseconds(50);
     seq.start(start_time, false);
 
-    auto evt1 = seq.get_current();
-    auto evt2 = seq.get_current();
+    auto evt1 = seq.await_event();
+    auto evt2 = seq.await_event();
 
     // Second event should be scheduled duration of first event after first
     auto expected_gap = std::chrono::milliseconds(100);
