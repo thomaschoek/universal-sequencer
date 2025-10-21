@@ -21,7 +21,7 @@ public:
   using Clock = std::chrono::steady_clock;
   using Time_point = Clock::time_point;
   using Duration = Clock::duration;
-  using Container = std::vector<T_event>;
+  using Container = std::vector<T_event*>;
   using Size_type = Container::size_type;
   using Output_queue = container::Atomic_queue<T_event>;
   using Data_init_list = std::initializer_list<T_event>;
@@ -88,7 +88,7 @@ private:
   Container events_;
   std::atomic<Size_type> current_{0};
 
-  Container output_;
+  mutable Output_queue output_;
   std::atomic<Size_type> current_output_{0};
   mutable std::mutex output_mutex_;
   std::condition_variable output_cv_;

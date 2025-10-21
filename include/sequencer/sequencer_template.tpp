@@ -108,9 +108,6 @@ const T_event& Sequencer<T_event>::await_event() {
 
 template <sequencable::Sequencable T_event>
 std::jthread Sequencer<T_event>::subscribe(const Handler& handler) const {
-  if (!is_scheduling()) {
-    throw std::runtime_error("Sequencer is not scheduling!");
-  }
   return std::jthread{[this, &handler](std::stop_token st) {
     while (!is_scheduling()) {
       std::this_thread::sleep_for(min_duration_);
@@ -133,7 +130,7 @@ std::jthread Sequencer<T_event>::subscribe(const Handler& handler) const {
           return;
         }
       }
-      buffer = output_[current_output_.load(std::memory_order_acquire)];
+      buffer = output_.pop_front();
       std::ignore = std::async([&handler, &buffer, &t_next]() {
         std::this_thread::sleep_until(t_next);
         handler(buffer);
@@ -358,7 +355,7 @@ Sequencer<T_event>::once(const std::stop_token st,
   Size_type events_size;
   Size_type event_idx = initial_index;
   Time_point accumulated_time = initial_time;
-  T_event cur_event;
+  Duration cur_duration;
 
   current_.store(initial_index, std::memory_order_release);
 
@@ -371,25 +368,14 @@ Sequencer<T_event>::once(const std::stop_token st,
       break;
     }
 
-    // Copy the event from shared data to local memory
-    cur_event = events_[event_idx];
-
-    // If the event has been updated since last scheduled, update the output
-    // cache (protected by output_mutex_ for await_event())
     {
-      std::scoped_lock output_lck{output_mutex_};
-      T_event& output_event = output_[event_idx];
-      if (output_event != cur_event) {
-        output_event = cur_event;
-      }
-      output_event.scheduled_time = accumulated_time;
-      current_output_.store(event_idx, std::memory_order_release);
+      T_event* cur_ptr = events_[event_idx];
+      cur_ptr->scheduled_time = accumulated_time;
+      cur_duration = cur_ptr->duration;
+      output_.push(std::make_unique<T_event>(new T_event{*cur_ptr}));
     }
 
     current_.store(event_idx + 1, std::memory_order_release);
-
-    // Save event duration before it may be modified by other threads
-    const Duration cur_duration = cur_event.duration;
 
     // Inform other threads until when scheduler will be idle (or at least not
     // critically engaged) Other threads will load t_next_ with
@@ -397,7 +383,7 @@ Sequencer<T_event>::once(const std::stop_token st,
     // the future
     t_next_.store(accumulated_time, std::memory_order_release);
 
-    std::this_thread::sleep_until(accumulated_time - spin_duration_);
+    std::this_thread::sleep_until(accumulated_time);
 
     while (Clock::now() < accumulated_time - (spin_duration_ * 0.5)) {
       // Check for last-moment aborts
