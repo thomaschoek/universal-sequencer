@@ -112,22 +112,34 @@ std::jthread Sequencer<T_event>::subscribe(const Handler& handler) const {
     throw std::runtime_error("Sequencer is not scheduling!");
   }
   return std::jthread{[this, &handler](std::stop_token st) {
+    while (!is_scheduling()) {
+      std::this_thread::sleep_for(min_duration_);
+      if (st.stop_requested()) {
+        return;
+      }
+    }
+
     Time_point t_next;
-    while (!st.stop_requested()) {
-      while (!is_scheduling() && !st.stop_requested()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    T_event buffer;
+    do {
+      if (st.stop_requested()) {
+        return;
       }
       while ((t_next = t_next_.load(std::memory_order_acquire)) <=
                  Clock::now() &&
-             is_scheduling() && !st.stop_requested()) {
+             is_scheduling()) {
         std::this_thread::yield();
+        if (st.stop_requested()) {
+          return;
+        }
       }
-      T_event buffer = output_[current_output_.load(std::memory_order_acquire)];
+      buffer = output_[current_output_.load(std::memory_order_acquire)];
       std::ignore = std::async([&handler, &buffer, &t_next]() {
         std::this_thread::sleep_until(t_next);
         handler(buffer);
       });
-    }
+      std::this_thread::sleep_until(t_next + (min_duration_ / 5));
+    } while (is_scheduling());
   }};
 }
 
