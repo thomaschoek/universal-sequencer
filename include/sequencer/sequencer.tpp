@@ -21,7 +21,7 @@ Sequencer<T_event>::Sequencer(std::vector<T_event>&& data)
 
 template <sequencable::Sequencable T_event>
 Sequencer<T_event>::Sequencer(Sequencer&& other) noexcept
-    : events_(other.events_.data()) {
+    : events_(std::move(other.events_)) {
   // Stop the other sequencer if it's running
   if (other.is_scheduling()) {
     other.pause(Clock::now());
@@ -29,6 +29,8 @@ Sequencer<T_event>::Sequencer(Sequencer&& other) noexcept
 
   // Copy atomic values (can't be moved)
   t_next_.store(other.t_next_.load(std::memory_order_acquire),
+                std::memory_order_release);
+  current_.store(other.current_.load(std::memory_order_acquire),
                 std::memory_order_release);
 
   // Note: scheduler_ and transport_mutex_ are default-initialized
@@ -117,7 +119,7 @@ template <sequencable::Sequencable T_event>
 inline std::vector<T_event> Sequencer<T_event>::data() const noexcept {
   Time_point timeout;
   std::scoped_lock lck{lock_events(timeout)};
-  return events_.data();
+  return events_;
 }
 
 template <sequencable::Sequencable T_event>
@@ -212,7 +214,7 @@ void Sequencer<T_event>::insert(Size_type pos, const T_event& event) {
 
   Time_point timeout;
   std::scoped_lock lck{lock_events(timeout)};
-  events_.insert(pos, event);
+  events_.insert(events_.begin() + pos, event);
 
   if (current > pos) {
 #ifndef NDEBUG
@@ -243,7 +245,7 @@ void Sequencer<T_event>::erase(Size_type idx) {
   }
   Time_point timeout;
   std::scoped_lock lck{lock_events(timeout)};
-  events_.erase(idx);
+  events_.erase(events_.begin() + idx);
   if (current > idx) {
     // unsigned Size_type idx >= 0; so current > idx implies current > 0
     current_.fetch_sub(1, std::memory_order_acq_rel);
@@ -253,13 +255,13 @@ template <sequencable::Sequencable T_event>
 void Sequencer<T_event>::assign(Data_init_list events) {
   Time_point timeout;
   std::scoped_lock lck{lock_events(timeout)};
-  events_.assign(events);
+  events_ = events;
 }
 template <sequencable::Sequencable T_event>
 void Sequencer<T_event>::assign(const std::vector<T_event>& events) {
   Time_point timeout;
   std::scoped_lock lck{lock_events(timeout)};
-  events_.assign(events);
+  events_ = events;
 }
 
 template <sequencable::Sequencable T_event>
