@@ -21,7 +21,7 @@ public:
   using Clock = std::chrono::steady_clock;
   using Time_point = Clock::time_point;
   using Duration = Clock::duration;
-  using Container = std::vector<T_event*>;
+  using Container = std::vector<std::unique_ptr<T_event>>;
   using Size_type = Container::size_type;
   using Output_queue = container::Atomic_queue<T_event>;
   using Data_init_list = std::initializer_list<T_event>;
@@ -40,7 +40,7 @@ public:
   bool is_scheduling() const;
 
   // Get the next scheduled event from the output queue
-  const std::unique_ptr<T_event> await_event();
+  T_event await_event();
 
   // Launch a thread to consume scheduled events
   std::jthread subscribe(const Handler&) const;
