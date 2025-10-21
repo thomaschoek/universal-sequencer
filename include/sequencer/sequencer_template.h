@@ -86,7 +86,7 @@ private:
 
   Container output_;
   std::atomic<Size_type> current_output_{0};
-
+  mutable std::mutex output_mutex_;
   std::condition_variable output_cv_;
 
   std::jthread scheduler_;

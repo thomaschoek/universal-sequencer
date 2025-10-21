@@ -9,19 +9,20 @@ namespace sequencer {
 // Constructors
 
 template <sequencable::Sequencable T_event>
-Sequencer<T_event>::Sequencer(Data_init_list data) : events_(data) {}
+Sequencer<T_event>::Sequencer(Data_init_list data)
+    : events_(data), output_(data) {}
 
 template <sequencable::Sequencable T_event>
 Sequencer<T_event>::Sequencer(const std::vector<T_event>& data)
-    : events_(data) {}
+    : events_(data), output_(data) {}
 
 template <sequencable::Sequencable T_event>
 Sequencer<T_event>::Sequencer(std::vector<T_event>&& data)
-    : events_(std::move(data)) {}
+    : events_(data), output_(data) {}
 
 template <sequencable::Sequencable T_event>
 Sequencer<T_event>::Sequencer(Sequencer&& other) noexcept
-    : events_(std::move(other.events_)) {
+    : events_(std::move(other.events_)), output_(std::move(other.output_)) {
   // Stop the other sequencer if it's running
   if (other.is_scheduling()) {
     other.pause(Clock::now());
@@ -32,6 +33,8 @@ Sequencer<T_event>::Sequencer(Sequencer&& other) noexcept
                 std::memory_order_release);
   current_.store(other.current_.load(std::memory_order_acquire),
                  std::memory_order_release);
+  current_output_.store(other.current_output_.load(std::memory_order_acquire),
+                        std::memory_order_release);
 
   // Note: scheduler_ and transport_mutex_ are default-initialized
   // (stopped/unlocked)
@@ -93,10 +96,12 @@ const T_event& Sequencer<T_event>::await_event() {
   if (!is_scheduling()) {
     throw std::runtime_error("Sequencer is not scheduling!");
   }
-  std::mutex m;
-  std::scoped_lock lck{m};
-  output_cv_.wait_until(
+  std::unique_lock<std::mutex> lck{output_mutex_};
+  output_cv_.wait(
       lck, [this]() { return !output_.empty() || !is_scheduling(); });
+  if (!is_scheduling() && output_.empty()) {
+    throw std::runtime_error("Sequencer has stopped scheduling!");
+  }
   return output_[current_output_.load(std::memory_order_acquire)];
 }
 
@@ -332,17 +337,18 @@ Sequencer<T_event>::once(const std::stop_token st,
     cur_event = events_[event_idx];
 
     // If the event has been updated since last scheduled, update the output
-    // cache
-    T_event& output_event = output_[event_idx];
-    if (output_event != cur_event) {
-      output_event = cur_event;
+    // cache (protected by output_mutex_ for await_event())
+    {
+      std::scoped_lock output_lck{output_mutex_};
+      T_event& output_event = output_[event_idx];
+      if (output_event != cur_event) {
+        output_event = cur_event;
+      }
+      output_event.scheduled_time = accumulated_time;
+      current_output_.store(event_idx, std::memory_order_release);
     }
 
-    current_output_.store(event_idx, std::memory_order_release);
     current_.store(event_idx + 1, std::memory_order_release);
-
-    // Set scheduled time on event for output consumers
-    cur_event.scheduled_time = accumulated_time;
 
     // Save event duration before it may be modified by other threads
     const Duration cur_duration = cur_event.duration;
@@ -353,16 +359,16 @@ Sequencer<T_event>::once(const std::stop_token st,
     // the future
     t_next_.store(accumulated_time, std::memory_order_release);
 
-    std::this_thread::sleep_until(cur_event.scheduled_time - spin_duration_);
+    std::this_thread::sleep_until(accumulated_time - spin_duration_);
 
-    while (Clock::now() < cur_event.scheduled_time - (spin_duration_ * 0.5)) {
+    while (Clock::now() < accumulated_time - (spin_duration_ * 0.5)) {
       // Check for last-moment aborts
       if (st.stop_requested()) {
         return accumulated_time;
       }
     }
 
-    while (Clock::now() < cur_event.scheduled_time) {
+    while (Clock::now() < accumulated_time) {
       // Spin until the exact scheduled time (disregarding timing inaccuracies
       // due to OS scheduler policies etc. beyond control of this program)
       ;
