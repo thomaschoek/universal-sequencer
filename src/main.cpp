@@ -60,7 +60,7 @@ int main(int argc, char** argv) {
     while (!st.stop_requested()) {
       try {
         // Get the next event from the sequencer (blocks until ready)
-        const Oscillation_event event = sequencer.get_current();
+        const Oscillation_event event = sequencer.await_event();
 
         //        std::cout << "[PLAYER] Playing frequency: " << event.frequency
         //                  << " Hz, duration: "
