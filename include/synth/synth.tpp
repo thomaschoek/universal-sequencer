@@ -17,8 +17,10 @@ template <Synthesizable T> void Synthesizer::play(const T& params) const {
 template <Synthesizable T>
 std::vector<double>::size_type
 Synthesizer::compute_n_samples(const T& params) const {
-  return static_cast<std::vector<double>::size_type>(params.duration.count() *
-                                                     sample_rate_);
+  // Convert duration to seconds as a double before multiplying by sample_rate
+  const double duration_seconds =
+      std::chrono::duration<double>(params.duration).count();
+  return static_cast<std::vector<double>::size_type>(duration_seconds * sample_rate_);
 }
 
 template <Synthesizable T>

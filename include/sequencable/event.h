@@ -8,9 +8,8 @@ namespace Micro_composer {
 namespace sequencable {
 
 struct Event {
-  using Duration = std::chrono::duration<double>;
-  Duration offset{std::chrono::duration<double>(0.0)};
-  Duration duration{std::chrono::duration<double>(0.25)};
+  Duration duration;
+  Time_point scheduled_time;
 };
 
 static_assert(Sequencable<Event>, "Event does not satisfy Sequencable concept");

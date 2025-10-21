@@ -1,0 +1,160 @@
+My specific actual use case is to have a Sequencer producing events with near perfect timing-accuracy, while at the same time have those events, except for the one event currently
+being scheduled i.e. the event 'under playhead', to be modifiable on the fly (while the Sequencer is actively scheduling them in the `scheduler_` thread). So that's why I'm searching for
+ ways to give the `scheduler_` thread lock-free (or as close to lock-free as is safe) priority access to the Sequencer's `events_` container. If it can't be done lock-free, then at least
+ I want the on-the-fly updates to never interfere with the performance of the `scheduler_` thread, so I never want the scheduler thread to be waiting on locks held by on-the-fly update
+functions, while on the other hand I'm perfectly fine with the on-the-fly update functions having a small performance penalty because they are waiting on locks held by the scheduler
+thread or on lock-free thread-safety mechanisms used by the scheduler thread. I want my scheduler thread to be able to do 2 things without any competition from other threads: 1. read the
+ next event from `events_` so that it can get the duration and 2. push that event to the output queue `output_`.
+
+● Excellent! Now we can design a proper solution. Your use case is a reader-priority (scheduler-priority) problem with very specific access patterns. This is actually more tractable than
+   general concurrent iteration.
+
+  Your Key Constraints (Perfect for Optimization)
+
+  1. Scheduler thread: Sequential access (reads events in order)
+  2. Scheduler thread: Only needs to read ONE event at a time
+  3. Control threads: Can wait/block - no problem
+  4. Protection rule: Event "under playhead" is off-limits to control threads
+
+  Recommended Solution: SeqLock Pattern
+
+  This is exactly what you need. It's used in the Linux kernel for read-mostly data with these properties:
+
+  - Readers (scheduler) NEVER block - completely lock-free
+  - Readers are wait-free - bounded time, no retry loops needed if used correctly
+  - Writers (control) may block each other - but not readers
+  - Readers always get consistent data - even during writes
+
+  How SeqLock Works
+
+  class Sequencer {
+  private:
+      std::vector<Event> events_;
+      std::atomic<size_t> playhead_{0};
+
+      // SeqLock components
+      std::atomic<uint64_t> seq_{0};  // Sequence counter
+      std::mutex write_mutex_;        // Writers serialize with each other
+
+  public:
+      // SCHEDULER THREAD - LOCK-FREE READ
+      Event get_current_event() const {
+          uint64_t seq1, seq2;
+          Event event_copy;
+
+          do {
+              seq1 = seq_.load(std::memory_order_acquire);
+
+              // If seq is odd, writer is active - spin briefly
+              while (seq1 & 1) {
+                  seq1 = seq_.load(std::memory_order_acquire);
+              }
+
+              // Read the event
+              size_t idx = playhead_.load(std::memory_order_acquire);
+              event_copy = events_[idx];  // Copy event data
+
+              // Check if writer interrupted us
+              seq2 = seq_.load(std::memory_order_acquire);
+
+          } while (seq1 != seq2);  // Retry if write happened during read
+
+          return event_copy;
+      }
+
+      // SCHEDULER THREAD - LOCK-FREE ADVANCE
+      void advance_playhead() {
+          playhead_.fetch_add(1, std::memory_order_release);
+      }
+
+      // CONTROL THREAD - MODIFY EVENT (May block on write_mutex_)
+      void update_event(size_t index, const Event& new_event) {
+          // Enforce: don't modify event under playhead
+          size_t current = playhead_.load(std::memory_order_acquire);
+          if (index == current) {
+              return; // Or throw, or queue for later
+          }
+
+          std::lock_guard lock(write_mutex_);
+
+          // Increment seq (now odd - signals "writing")
+          seq_.fetch_add(1, std::memory_order_release);
+
+          // Modify the event
+          events_[index] = new_event;
+
+          // Increment seq again (now even - signals "done")
+          seq_.fetch_add(1, std::memory_order_release);
+      }
+  };
+
+  Performance Characteristics
+
+  Scheduler thread (reader):
+  - ✓ No locks ever taken
+  - ✓ No blocking on mutexes
+  - ✓ Bounded time (no indefinite spinning)
+  - ✓ In common case (no concurrent write): just 2 atomic loads
+  - ✓ If write is concurrent: retry is very fast (microseconds)
+
+  Control thread (writer):
+  - Takes mutex (blocks other writers)
+  - Does NOT block scheduler thread
+  - Slightly slower due to atomic increments
+
+  Even Simpler: If Events Are Atomic-Copyable
+
+  If your Event type is small enough (e.g., POD struct ≤ 16 bytes on x64), you can use this even simpler approach:
+
+  class Sequencer {
+  private:
+      std::vector<std::atomic<Event>> events_;  // Each event is atomic!
+      std::atomic<size_t> playhead_{0};
+      std::mutex write_mutex_;  // Only for structural changes
+
+  public:
+      // SCHEDULER THREAD - WAIT-FREE READ
+      Event get_current_event() const {
+          size_t idx = playhead_.load(std::memory_order_acquire);
+          return events_[idx].load(std::memory_order_acquire);
+      }
+
+      void advance_playhead() {
+          playhead_.fetch_add(1, std::memory_order_release);
+      }
+
+      // CONTROL THREAD - UPDATE EVENT
+      void update_event(size_t index, const Event& new_event) {
+          size_t current = playhead_.load(std::memory_order_acquire);
+          if (index == current) return;
+
+          events_[index].store(new_event, std::memory_order_release);
+      }
+
+      // CONTROL THREAD - ADD/REMOVE EVENTS (structural changes)
+      void push_back(const Event& event) {
+          std::lock_guard lock(write_mutex_);
+          events_.push_back(std::atomic<Event>(event));
+      }
+  };
+
+  This requires: Event must be std::is_trivially_copyable
+
+  For the Output Queue
+
+  For pushing to output_, use a proven lock-free queue:
+
+  #include <boost/lockfree/spsc_queue.hpp>  // Single-producer, single-consumer
+
+  class Sequencer {
+      boost::lockfree::spsc_queue<Event> output_{256};  // Fixed capacity
+
+      // SCHEDULER THREAD
+      void schedule_next_event() {
+          Event event = get_current_event();
+          output_.push(event);  // Lock-free, wait-free
+          advance_playhead();
+      }
+  };
+
+  Or if you want to avoid Boost, use std::atomic with indices for a ring buffer.

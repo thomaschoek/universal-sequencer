@@ -19,22 +19,30 @@ pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
 include_directories(include ${GTK3_INCLUDE_DIRS})
 
 # Add original console executable
-add_executable(MicroComposer
+add_executable(MicroComposerCLI
     src/main.cpp
     src/synth/synth_output.cpp
+    src/scheduler/scheduler.cpp
 )
+
+# Add GUI executable
+#add_executable(MicroComposer
+#    src/main_gui.cpp
+#    src/synth/synth_output.cpp
+#    src/scheduler/scheduler.cpp
+#)
 
 # Link GTK3 and glib
-target_link_libraries(MicroComposer ${GTK3_LIBRARIES})
-target_link_directories(MicroComposer PRIVATE ${GTK3_LIBRARY_DIRS})
-target_compile_options(MicroComposer PRIVATE ${GTK3_CFLAGS_OTHER})
+#target_link_libraries(MicroComposer ${GTK3_LIBRARIES})
+#target_link_directories(MicroComposer PRIVATE ${GTK3_LIBRARY_DIRS})
+#target_compile_options(MicroComposer PRIVATE ${GTK3_CFLAGS_OTHER})
 
 # Copy CSS resources to build directory
-configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/resources/gui_style.css
-    ${CMAKE_CURRENT_BINARY_DIR}/resources/gui_style.css
-    COPYONLY
-)
+#configure_file(
+#    ${CMAKE_CURRENT_SOURCE_DIR}/resources/gui_style.css
+#    ${CMAKE_CURRENT_BINARY_DIR}/resources/gui_style.css
+#    COPYONLY
+#)
 
 # Enable testing
 enable_testing()
