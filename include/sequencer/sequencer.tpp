@@ -143,7 +143,7 @@ void Sequencer<T_event>::set_pos(Size_type pos) {
   }
   Time_point timeout;
   std::scoped_lock lck{lock_events(timeout)};
-  std::ignore = current_.exchange(pos, std::memory_order_acq_rel);
+  current_.store(pos, std::memory_order_release);
 }
 
 template <sequencable::Sequencable T_event>
