@@ -1,4 +1,4 @@
-#include "sequencer.h"
+#include "sequencer_template.h"
 #include <cassert>
 
 namespace Micro_composer {
@@ -89,25 +89,8 @@ inline bool Sequencer<T_event>::is_scheduling() const {
 }
 
 template <sequencable::Sequencable T_event>
-T_event Sequencer<T_event>::get_current() {
-  if (!is_scheduling()) {
-    throw std::runtime_error("Sequencer is not scheduling!");
-  }
-  while (output_.empty()) {
-    if (!is_scheduling()) {
-      throw std::runtime_error("Sequencer has stopped scheduling!");
-    }
-    const Time_point t_next = t_next_.load(std::memory_order_acquire);
-    if (t_next > Clock::now()) {
-      std::this_thread::sleep_until(t_next - spin_duration_);
-      while (Clock::now() < t_next) {
-        std::this_thread::yield();
-      }
-    }
-  }
-  T_event evt = std::move(output_.front());
-  output_.pop();
-  return evt;
+const T_event& Sequencer<T_event>::get_current() {
+  return output_[current_output_.load(std::memory_order_acquire)];
 }
 
 // Get the time of the next scheduled event
@@ -338,18 +321,23 @@ Sequencer<T_event>::once(const std::stop_token st,
       break;
     }
 
-    // As other threads may not write to
-    // events_[current_.load(memory_order_acquire)], nor modify the events_
-    // container as a whole without first safeguarding the integrity of the
-    // same, we can now safely copy the shared event into thread local memory
+    // Copy the event from shared data to local memory
     cur_event = events_[event_idx];
 
+    // If the event has been updated since last scheduled, update the output
+    // cache
+    T_event& output_event = output_[event_idx];
+    if (output_event != cur_event) {
+      output_event = cur_event;
+    }
+
+    current_output_.store(event_idx, std::memory_order_release);
     current_.store(event_idx + 1, std::memory_order_release);
 
-    // Set scheduled time on event for output queue consumers
+    // Set scheduled time on event for output consumers
     cur_event.scheduled_time = accumulated_time;
 
-    // Save event duration before it is moved to output_
+    // Save event duration before it may be modified by other threads
     const Duration cur_duration = cur_event.duration;
 
     // Inform other threads until when scheduler will be idle (or at least not
@@ -372,8 +360,8 @@ Sequencer<T_event>::once(const std::stop_token st,
       // due to OS scheduler policies etc. beyond control of this program)
       ;
     }
-    // Publish event to the output queue
-    output_.push(std::move(cur_event));
+    // Notify consumers of new event
+    output_cv_.notify_one();
 
     // Update accumulated event time so next event will schedule right after
     // current's duration ends

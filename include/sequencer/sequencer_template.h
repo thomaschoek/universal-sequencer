@@ -1,5 +1,5 @@
-#ifndef MICRO_COMPOSER_SEQUENCER_H
-#define MICRO_COMPOSER_SEQUENCER_H
+#ifndef MICRO_COMPOSER_SEQUENCER_TEMPLATE_H
+#define MICRO_COMPOSER_SEQUENCER_TEMPLATE_H
 
 #include <atomic>
 #include <chrono>
@@ -8,25 +8,26 @@
 #include <mutex>
 #include <thread>
 
-#include "sequencable/event.h"
+#include "container/atomic_queue.h"
+#include "sequencable/concepts.h"
 
 namespace Micro_composer {
 
 namespace sequencer {
 
-class Sequencer {
+template <sequencable::Sequencable T_event> class Sequencer {
 public:
   using Clock = std::chrono::steady_clock;
   using Time_point = Clock::time_point;
   using Duration = Clock::duration;
-  using Event = sequencable::Event;
-  using Container = std::vector<Event*>;
+  using Container = std::vector<T_event>;
   using Size_type = Container::size_type;
-  using Data_init_list = std::initializer_list<Event*>;
+  using Output_queue = container::Atomic_queue<T_event>;
+  using Data_init_list = std::initializer_list<T_event>;
 
   explicit Sequencer(Data_init_list = {});
-  explicit Sequencer(const Container&);
-  explicit Sequencer(Container&&);
+  explicit Sequencer(const std::vector<T_event>&);
+  explicit Sequencer(std::vector<T_event>&&);
   Sequencer(Sequencer&&) noexcept;
 
   // Thread-safe transport control
@@ -37,25 +38,25 @@ public:
   bool is_scheduling() const;
 
   // Get the next scheduled event from the output queue
-  Event get_current();
+  const T_event& get_current();
 
   // Get the time of the next scheduled event
   Time_point t_next() const;
 
   // Thread-safe time signature CRUD operations
   std::vector<Duration> time_signature() const noexcept;
-  Container data() const noexcept;
+  std::vector<T_event> data() const noexcept;
   bool empty();
   Size_type size();
   void set_pos(Size_type = 0);
   Size_type get_pos() const noexcept;
-  void assign(Size_type, const Event&);
-  void push_back(const Event&);
+  void assign(Size_type, const T_event&);
+  void push_back(const T_event&);
   void pop_back();
-  void insert(Size_type, const Event&);
+  void insert(Size_type, const T_event&);
   void erase(Size_type);
   void assign(Data_init_list);
-  void assign(const Container&);
+  void assign(const std::vector<T_event>&);
   void clear() noexcept;
 
 protected:
@@ -80,17 +81,21 @@ private:
   mutable std::mutex data_mutex_;
 
   Container events_;
+  std::atomic<Size_type> current_{0};
+
   Container output_;
+  std::atomic<Size_type> current_output_{0};
 
   std::condition_variable output_cv_;
 
   std::jthread scheduler_;
-  std::atomic<Size_type> current_{0};
   std::atomic<Time_point> t_next_;
 };
 
 } // namespace sequencer
 
 } // namespace Micro_composer
+
+#include "sequencer_template.tpp"
 
 #endif
