@@ -83,7 +83,7 @@ inline bool Sequencer<T_event>::is_scheduling() const {
 }
 
 template <sequencable::Sequencable T_event>
-T_event&& Sequencer<T_event>::get_current() {
+T_event Sequencer<T_event>::get_current() {
   if (!is_scheduling()) {
     throw std::runtime_error("Sequencer is not scheduling!");
   }
@@ -99,9 +99,9 @@ T_event&& Sequencer<T_event>::get_current() {
       }
     }
   }
-  T_event&& evt = std::forward<T_event>(output_.front());
+  T_event evt = std::move(output_.front());
   output_.pop();
-  return std::forward<T_event>(evt);
+  return evt;
 }
 
 // Get the time of the next scheduled event
