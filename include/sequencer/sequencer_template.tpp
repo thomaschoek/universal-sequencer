@@ -89,7 +89,14 @@ inline bool Sequencer<T_event>::is_scheduling() const {
 }
 
 template <sequencable::Sequencable T_event>
-const T_event& Sequencer<T_event>::get_current() {
+const T_event& Sequencer<T_event>::await_event() {
+  if (!is_scheduling()) {
+    throw std::runtime_error("Sequencer is not scheduling!");
+  }
+  std::mutex m;
+  std::scoped_lock lck{m};
+  output_cv_.wait_until(
+      lck, [this]() { return !output_.empty() || !is_scheduling(); });
   return output_[current_output_.load(std::memory_order_acquire)];
 }
 

@@ -4,6 +4,7 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <functional>
 #include <initializer_list>
 #include <mutex>
 #include <thread>
@@ -38,7 +39,7 @@ public:
   bool is_scheduling() const;
 
   // Get the next scheduled event from the output queue
-  const T_event& get_current();
+  const T_event& await_event();
 
   // Get the time of the next scheduled event
   Time_point t_next() const;
