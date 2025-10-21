@@ -28,8 +28,8 @@ public:
   using Handler = std::function<void(const T_event&)>;
 
   explicit Sequencer(Data_init_list = {});
-  explicit Sequencer(const std::vector<T_event>&);
-  explicit Sequencer(std::vector<T_event>&&);
+  explicit Sequencer(const Container&);
+  explicit Sequencer(Container&&);
   Sequencer(Sequencer&&) noexcept;
 
   // Thread-safe transport control
@@ -40,7 +40,7 @@ public:
   bool is_scheduling() const;
 
   // Get the next scheduled event from the output queue
-  const T_event& await_event();
+  const std::unique_ptr<T_event> await_event();
 
   // Launch a thread to consume scheduled events
   std::jthread subscribe(const Handler&) const;
@@ -89,7 +89,6 @@ private:
   std::atomic<Size_type> current_{0};
 
   mutable Output_queue output_;
-  std::atomic<Size_type> current_output_{0};
   mutable std::mutex output_mutex_;
   std::condition_variable output_cv_;
 
