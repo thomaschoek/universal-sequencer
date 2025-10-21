@@ -10,13 +10,23 @@ namespace sequencer {
 // Constructors
 
 template <sequencable::Sequencable T_event>
-Sequencer<T_event>::Sequencer(Data_init_list data) : events_(data) {}
+Sequencer<T_event>::Sequencer(Data_init_list data) {
+  events_.reserve(data.size());
+  for (const auto& item : data) {
+    events_.push_back(std::make_unique<T_event>(item));
+  }
+}
 
 template <sequencable::Sequencable T_event>
-Sequencer<T_event>::Sequencer(const Container& data) : events_(data) {}
+Sequencer<T_event>::Sequencer(const Container& data) {
+  events_.reserve(data.size());
+  for (const auto& item_ptr : data) {
+    events_.push_back(std::make_unique<T_event>(*item_ptr));
+  }
+}
 
 template <sequencable::Sequencable T_event>
-Sequencer<T_event>::Sequencer(Container&& data) : events_(data) {}
+Sequencer<T_event>::Sequencer(Container&& data) : events_(std::move(data)) {}
 
 template <sequencable::Sequencable T_event>
 Sequencer<T_event>::Sequencer(Sequencer&& other) noexcept
@@ -88,7 +98,7 @@ inline bool Sequencer<T_event>::is_scheduling() const {
 }
 
 template <sequencable::Sequencable T_event>
-const std::unique_ptr<T_event> Sequencer<T_event>::await_event() {
+T_event Sequencer<T_event>::await_event() {
   if (!is_scheduling()) {
     throw std::runtime_error("Sequencer is not scheduling!");
   }
@@ -148,7 +158,12 @@ template <sequencable::Sequencable T_event>
 inline std::vector<T_event> Sequencer<T_event>::data() const noexcept {
   Time_point timeout;
   std::scoped_lock lck{lock_events(timeout)};
-  return events_;
+  std::vector<T_event> result;
+  result.reserve(events_.size());
+  for (const auto& ptr : events_) {
+    result.push_back(*ptr);
+  }
+  return result;
 }
 
 template <sequencable::Sequencable T_event>
@@ -193,7 +208,11 @@ void Sequencer<T_event>::assign(Size_type n, const T_event& event) {
   }
   Time_point timeout;
   std::scoped_lock lck{lock_events(timeout)};
-  events_.assign(n, event);
+  events_.clear();
+  events_.reserve(n);
+  for (Size_type i = 0; i < n; ++i) {
+    events_.push_back(std::make_unique<T_event>(event));
+  }
 }
 template <sequencable::Sequencable T_event>
 void Sequencer<T_event>::push_back(const T_event& event) {
@@ -207,7 +226,7 @@ void Sequencer<T_event>::push_back(const T_event& event) {
   }
   Time_point timeout;
   std::scoped_lock lck{lock_events(timeout)};
-  events_.push_back(event);
+  events_.push_back(std::make_unique<T_event>(event));
 }
 
 template <sequencable::Sequencable T_event>
@@ -244,7 +263,7 @@ void Sequencer<T_event>::insert(Size_type pos, const T_event& event) {
 
   Time_point timeout;
   std::scoped_lock lck{lock_events(timeout)};
-  events_.insert(events_.begin() + pos, event);
+  events_.insert(events_.begin() + pos, std::make_unique<T_event>(event));
 
   if (current > pos) {
 #ifndef NDEBUG
@@ -285,13 +304,21 @@ template <sequencable::Sequencable T_event>
 void Sequencer<T_event>::assign(Data_init_list events) {
   Time_point timeout;
   std::scoped_lock lck{lock_events(timeout)};
-  events_ = events;
+  events_.clear();
+  events_.reserve(events.size());
+  for (const auto& item : events) {
+    events_.push_back(std::make_unique<T_event>(item));
+  }
 }
 template <sequencable::Sequencable T_event>
 void Sequencer<T_event>::assign(const std::vector<T_event>& events) {
   Time_point timeout;
   std::scoped_lock lck{lock_events(timeout)};
-  events_ = events;
+  events_.clear();
+  events_.reserve(events.size());
+  for (const auto& item : events) {
+    events_.push_back(std::make_unique<T_event>(item));
+  }
 }
 
 template <sequencable::Sequencable T_event>
@@ -364,7 +391,7 @@ Sequencer<T_event>::once(const std::stop_token st,
     }
 
     {
-      T_event* cur_ptr = events_[event_idx];
+      T_event* cur_ptr = events_[event_idx].get();
       cur_ptr->scheduled_time = accumulated_time;
       cur_duration = cur_ptr->duration;
       output_.push(*cur_ptr);
