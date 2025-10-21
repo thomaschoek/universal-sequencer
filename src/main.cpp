@@ -20,23 +20,25 @@ int main(int argc, char** argv) {
   std::vector<double> frequencies1 = {261.63, 293.66, 329.63, 349.23};
   //, 392.00, 440.00, 493.88, 523.25};
   for (auto freq : frequencies1) {
-    Oscillation_event* evt = new Oscillation_event;
+    auto evt = std::make_unique<Oscillation_event>();
     evt->frequency = freq;
     evt->duration = std::chrono::milliseconds{250};
-    seq1.push_back(evt);
+    seq1.push_back(std::move(evt));
   }
 
   Sequence seq2;
   std::vector<double> frequencies2 = {523.25, 493.88, 440.00, 392.00,
                                       349.23, 329.63, 293.66, 261.63};
   for (auto freq : frequencies2) {
-    Oscillation_event* evt = new Oscillation_event;
+    auto evt = std::make_unique<Oscillation_event>();
     evt->frequency = freq;
     evt->duration = std::chrono::milliseconds{250};
-    seq2.push_back(evt);
+    seq2.push_back(std::move(evt));
   }
 
-  std::vector<Sequence> sequences = {seq1, seq2};
+  std::vector<Sequence> sequences;
+  sequences.push_back(std::move(seq1));
+  sequences.push_back(std::move(seq2));
 
   // Set up audio output - create a pool of synthesizers
   constexpr std::size_t SYNTH_VOICES = 4;
@@ -53,7 +55,7 @@ int main(int argc, char** argv) {
         }});
   }
 
-  auto sequencer = Sequencer(sequences[0]);
+  auto sequencer = Sequencer(std::move(sequences[0]));
 
   std::cout << "[MAIN] Starting sequencer with repeat=true\n";
   auto start_time = Sequencer::Clock::now() + std::chrono::milliseconds(50);
