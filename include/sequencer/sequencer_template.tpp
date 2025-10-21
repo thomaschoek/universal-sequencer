@@ -135,7 +135,15 @@ std::jthread Sequencer<T_event>::subscribe(const Handler& handler) const {
           return;
         }
       }
-      buffer = output_.pop_front();
+      // Wait until there's actually an event in the queue using condition variable
+      {
+        std::unique_lock<std::mutex> lck{output_mutex_};
+        output_cv_.wait(lck, [this]() { return !output_.empty() || !is_scheduling(); });
+        if (!is_scheduling() && output_.empty()) {
+          break;
+        }
+        buffer = output_.pop_front();
+      }
       std::ignore = std::async([&handler, &buffer, &t_next]() {
         std::this_thread::sleep_until(t_next);
         handler(buffer);
