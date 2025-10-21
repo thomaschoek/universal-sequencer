@@ -108,9 +108,6 @@ const T_event& Sequencer<T_event>::await_event() {
 
 template <sequencable::Sequencable T_event>
 std::jthread Sequencer<T_event>::subscribe(const Handler& handler) const {
-  if (!is_scheduling()) {
-    throw std::runtime_error("Sequencer is not scheduling!");
-  }
   return std::jthread{[this, &handler](std::stop_token st) {
     while (!is_scheduling()) {
       std::this_thread::sleep_for(min_duration_);

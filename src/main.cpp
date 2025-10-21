@@ -59,6 +59,8 @@ int main(int argc, char** argv) {
   std::cout << "[MAIN] Pausing sequencer\n";
   sequencer.pause();
 
+  subscription = sequencer.subscribe(sequence_handler);
+
   std::cout << "[MAIN] Waiting 2 seconds...\n";
   std::this_thread::sleep_for(std::chrono::seconds(2));
 
