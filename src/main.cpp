@@ -48,11 +48,63 @@ int main(int argc, char** argv) {
   }
 
   auto sequencer = Sequencer<Oscillation_event>(sequences[0]);
-  sequencer.start();
+
+  // Create a consumer thread that plays events from the sequencer
+  std::atomic<bool> keep_playing{true};
+  std::jthread player([&sequencer, &synths, &keep_playing](std::stop_token st) {
+    std::size_t synth_idx = 0;
+
+    while (!st.stop_requested() && keep_playing.load()) {
+      try {
+        // Get the next event from the sequencer (blocks until ready)
+        Oscillation_event event = sequencer.get_current();
+
+        std::cout << "[PLAYER] Playing frequency: " << event.frequency
+                  << " Hz, duration: "
+                  << std::chrono::duration_cast<std::chrono::milliseconds>(event.duration).count()
+                  << " ms\n";
+
+        // Play the event through the next available synth
+        synths[synth_idx]->play(event);
+        synth_idx = (synth_idx + 1) % synths.size();
+
+      } catch (const std::runtime_error& e) {
+        std::cout << "[PLAYER] " << e.what() << "\n";
+        break;
+      }
+    }
+    std::cout << "[PLAYER] Consumer thread stopped\n";
+  });
+
+  std::cout << "[MAIN] Starting sequencer with repeat=true\n";
+  auto start_time = Sequencer<Oscillation_event>::Clock::now() + std::chrono::milliseconds(50);
+  sequencer.start(start_time, true);
+
+  std::cout << "[MAIN] Playing for 10 seconds...\n";
   std::this_thread::sleep_for(std::chrono::seconds(10));
+
+  std::cout << "[MAIN] Pausing sequencer\n";
   sequencer.pause();
+
+  std::cout << "[MAIN] Waiting 2 seconds...\n";
   std::this_thread::sleep_for(std::chrono::seconds(2));
-  sequencer.start();
+
+  std::cout << "[MAIN] Restarting sequencer\n";
+  auto restart_time = Sequencer<Oscillation_event>::Clock::now() + std::chrono::milliseconds(50);
+  sequencer.start(restart_time, true);
+
+  std::cout << "[MAIN] Playing for 5 more seconds...\n";
   std::this_thread::sleep_for(std::chrono::seconds(5));
+
+  std::cout << "[MAIN] Stopping sequencer\n";
   sequencer.stop();
+
+  std::cout << "[MAIN] Stopping player thread\n";
+  keep_playing.store(false);
+
+  if (player.joinable()) {
+    player.join();
+  }
+
+  std::cout << "[MAIN] Done!\n";
 }

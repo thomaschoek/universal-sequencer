@@ -37,7 +37,7 @@ public:
   bool is_scheduling() const;
 
   // Get the next scheduled event from the output queue
-  T_event&& get_current() noexcept;
+  T_event&& get_current();
 
   // Get the time of the next scheduled event
   Time_point t_next() const;

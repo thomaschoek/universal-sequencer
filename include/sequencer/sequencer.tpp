@@ -83,7 +83,7 @@ inline bool Sequencer<T_event>::is_scheduling() const {
 }
 
 template <sequencable::Sequencable T_event>
-T_event&& Sequencer<T_event>::get_current() noexcept {
+T_event&& Sequencer<T_event>::get_current() {
   if (!is_scheduling()) {
     throw std::runtime_error("Sequencer is not scheduling!");
   }
@@ -99,9 +99,9 @@ T_event&& Sequencer<T_event>::get_current() noexcept {
       }
     }
   }
-  T_event evt = output_.front();
+  T_event&& evt = std::forward<T_event>(output_.front());
   output_.pop();
-  return evt;
+  return std::forward<T_event>(evt);
 }
 
 // Get the time of the next scheduled event
@@ -344,6 +344,9 @@ Sequencer<T_event>::once(const std::stop_token st,
     // Set scheduled time on event for output queue consumers
     cur_event.scheduled_time = accumulated_time;
 
+    // Save event duration before it is moved to output_
+    const Duration cur_duration = cur_event.duration;
+
     // Inform other threads until when scheduler will be idle (or at least not
     // critically engaged) Other threads will load t_next_ with
     // memory_order_acquire and only act on shared data if this t_next_ is in
@@ -369,7 +372,7 @@ Sequencer<T_event>::once(const std::stop_token st,
 
     // Update accumulated event time so next event will schedule right after
     // current's duration ends
-    accumulated_time += cur_event.duration;
+    accumulated_time += cur_duration;
   } while (!st.stop_requested());
 
   return accumulated_time;
