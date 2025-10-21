@@ -10,20 +10,17 @@ namespace sequencer {
 // Constructors
 
 template <sequencable::Sequencable T_event>
-Sequencer<T_event>::Sequencer(Data_init_list data)
-    : events_(data), output_(data) {}
+Sequencer<T_event>::Sequencer(Data_init_list data) : events_(data) {}
 
 template <sequencable::Sequencable T_event>
-Sequencer<T_event>::Sequencer(const std::vector<T_event>& data)
-    : events_(data), output_(data) {}
+Sequencer<T_event>::Sequencer(const Container& data) : events_(data) {}
 
 template <sequencable::Sequencable T_event>
-Sequencer<T_event>::Sequencer(std::vector<T_event>&& data)
-    : events_(data), output_(data) {}
+Sequencer<T_event>::Sequencer(Container&& data) : events_(data) {}
 
 template <sequencable::Sequencable T_event>
 Sequencer<T_event>::Sequencer(Sequencer&& other) noexcept
-    : events_(std::move(other.events_)), output_(std::move(other.output_)) {
+    : events_(std::move(other.events_)) {
   // Stop the other sequencer if it's running
   if (other.is_scheduling()) {
     other.pause(Clock::now());
@@ -34,8 +31,6 @@ Sequencer<T_event>::Sequencer(Sequencer&& other) noexcept
                 std::memory_order_release);
   current_.store(other.current_.load(std::memory_order_acquire),
                  std::memory_order_release);
-  current_output_.store(other.current_output_.load(std::memory_order_acquire),
-                        std::memory_order_release);
 
   // Note: scheduler_ and transport_mutex_ are default-initialized
   // (stopped/unlocked)
@@ -93,7 +88,7 @@ inline bool Sequencer<T_event>::is_scheduling() const {
 }
 
 template <sequencable::Sequencable T_event>
-const T_event& Sequencer<T_event>::await_event() {
+const std::unique_ptr<T_event> Sequencer<T_event>::await_event() {
   if (!is_scheduling()) {
     throw std::runtime_error("Sequencer is not scheduling!");
   }
@@ -103,7 +98,7 @@ const T_event& Sequencer<T_event>::await_event() {
   if (!is_scheduling() && output_.empty()) {
     throw std::runtime_error("Sequencer has stopped scheduling!");
   }
-  return output_[current_output_.load(std::memory_order_acquire)];
+  return output_.pop_front();
 }
 
 template <sequencable::Sequencable T_event>
@@ -372,7 +367,7 @@ Sequencer<T_event>::once(const std::stop_token st,
       T_event* cur_ptr = events_[event_idx];
       cur_ptr->scheduled_time = accumulated_time;
       cur_duration = cur_ptr->duration;
-      output_.push(std::make_unique<T_event>(new T_event{*cur_ptr}));
+      output_.push(*cur_ptr);
     }
 
     current_.store(event_idx + 1, std::memory_order_release);
