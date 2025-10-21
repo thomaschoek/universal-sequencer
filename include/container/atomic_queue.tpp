@@ -50,6 +50,7 @@ template <typename T> void Atomic_queue<T>::push(T&& value) {
 template <typename T> void Atomic_queue<T>::pop() {
   std::scoped_lock lck{lock()};
   Base_queue::pop();
+  size_.store(Base_queue::size(), std::memory_order_release);
 }
 
 template <typename T> T Atomic_queue<T>::front() {

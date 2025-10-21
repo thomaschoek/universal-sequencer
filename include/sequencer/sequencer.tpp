@@ -329,10 +329,8 @@ Sequencer<T_event>::once(const std::stop_token st,
     event_idx = current_.load(std::memory_order_acquire);
     // Load size of events_ with memory order acquire
     events_size = events_.size();
-    if (events_size == 0) {
+    if (event_idx >= events_size) {
       break;
-    } else if (event_idx >= events_size) {
-      event_idx = 0;
     }
 
     // As other threads may not write to
