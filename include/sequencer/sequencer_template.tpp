@@ -1,5 +1,6 @@
 #include "sequencer_template.h"
 #include <cassert>
+#include <future>
 
 namespace Micro_composer {
 
@@ -97,12 +98,49 @@ const T_event& Sequencer<T_event>::await_event() {
     throw std::runtime_error("Sequencer is not scheduling!");
   }
   std::unique_lock<std::mutex> lck{output_mutex_};
-  output_cv_.wait(
-      lck, [this]() { return !output_.empty() || !is_scheduling(); });
+  output_cv_.wait(lck,
+                  [this]() { return !output_.empty() || !is_scheduling(); });
   if (!is_scheduling() && output_.empty()) {
     throw std::runtime_error("Sequencer has stopped scheduling!");
   }
   return output_[current_output_.load(std::memory_order_acquire)];
+}
+
+template <sequencable::Sequencable T_event>
+std::jthread Sequencer<T_event>::subscribe(const Handler& handler) const {
+  if (!is_scheduling()) {
+    throw std::runtime_error("Sequencer is not scheduling!");
+  }
+  return std::jthread{[this, &handler](std::stop_token st) {
+    while (!is_scheduling()) {
+      std::this_thread::sleep_for(min_duration_);
+      if (st.stop_requested()) {
+        return;
+      }
+    }
+
+    Time_point t_next;
+    T_event buffer;
+    do {
+      if (st.stop_requested()) {
+        return;
+      }
+      while ((t_next = t_next_.load(std::memory_order_acquire)) <=
+                 Clock::now() &&
+             is_scheduling()) {
+        std::this_thread::yield();
+        if (st.stop_requested()) {
+          return;
+        }
+      }
+      buffer = output_[current_output_.load(std::memory_order_acquire)];
+      std::ignore = std::async([&handler, &buffer, &t_next]() {
+        std::this_thread::sleep_until(t_next);
+        handler(buffer);
+      });
+      std::this_thread::sleep_until(t_next + (min_duration_ / 5));
+    } while (is_scheduling());
+  }};
 }
 
 // Get the time of the next scheduled event
