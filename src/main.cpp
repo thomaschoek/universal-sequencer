@@ -2,6 +2,7 @@
 #include "sequencer/sequencer_template.h"
 #include "synth/synth.h"
 #include <chrono>
+#include <future>
 #include <iostream>
 #include <memory>
 
@@ -37,14 +38,9 @@ int main(int argc, char** argv) {
   std::vector<std::vector<Oscillation_event>> sequences = {seq1, seq2};
 
   // Set up audio output - create a pool of synthesizers
-  constexpr std::size_t SYNTH_POOL_SIZE = 10;
-  std::vector<std::unique_ptr<RealTimeAudioOutput>> synth_outputs;
-  std::vector<std::unique_ptr<Synthesizer>> synths;
-
-  for (std::size_t i = 0; i < SYNTH_POOL_SIZE; ++i) {
-    synth_outputs.push_back(std::make_unique<RealTimeAudioOutput>());
-    synths.push_back(std::make_unique<Synthesizer>(*synth_outputs.back()));
-  }
+  constexpr std::size_t SYNTH_POOL_SIZE = 1;
+  RealTimeAudioOutput synth_output;
+  Synthesizer synth{synth_output};
 
   auto sequencer = Sequencer<Oscillation_event>(sequences[0]);
 
@@ -54,13 +50,10 @@ int main(int argc, char** argv) {
   sequencer.start(start_time, true);
 
   // Create a consumer thread that plays events from the sequencer
-  std::jthread player([&sequencer, &synths](std::stop_token st) {
-    std::size_t synth_idx = 0;
-
+  std::jthread player([&sequencer, &synth](std::stop_token st) {
     while (!st.stop_requested()) {
       try {
         // Get the next event from the sequencer (blocks until ready)
-        const Oscillation_event event = sequencer.await_event();
 
         //        std::cout << "[PLAYER] Playing frequency: " << event.frequency
         //                  << " Hz, duration: "
@@ -69,11 +62,10 @@ int main(int argc, char** argv) {
         //                         event.duration)
         //                         .count()
         //                  << " ms\n";
-
-        // Play the event through the next available synth
-        synths[synth_idx]->play(event);
-        synth_idx = (synth_idx + 1) % synths.size();
-
+        const Oscillation_event buffer = std::async([&sequencer]() {
+                                           return sequencer.await_event();
+                                         }).get();
+        std::ignore = std::async([&synth, buffer]() { synth.play(buffer); });
       } catch (const std::runtime_error& e) {
         std::cout << "[PLAYER] " << e.what() << "\n";
         break;
