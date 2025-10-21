@@ -16,8 +16,8 @@ int main(int argc, char** argv) {
   // Create example sequences with vector events
   // Each event has 3 parameters: [frequency, amplitude, phase]
   std::vector<Oscillation_event> seq1;
-  std::vector<double> frequencies1 = {261.63, 293.66, 329.63, 349.23,
-                                      392.00, 440.00, 493.88, 523.25};
+  std::vector<double> frequencies1 = {261.63, 293.66, 329.63, 349.23};
+  //, 392.00, 440.00, 493.88, 523.25};
   for (auto freq : frequencies1) {
     Oscillation_event evt;
     evt.frequency = freq;
