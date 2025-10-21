@@ -1,10 +1,10 @@
 #include "sequencer/sequencer.h"
+#include <algorithm>
+#include <atomic>
 #include <catch2/catch_test_macros.hpp>
 #include <chrono>
 #include <thread>
 #include <vector>
-#include <atomic>
-#include <algorithm>
 
 using namespace Micro_composer;
 using namespace Micro_composer::sequencer;
@@ -22,7 +22,7 @@ struct Test_event {
 
   Test_event() = default;
   explicit Test_event(Duration d, int event_id = 0)
-    : duration(d), id(event_id) {}
+      : duration(d), id(event_id) {}
 };
 
 // Verify Test_event satisfies Sequencable concept
@@ -159,7 +159,8 @@ TEST_CASE("Sequencer transport control", "[sequencer]") {
         Sequencer<Test_event>::Clock::now() + std::chrono::milliseconds(50);
     seq.start(start_time, false);
     REQUIRE(seq.is_scheduling());
-    seq.pause(Sequencer<Test_event>::Clock::now() + std::chrono::milliseconds(20));
+    seq.pause(Sequencer<Test_event>::Clock::now() +
+              std::chrono::milliseconds(20));
     REQUIRE_FALSE(seq.is_scheduling());
   }
 
@@ -175,7 +176,8 @@ TEST_CASE("Sequencer transport control", "[sequencer]") {
         Sequencer<Test_event>::Clock::now() + std::chrono::milliseconds(50);
     seq.start(start_time, false);
     REQUIRE(seq.is_scheduling());
-    seq.stop(Sequencer<Test_event>::Clock::now() + std::chrono::milliseconds(20), 1);
+    seq.stop(
+        Sequencer<Test_event>::Clock::now() + std::chrono::milliseconds(20), 1);
     REQUIRE_FALSE(seq.is_scheduling());
     REQUIRE(seq.get_pos() == 1);
   }
@@ -187,7 +189,8 @@ TEST_CASE("Sequencer transport control", "[sequencer]") {
     REQUIRE(seq.is_scheduling());
     seq.start(start_time, false); // Should be no-op
     REQUIRE(seq.is_scheduling());
-    seq.pause(Sequencer<Test_event>::Clock::now() + std::chrono::milliseconds(20));
+    seq.pause(Sequencer<Test_event>::Clock::now() +
+              std::chrono::milliseconds(20));
   }
 }
 
@@ -241,7 +244,8 @@ TEST_CASE("Sequencer event retrieval", "[sequencer]") {
     REQUIRE(std::count(received_ids.begin(), received_ids.end(), 1) >= 2);
     REQUIRE(std::count(received_ids.begin(), received_ids.end(), 2) >= 2);
 
-    seq.pause(Sequencer<Test_event>::Clock::now() + std::chrono::milliseconds(10));
+    seq.pause(Sequencer<Test_event>::Clock::now() +
+              std::chrono::milliseconds(10));
   }
 
   SECTION("t_next returns next scheduled time") {
@@ -251,11 +255,14 @@ TEST_CASE("Sequencer event retrieval", "[sequencer]") {
         Sequencer<Test_event>::Clock::now() + std::chrono::milliseconds(50);
     seq.start(start_time, false);
 
+    std::this_thread::sleep_until(start_time + std::chrono::milliseconds(50));
+
     // t_next should be updated as events are scheduled
     auto next_time = seq.t_next();
     REQUIRE(next_time >= start_time);
 
-    seq.pause(Sequencer<Test_event>::Clock::now() + std::chrono::milliseconds(10));
+    seq.pause(Sequencer<Test_event>::Clock::now() +
+              std::chrono::milliseconds(10));
   }
 }
 
@@ -264,9 +271,7 @@ TEST_CASE("Sequencer position control", "[sequencer]") {
                              Test_event(std::chrono::milliseconds(50), 2),
                              Test_event(std::chrono::milliseconds(50), 3)});
 
-  SECTION("get_pos returns current position") {
-    REQUIRE(seq.get_pos() == 0);
-  }
+  SECTION("get_pos returns current position") { REQUIRE(seq.get_pos() == 0); }
 
   SECTION("set_pos changes position") {
     seq.set_pos(1);
@@ -288,7 +293,8 @@ TEST_CASE("Sequencer position control", "[sequencer]") {
     auto evt = seq.get_current();
     REQUIRE(evt.id == 2); // Should start from position 1 (second event)
 
-    seq.pause(Sequencer<Test_event>::Clock::now() + std::chrono::milliseconds(10));
+    seq.pause(Sequencer<Test_event>::Clock::now() +
+              std::chrono::milliseconds(10));
   }
 }
 
@@ -390,7 +396,8 @@ TEST_CASE("Sequencer on-the-fly modifications", "[sequencer][concurrency]") {
 
     REQUIRE(seq.size() == 11);
 
-    seq.pause(Sequencer<Test_event>::Clock::now() + std::chrono::milliseconds(10));
+    seq.pause(Sequencer<Test_event>::Clock::now() +
+              std::chrono::milliseconds(10));
   }
 
   SECTION("Can erase events while scheduling") {
@@ -412,7 +419,8 @@ TEST_CASE("Sequencer on-the-fly modifications", "[sequencer][concurrency]") {
 
     REQUIRE(seq.size() == 9);
 
-    seq.pause(Sequencer<Test_event>::Clock::now() + std::chrono::milliseconds(10));
+    seq.pause(Sequencer<Test_event>::Clock::now() +
+              std::chrono::milliseconds(10));
   }
 
   SECTION("Can insert events while scheduling") {
@@ -433,7 +441,8 @@ TEST_CASE("Sequencer on-the-fly modifications", "[sequencer][concurrency]") {
 
     REQUIRE(seq.size() == 6);
 
-    seq.pause(Sequencer<Test_event>::Clock::now() + std::chrono::milliseconds(10));
+    seq.pause(Sequencer<Test_event>::Clock::now() +
+              std::chrono::milliseconds(10));
   }
 }
 
@@ -484,17 +493,20 @@ TEST_CASE("Sequencer timing accuracy", "[sequencer][timing]") {
 
     // Check that event was scheduled reasonably close to expected time
     auto diff1 = std::chrono::duration_cast<std::chrono::milliseconds>(
-        actual1 - evt1.scheduled_time).count();
+                     actual1 - evt1.scheduled_time)
+                     .count();
     REQUIRE(std::abs(diff1) < 20); // Within 20ms tolerance
 
     auto evt2 = seq.get_current();
     auto actual2 = Sequencer<Test_event>::Clock::now();
 
     auto diff2 = std::chrono::duration_cast<std::chrono::milliseconds>(
-        actual2 - evt2.scheduled_time).count();
+                     actual2 - evt2.scheduled_time)
+                     .count();
     REQUIRE(std::abs(diff2) < 20);
 
-    seq.pause(Sequencer<Test_event>::Clock::now() + std::chrono::milliseconds(10));
+    seq.pause(Sequencer<Test_event>::Clock::now() +
+              std::chrono::milliseconds(10));
   }
 
   SECTION("Event durations are respected") {
@@ -512,10 +524,12 @@ TEST_CASE("Sequencer timing accuracy", "[sequencer][timing]") {
     auto expected_gap = std::chrono::milliseconds(100);
     auto actual_gap = evt2.scheduled_time - evt1.scheduled_time;
     auto gap_diff = std::chrono::duration_cast<std::chrono::milliseconds>(
-        actual_gap - expected_gap).count();
+                        actual_gap - expected_gap)
+                        .count();
 
     REQUIRE(std::abs(gap_diff) < 20); // Within 20ms tolerance
 
-    seq.pause(Sequencer<Test_event>::Clock::now() + std::chrono::milliseconds(10));
+    seq.pause(Sequencer<Test_event>::Clock::now() +
+              std::chrono::milliseconds(10));
   }
 }
