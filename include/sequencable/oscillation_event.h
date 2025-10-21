@@ -29,6 +29,19 @@ struct Oscillation_event : public Event {
     amplitude = amp;
     phase = ph;
   }
+
+  // Comparison operators (compare event parameters, not scheduled_time)
+  bool operator==(const Oscillation_event& other) const {
+    return frequency == other.frequency &&
+           amplitude == other.amplitude &&
+           phase == other.phase &&
+           duration == other.duration &&
+           offset == other.offset;
+  }
+
+  bool operator!=(const Oscillation_event& other) const {
+    return !(*this == other);
+  }
 };
 
 static_assert(Sequencable_updatable<Oscillation_event>,

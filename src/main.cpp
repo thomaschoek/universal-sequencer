@@ -1,8 +1,7 @@
 #include "sequencable/oscillation_event.h"
-#include "sequencer/sequencer.h"
+#include "sequencer/sequencer_template.h"
 #include "synth/synth.h"
 #include <chrono>
-#include <future>
 #include <iostream>
 #include <memory>
 
@@ -61,14 +60,15 @@ int main(int argc, char** argv) {
     while (!st.stop_requested()) {
       try {
         // Get the next event from the sequencer (blocks until ready)
-        Oscillation_event event = sequencer.get_current();
+        const Oscillation_event event = sequencer.get_current();
 
-        std::cout << "[PLAYER] Playing frequency: " << event.frequency
-                  << " Hz, duration: "
-                  << std::chrono::duration_cast<std::chrono::milliseconds>(
-                         event.duration)
-                         .count()
-                  << " ms\n";
+        //        std::cout << "[PLAYER] Playing frequency: " << event.frequency
+        //                  << " Hz, duration: "
+        //                  <<
+        //                  std::chrono::duration_cast<std::chrono::milliseconds>(
+        //                         event.duration)
+        //                         .count()
+        //                  << " ms\n";
 
         // Play the event through the next available synth
         synths[synth_idx]->play(event);

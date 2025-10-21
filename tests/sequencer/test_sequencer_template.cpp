@@ -1,4 +1,4 @@
-#include "sequencer/sequencer.h"
+#include "sequencer/sequencer_template.h"
 #include <algorithm>
 #include <atomic>
 #include <catch2/catch_test_macros.hpp>
