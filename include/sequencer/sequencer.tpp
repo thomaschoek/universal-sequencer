@@ -31,7 +31,7 @@ Sequencer<T_event>::Sequencer(Sequencer&& other) noexcept
   t_next_.store(other.t_next_.load(std::memory_order_acquire),
                 std::memory_order_release);
   current_.store(other.current_.load(std::memory_order_acquire),
-                std::memory_order_release);
+                 std::memory_order_release);
 
   // Note: scheduler_ and transport_mutex_ are default-initialized
   // (stopped/unlocked)
@@ -266,9 +266,9 @@ void Sequencer<T_event>::assign(const std::vector<T_event>& events) {
 
 template <sequencable::Sequencable T_event>
 void Sequencer<T_event>::clear() noexcept {
+  stop();
   Time_point timeout;
   std::scoped_lock lck{lock_events(timeout)};
-  stop();
   events_.clear();
 }
 
