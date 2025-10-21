@@ -55,12 +55,17 @@ int main(int argc, char** argv) {
         }});
   }
 
+  std::cout << "[MAIN] About to create sequencer\n" << std::flush;
+
   auto sequencer = Sequencer(std::move(sequences[0]));
 
-  std::cout << "[MAIN] Starting sequencer with repeat=true\n";
+  std::cout << "[MAIN] Sequencer created\n" << std::flush;
+  std::cout << "[MAIN] Starting sequencer with repeat=true\n" << std::flush;
   auto start_time = Sequencer::Clock::now() + std::chrono::milliseconds(50);
 
+  std::cout << "[MAIN] About to call start()\n" << std::flush;
   sequencer.start(start_time, true);
+  std::cout << "[MAIN] start() returned\n" << std::flush;
 
   // Create a consumer thread that plays events from the sequencer
   std::jthread subscription = sequencer.subscribe(handlers[0]);

@@ -90,7 +90,7 @@ private:
 
   mutable Output_queue output_;
   mutable std::mutex output_mutex_;
-  std::condition_variable output_cv_;
+  mutable std::condition_variable output_cv_;
 
   std::jthread scheduler_;
   std::atomic<Time_point> t_next_;
