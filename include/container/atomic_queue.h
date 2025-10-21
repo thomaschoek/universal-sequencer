@@ -38,7 +38,6 @@ private:
   mutable std::mutex mutex_;
   std::atomic<bool> is_populating_{false};
   std::atomic<Size_type> size_{0};
-  Base_queue queue_;
 };
 
 } // namespace container
