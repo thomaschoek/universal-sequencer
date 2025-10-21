@@ -25,6 +25,7 @@ public:
   using Size_type = Container::size_type;
   using Output_queue = container::Atomic_queue<T_event>;
   using Data_init_list = std::initializer_list<T_event>;
+  using Handler = std::function<void(const T_event&)>;
 
   explicit Sequencer(Data_init_list = {});
   explicit Sequencer(const std::vector<T_event>&);
@@ -40,6 +41,9 @@ public:
 
   // Get the next scheduled event from the output queue
   const T_event& await_event();
+
+  // Launch a thread to consume scheduled events
+  std::jthread subscribe(const Handler&) const;
 
   // Get the time of the next scheduled event
   Time_point t_next() const;
