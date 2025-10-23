@@ -52,13 +52,14 @@ public:
     cv.notify_one();
   }
 
-  std::function<void(Test_event&&)> handler() {
+  std::function<void(Test_event&&)> make_handler() {
     return [this](Test_event&& evt) { capture(std::move(evt)); };
   }
 
   size_t wait_for_events(size_t count, std::chrono::milliseconds timeout) {
     std::unique_lock<std::mutex> lock(mutex);
-    cv.wait_for(lock, timeout, [this, count]() { return events.size() >= count; });
+    cv.wait_for(lock, timeout,
+                [this, count]() { return events.size() >= count; });
     return events.size();
   }
 
@@ -73,7 +74,7 @@ TEST_CASE("Sequencer construction", "[sequencer]") {
     std::cerr << "DEBUG: Creating Event_capture\n" << std::flush;
     Event_capture capture;
     std::cerr << "DEBUG: Creating Sequencer\n" << std::flush;
-    Sequencer<Test_event> seq(capture.handler());
+    Sequencer<Test_event> seq(capture.make_handler());
     std::cerr << "DEBUG: Calling empty()\n" << std::flush;
     REQUIRE(seq.empty());
     std::cerr << "DEBUG: Calling size()\n" << std::flush;
@@ -83,7 +84,7 @@ TEST_CASE("Sequencer construction", "[sequencer]") {
 
   SECTION("Initializer list constructor") {
     Event_capture capture;
-    Sequencer<Test_event> seq(capture.handler(),
+    Sequencer<Test_event> seq(capture.make_handler(),
                               {Test_event(std::chrono::milliseconds(100)),
                                Test_event(std::chrono::milliseconds(200)),
                                Test_event(std::chrono::milliseconds(150))});
@@ -94,7 +95,7 @@ TEST_CASE("Sequencer construction", "[sequencer]") {
 
 TEST_CASE("Sequencer data operations", "[sequencer]") {
   Event_capture capture;
-  Sequencer<Test_event> seq(capture.handler());
+  Sequencer<Test_event> seq(capture.make_handler());
 
   SECTION("push_back adds events") {
     seq.push_back(Test_event(std::chrono::milliseconds(100), 1));
@@ -189,7 +190,7 @@ TEST_CASE("Sequencer data operations", "[sequencer]") {
 
 TEST_CASE("Sequencer transport control", "[sequencer]") {
   Event_capture capture;
-  Sequencer<Test_event> seq(capture.handler(),
+  Sequencer<Test_event> seq(capture.make_handler(),
                             {Test_event(std::chrono::milliseconds(50), 1),
                              Test_event(std::chrono::milliseconds(50), 2),
                              Test_event(std::chrono::milliseconds(50), 3)});
@@ -247,7 +248,7 @@ TEST_CASE("Sequencer transport control", "[sequencer]") {
 TEST_CASE("Sequencer event retrieval", "[sequencer]") {
   SECTION("Handler receives scheduled events in once mode") {
     Event_capture capture;
-    Sequencer<Test_event> seq(capture.handler(),
+    Sequencer<Test_event> seq(capture.make_handler(),
                               {Test_event(std::chrono::milliseconds(50), 1),
                                Test_event(std::chrono::milliseconds(50), 2),
                                Test_event(std::chrono::milliseconds(50), 3)});
@@ -277,7 +278,7 @@ TEST_CASE("Sequencer event retrieval", "[sequencer]") {
 
   SECTION("Handler receives events in repeat mode") {
     Event_capture capture;
-    Sequencer<Test_event> seq(capture.handler(),
+    Sequencer<Test_event> seq(capture.make_handler(),
                               {Test_event(std::chrono::milliseconds(40), 1),
                                Test_event(std::chrono::milliseconds(40), 2)});
 
@@ -306,7 +307,7 @@ TEST_CASE("Sequencer event retrieval", "[sequencer]") {
 
   SECTION("t_next returns next scheduled time") {
     Event_capture capture;
-    Sequencer<Test_event> seq(capture.handler(),
+    Sequencer<Test_event> seq(capture.make_handler(),
                               {Test_event(std::chrono::milliseconds(50), 1)});
 
     auto start_time =
@@ -326,7 +327,7 @@ TEST_CASE("Sequencer event retrieval", "[sequencer]") {
 
 TEST_CASE("Sequencer position control", "[sequencer]") {
   Event_capture capture;
-  Sequencer<Test_event> seq(capture.handler(),
+  Sequencer<Test_event> seq(capture.make_handler(),
                             {Test_event(std::chrono::milliseconds(50), 1),
                              Test_event(std::chrono::milliseconds(50), 2),
                              Test_event(std::chrono::milliseconds(50), 3)});
@@ -355,7 +356,8 @@ TEST_CASE("Sequencer position control", "[sequencer]") {
 
     {
       std::lock_guard<std::mutex> lock(capture.mutex);
-      REQUIRE(capture.events[0].id == 2); // Should start from position 1 (second event)
+      REQUIRE(capture.events[0].id ==
+              2); // Should start from position 1 (second event)
     }
 
     seq.pause(Sequencer<Test_event>::Clock::now() +
@@ -366,7 +368,7 @@ TEST_CASE("Sequencer position control", "[sequencer]") {
 TEST_CASE("Sequencer thread safety", "[sequencer][concurrency]") {
   SECTION("Data operations are safe while not scheduling") {
     Event_capture capture;
-    Sequencer<Test_event> seq(capture.handler());
+    Sequencer<Test_event> seq(capture.make_handler());
 
     std::thread writer1([&]() {
       for (int i = 0; i < 10; ++i) {
@@ -390,7 +392,7 @@ TEST_CASE("Sequencer thread safety", "[sequencer][concurrency]") {
 
   SECTION("Concurrent reads are safe") {
     Event_capture capture;
-    Sequencer<Test_event> seq(capture.handler(),
+    Sequencer<Test_event> seq(capture.make_handler(),
                               {Test_event(std::chrono::milliseconds(50), 1),
                                Test_event(std::chrono::milliseconds(50), 2),
                                Test_event(std::chrono::milliseconds(50), 3)});
@@ -418,7 +420,7 @@ TEST_CASE("Sequencer thread safety", "[sequencer][concurrency]") {
 
   SECTION("Position can be safely queried concurrently") {
     Event_capture capture;
-    Sequencer<Test_event> seq(capture.handler(),
+    Sequencer<Test_event> seq(capture.make_handler(),
                               {Test_event(std::chrono::milliseconds(50), 1),
                                Test_event(std::chrono::milliseconds(50), 2)});
 
@@ -447,7 +449,7 @@ TEST_CASE("Sequencer thread safety", "[sequencer][concurrency]") {
 TEST_CASE("Sequencer on-the-fly modifications", "[sequencer][concurrency]") {
   SECTION("Can modify events while scheduling") {
     Event_capture capture;
-    Sequencer<Test_event> seq(capture.handler());
+    Sequencer<Test_event> seq(capture.make_handler());
     // Create events with longer durations to have time for modifications
     for (int i = 0; i < 10; ++i) {
       seq.push_back(Test_event(std::chrono::milliseconds(50), i));
@@ -472,7 +474,7 @@ TEST_CASE("Sequencer on-the-fly modifications", "[sequencer][concurrency]") {
 
   SECTION("Can erase events while scheduling") {
     Event_capture capture;
-    Sequencer<Test_event> seq(capture.handler());
+    Sequencer<Test_event> seq(capture.make_handler());
     for (int i = 0; i < 10; ++i) {
       seq.push_back(Test_event(std::chrono::milliseconds(40), i));
     }
@@ -496,32 +498,39 @@ TEST_CASE("Sequencer on-the-fly modifications", "[sequencer][concurrency]") {
 
   SECTION("Can insert events while scheduling") {
     Event_capture capture;
-    Sequencer<Test_event> seq(capture.handler());
+    Sequencer<Test_event> seq(capture.make_handler());
+    std::cerr << "[DEBUG]: Pushing initial events\n" << std::flush;
     for (int i = 0; i < 5; ++i) {
       seq.push_back(Test_event(std::chrono::milliseconds(40), i));
     }
 
     auto start_time =
         Sequencer<Test_event>::Clock::now() + std::chrono::milliseconds(50);
+    std::cerr << "[DEBUG]: Starting sequencer\n" << std::flush;
     seq.start(start_time, true);
 
     // Wait for first event
+    std::cerr << "[DEBUG]: Waiting for events\n" << std::flush;
     capture.wait_for_events(1, std::chrono::milliseconds(150));
 
     // Insert at end (should be safe)
+    std::cerr << "[DEBUG]: Pushing event back while running\n" << std::flush;
     seq.push_back(Test_event(std::chrono::milliseconds(40), 99));
 
     REQUIRE(seq.size() == 6);
 
+    std::cerr << "[DEBUG]: Pausing sequencer\n" << std::flush;
     seq.pause(Sequencer<Test_event>::Clock::now() +
               std::chrono::milliseconds(10));
+    std::cerr << "[DEBUG]: SECTION Can insert events while scheduling DONE\n"
+              << std::flush;
   }
 }
 
 TEST_CASE("Sequencer move constructor", "[sequencer]") {
   SECTION("Move constructor transfers state correctly") {
     Event_capture capture;
-    Sequencer<Test_event> seq1(capture.handler(),
+    Sequencer<Test_event> seq1(capture.make_handler(),
                                {Test_event(std::chrono::milliseconds(50), 1),
                                 Test_event(std::chrono::milliseconds(50), 2)});
 
@@ -536,18 +545,25 @@ TEST_CASE("Sequencer move constructor", "[sequencer]") {
   }
 
   SECTION("Move constructor stops source sequencer if running") {
+    std::cerr << "[DEBUG]: SECTION Move constructor stops source sequencer if "
+                 "running START\n"
+              << std::flush;
     Event_capture capture;
-    Sequencer<Test_event> seq1(capture.handler(),
+    Sequencer<Test_event> seq1(capture.make_handler(),
                                {Test_event(std::chrono::milliseconds(50), 1),
                                 Test_event(std::chrono::milliseconds(50), 2)});
 
     auto start_time =
         Sequencer<Test_event>::Clock::now() + std::chrono::milliseconds(50);
+
+    std::cerr << "[DEBUG]: Starting sequencer\n" << std::flush;
     seq1.start(start_time, false);
     REQUIRE(seq1.is_scheduling());
 
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
 
+    std::cerr << "[DEBUG]: Moving sequencer while it is running\n"
+              << std::flush;
     Sequencer<Test_event> seq2(std::move(seq1));
 
     REQUIRE_FALSE(seq2.is_scheduling());
@@ -557,7 +573,7 @@ TEST_CASE("Sequencer move constructor", "[sequencer]") {
 TEST_CASE("Sequencer timing accuracy", "[sequencer][timing]") {
   SECTION("Events are scheduled with reasonable accuracy") {
     Event_capture capture;
-    Sequencer<Test_event> seq(capture.handler(),
+    Sequencer<Test_event> seq(capture.make_handler(),
                               {Test_event(std::chrono::milliseconds(50), 1),
                                Test_event(std::chrono::milliseconds(50), 2),
                                Test_event(std::chrono::milliseconds(50), 3)});
@@ -585,7 +601,7 @@ TEST_CASE("Sequencer timing accuracy", "[sequencer][timing]") {
 
   SECTION("Event durations are respected") {
     Event_capture capture;
-    Sequencer<Test_event> seq(capture.handler(),
+    Sequencer<Test_event> seq(capture.make_handler(),
                               {Test_event(std::chrono::milliseconds(100), 1),
                                Test_event(std::chrono::milliseconds(50), 2)});
 
