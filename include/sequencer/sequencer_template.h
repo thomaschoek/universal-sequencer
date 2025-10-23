@@ -26,10 +26,14 @@ template <sequencable::Sequencable T_event> struct Sequencer {
   using Events_initializer = std::initializer_list<T_event>;
   using Handler = std::function<void(T_event&&)>;
 
+  // Constructors
   explicit Sequencer(Handler, Events_initializer = {});
   Sequencer(Handler, const Container&);
   Sequencer(Handler, Container&&);
   Sequencer(Sequencer&&) noexcept;
+
+  // Destructor
+  ~Sequencer();
 
   // Set handler post-construction
   void set_handler(const Handler&);

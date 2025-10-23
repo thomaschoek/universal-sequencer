@@ -3,6 +3,7 @@
 #include <iostream>
 #include <syncstream>
 #endif
+#include <cassert>
 
 namespace Micro_composer {
 
@@ -16,6 +17,9 @@ template <sequencable::Sequencable T_event>
 Thread_pool<T_event>::Thread_pool(Task event_handler,
                                   Size_type initial_n_threads)
     : handler_{event_handler} {
+  if (handler_ == nullptr) {
+    throw std::invalid_argument("Thread_pool: event_handler cannot be null");
+  }
   std::scoped_lock lck{workers_mutex_};
   for (Size_type i = 0; i < initial_n_threads; ++i) {
     workers_.push_back(std::make_unique<std::jthread>(worker()));
@@ -33,8 +37,8 @@ Thread_pool<T_event>::~Thread_pool() {
         << std::flush;
   }
 #endif
-  // Wake up all workers so they can check stop_requested()
-  cv_.notify_all();
+  std::scoped_lock lck{workers_mutex_, events_mutex_};
+  stop_workers();
 #ifndef NDEBUG
   {
     std::osyncstream(std::cerr) << "[THREAD_POOL] Notified all workers\n"
@@ -51,46 +55,23 @@ Thread_pool<T_event>::~Thread_pool() {
 }
 
 template <sequencable::Sequencable T_event>
-Thread_pool<T_event>::Thread_pool(Thread_pool&& other) noexcept
-    : handler_{std::move(other.handler_)} {
-  // Stop all workers in other before moving them
-  // The worker threads have captured 'this' pointer to other,
-  // so we must stop them before they try to access moved-from state
-  {
-    std::scoped_lock lck{other.workers_mutex_};
-    // Request stop and wake all workers
-    for (auto& worker : other.workers_) {
-      worker->request_stop();
-    }
-    other.cv_.notify_all();
-    // Now move the workers (jthread destructors will join if needed)
-    workers_ = std::move(other.workers_);
-  }
+Thread_pool<T_event>::Thread_pool(Thread_pool&& other) noexcept {
   {
     std::scoped_lock lck{other.events_mutex_};
     events_ = std::move(other.events_);
   }
+  std::scoped_lock lck{other.workers_mutex_, cv_mutex_};
+  other.stop_workers();
+  assert(other.handler_ != nullptr &&
+         "Thread_pool move constructor: other.handler_ is null");
+  handler_ = std::move(other.handler_);
+  workers_ = std::move(other.workers_);
 }
 
 template <sequencable::Sequencable T_event>
 Thread_pool<T_event>&
 Thread_pool<T_event>::operator=(Thread_pool&& other) noexcept {
-  if (this != &other) {
-    handler_ = std::move(other.handler_);
-    {
-      std::scoped_lock lck1{workers_mutex_, other.workers_mutex_};
-      // Stop all workers in other before moving them
-      for (auto& worker : other.workers_) {
-        worker->request_stop();
-      }
-      other.cv_.notify_all();
-      workers_ = std::move(other.workers_);
-    }
-    {
-      std::scoped_lock lck2{events_mutex_, other.events_mutex_};
-      events_ = std::move(other.events_);
-    }
-  }
+  Thread_pool(std::move(other));
   return *this;
 }
 
@@ -98,6 +79,9 @@ Thread_pool<T_event>::operator=(Thread_pool&& other) noexcept {
 
 template <sequencable::Sequencable T_event>
 void Thread_pool<T_event>::set_handler(const Task& t) {
+  if (t == nullptr) {
+    throw std::invalid_argument("Thread_pool: handler cannot be null");
+  }
   std::scoped_lock lock_cv{cv_mutex_};
   std::scoped_lock lock_workers{workers_mutex_};
   while (workers_idle_.load(std::memory_order_acquire) < workers_.size()) {
@@ -165,7 +149,8 @@ std::jthread Thread_pool<T_event>::worker() {
         }
 #endif
         std::unique_lock lck{cv_mutex_};
-        while (new_events_.load(std::memory_order_acquire) == 0) {
+        while (!st.stop_requested() &&
+               new_events_.load(std::memory_order_acquire) == 0) {
 #ifndef NDEBUG
           {
             std::osyncstream(std::cerr)
@@ -174,10 +159,6 @@ std::jthread Thread_pool<T_event>::worker() {
                 << std::flush;
           }
 #endif
-          if (st.stop_requested()) {
-            workers_idle_.fetch_sub(1, std::memory_order_acq_rel);
-            return;
-          }
 #ifndef NDEBUG
           {
             std::osyncstream(std::cerr)
@@ -197,6 +178,9 @@ std::jthread Thread_pool<T_event>::worker() {
 #endif
         }
         workers_idle_.fetch_sub(1, std::memory_order_acq_rel);
+        if (st.stop_requested()) {
+          return;
+        }
       }
       T_event event = pop_event();
       const Time_point& scheduled_time = event.scheduled_time;
@@ -204,7 +188,7 @@ std::jthread Thread_pool<T_event>::worker() {
       {
         std::osyncstream(std::cerr)
             << "[THREAD_POOL] Worker " << std::this_thread::get_id()
-            << " POPPED_EVENT with scheduled_time "
+            << " POPPED EVENT with scheduled_time "
             << duration_cast<std::chrono::milliseconds>(
                    scheduled_time.time_since_epoch())
                    .count()
@@ -213,8 +197,11 @@ std::jthread Thread_pool<T_event>::worker() {
       }
 #endif
       std::this_thread::sleep_until(event.scheduled_time - spin_duration_);
-      while (Clock::now() < event.scheduled_time)
-        ;
+      while (Clock::now() < event.scheduled_time) {
+        if (st.stop_requested()) {
+          return;
+        }
+      }
 #ifndef NDEBUG
       {
         std::osyncstream(std::cerr)
@@ -226,6 +213,24 @@ std::jthread Thread_pool<T_event>::worker() {
       handler_(std::forward<T_event>(event));
     }
   });
+}
+
+template <sequencable::Sequencable T_event>
+void Thread_pool<T_event>::stop_workers() {
+  // Assert that we have the workers_mutex_ and events_mutex_ locked
+  assert(workers_mutex_.try_lock() == false &&
+         "workers_mutex_ must be locked before calling stop_workers()");
+  // Request stop for all workers
+  for (auto& worker : workers_) {
+    worker->request_stop();
+  }
+  // Wake up all workers so they can check stop_requested()
+  cv_.notify_all();
+  for (auto& worker : workers_) {
+    if (worker->joinable()) {
+      worker->join();
+    }
+  }
 }
 
 } // namespace thread_pool

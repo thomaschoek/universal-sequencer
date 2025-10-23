@@ -51,6 +51,11 @@ Sequencer<T_event>::Sequencer(Sequencer&& other) noexcept
   // (stopped/unlocked)
 }
 
+// Destructor
+template <sequencable::Sequencable T_event> Sequencer<T_event>::~Sequencer() {
+  pause(Clock::now());
+}
+
 // Transport
 
 template <sequencable::Sequencable T_event>

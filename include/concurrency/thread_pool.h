@@ -55,9 +55,10 @@ private:
   void push_event(T_event&&);
   T_event pop_event();
   std::jthread worker();
+  void stop_workers();
 
   // Task to be executed for each submitted event
-  Task handler_{[]() {}};
+  Task handler_;
 
   std::condition_variable cv_;
   std::mutex cv_mutex_;
