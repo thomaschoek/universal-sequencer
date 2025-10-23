@@ -101,8 +101,11 @@ template <typename T_event> std::jthread Thread_pool<T_event>::worker() {
       workers_idle_.fetch_add(1, std::memory_order_acq_rel);
       {
         std::unique_lock lck{cv_mutex_};
-        while (new_events_.load(std::memory_order_acquire) == 0 &&
-               !st.stop_requested()) {
+        while (new_events_.load(std::memory_order_acquire) == 0) {
+          if (st.stop_requested()) {
+            workers_idle_.fetch_sub(1, std::memory_order_acq_rel);
+            return;
+          }
           cv_.wait(lck);
         }
         workers_idle_.fetch_sub(1, std::memory_order_acq_rel);
