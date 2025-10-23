@@ -3,34 +3,35 @@
 
 #include <atomic>
 #include <chrono>
-#include <condition_variable>
 #include <functional>
 #include <initializer_list>
 #include <mutex>
 #include <thread>
 
-#include "container/atomic_queue.h"
+#include "concurrency/thread_pool.h"
 #include "sequencable/concepts.h"
 
 namespace Micro_composer {
 
 namespace sequencer {
 
-template <sequencable::Sequencable T_event> class Sequencer {
-public:
+template <sequencable::Sequencable T_event> struct Sequencer {
   using Clock = std::chrono::steady_clock;
   using Time_point = Clock::time_point;
   using Duration = Clock::duration;
   using Container = std::vector<std::unique_ptr<T_event>>;
   using Size_type = Container::size_type;
-  using Output_queue = container::Atomic_queue<T_event>;
-  using Data_init_list = std::initializer_list<T_event>;
-  using Handler = std::function<void(const T_event&)>;
+  using Thread_pool = thread_pool::Thread_pool<T_event>;
+  using Events_initializer = std::initializer_list<T_event>;
+  using Handler = std::function<void(T_event&&)>;
 
-  explicit Sequencer(Data_init_list = {});
-  explicit Sequencer(const Container&);
-  explicit Sequencer(Container&&);
-  Sequencer(Sequencer&&) noexcept;
+  explicit Sequencer(Handler, Events_initializer = {});
+  Sequencer(Handler, const Container&);
+  Sequencer(Handler, Container&&);
+  Sequencer(Handler, Sequencer&&) noexcept;
+
+  // Set handler post-construction
+  void set_handler(const Handler&);
 
   // Thread-safe transport control
   void start(const Time_point = Clock::now() + min_duration_,
@@ -38,12 +39,6 @@ public:
   void pause(const Time_point = Clock::now() + min_duration_);
   void stop(const Time_point = Clock::now(), const Size_type stop_pos = 0);
   bool is_scheduling() const;
-
-  // Get the next scheduled event from the output queue
-  T_event await_event();
-
-  // Launch a thread to consume scheduled events
-  std::jthread subscribe(const Handler&) const;
 
   // Get the time of the next scheduled event
   Time_point t_next() const;
@@ -60,7 +55,7 @@ public:
   void pop_back();
   void insert(Size_type, const T_event&);
   void erase(Size_type);
-  void assign(Data_init_list);
+  void assign(Events_initializer);
   void assign(const std::vector<T_event>&);
   void clear() noexcept;
 
@@ -88,12 +83,10 @@ private:
   Container events_;
   std::atomic<Size_type> current_{0};
 
-  mutable Output_queue output_;
-  mutable std::mutex output_mutex_;
-  mutable std::condition_variable output_cv_;
+  Thread_pool pool_;
 
   std::jthread scheduler_;
-  std::atomic<Time_point> t_next_;
+  std::atomic<Time_point> t_next_{Time_point::min()};
 };
 
 } // namespace sequencer
