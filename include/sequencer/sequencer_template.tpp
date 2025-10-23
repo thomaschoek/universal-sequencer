@@ -208,11 +208,11 @@ void Sequencer<T_event>::insert(Size_type pos, const T_event& event) {
                 .count()) +
         " ms");
   }
-  if (pos > events_.size()) {
+  if (pos >= events_.size()) {
     throw std::out_of_range("Index out of range!");
   }
 
-  Size_type current{0};
+  Size_type current;
   while (is_scheduling()) {
     current = next_.load(std::memory_order_acquire);
     if (current < pos) {
@@ -228,13 +228,14 @@ void Sequencer<T_event>::insert(Size_type pos, const T_event& event) {
   events_.insert(events_.begin() + pos, std::make_unique<T_event>(event));
 
   if (current > pos) {
+    // We need to increment current to account for the inserted event
 #ifndef NDEBUG
     if (is_scheduling()) {
       assert(current > pos + 1 && "Expected current to be greater than pos + 1 "
                                   "during on-the-fly insert.");
     }
 #endif
-    if (current < events_.size() - 1) {
+    if (++current < events_.size()) {
       next_.fetch_add(1, std::memory_order_acq_rel);
     } else {
       next_.store(0, std::memory_order_release);
