@@ -27,9 +27,8 @@ template <sequencable::Sequencable T_event> struct Thread_pool {
   using Clock = Common_types::Clock;
   using Duration = Common_types::Duration;
 
-  Thread_pool(
-      Task event_handler = std::function<void>{[]() {}},
-      Size_type initial_n_threads = std::thread::hardware_concurrency());
+  Thread_pool(Task event_handler = std::function<void>{[]() {}},
+              Size_type initial_n_threads = 0);
 
   // Destructor - wake up all waiting workers
   ~Thread_pool();
