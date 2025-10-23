@@ -57,7 +57,7 @@ int main(int argc, char** argv) {
 
   std::cout << "[MAIN] About to create sequencer\n" << std::flush;
 
-  auto sequencer = Sequencer(std::move(sequences[0]));
+  auto sequencer = Sequencer(handlers[0], std::move(sequences[0]));
 
   std::cout << "[MAIN] Sequencer created\n" << std::flush;
   std::cout << "[MAIN] Starting sequencer with repeat=true\n" << std::flush;
@@ -67,17 +67,11 @@ int main(int argc, char** argv) {
   sequencer.start(start_time, true);
   std::cout << "[MAIN] start() returned\n" << std::flush;
 
-  // Create a consumer thread that plays events from the sequencer
-  std::jthread subscription = sequencer.subscribe(handlers[0]);
-
   std::cout << "[MAIN] Playing for 10 seconds...\n";
   std::this_thread::sleep_for(std::chrono::seconds(10));
 
   std::cout << "[MAIN] Pausing sequencer\n";
   sequencer.pause();
-
-  subscription = sequencer.subscribe(handlers[0]);
-  std::jthread sub2 = sequencer.subscribe(handlers[1]);
 
   std::cout << "[MAIN] Waiting 2 seconds...\n";
   std::this_thread::sleep_for(std::chrono::seconds(2));
@@ -93,8 +87,6 @@ int main(int argc, char** argv) {
   sequencer.stop();
 
   std::cout << "[MAIN] Stopping player thread\n";
-  subscription.request_stop();
-  sub2.request_stop();
 
   std::cout << "[MAIN] Done!\n";
 }
