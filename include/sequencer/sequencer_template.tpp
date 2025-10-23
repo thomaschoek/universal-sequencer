@@ -9,6 +9,28 @@ namespace Micro_composer {
 
 namespace sequencer {
 
+#ifndef NDEBUG
+
+long get_timestamp_ms() {
+  auto now = std::chrono::steady_clock::now();
+  return std::chrono::duration_cast<std::chrono::milliseconds>(
+             now.time_since_epoch())
+      .count();
+}
+
+inline void debug_msg(std::string msg, std::ostream& stream = std::cerr) {
+#ifndef NDEBUG
+
+  std::osyncstream(stream) << get_timestamp_ms() << " [SEQUENCER] thread "
+                           << std::to_string(std::hash<std::thread::id>{}(
+                                  std::this_thread::get_id()))
+                           << ": " << msg << std::endl
+                           << std::flush;
+#endif
+}
+
+#endif
+
 // PUBLIC
 // Constructors
 template <sequencable::Sequencable T_event>
@@ -360,43 +382,18 @@ Sequencer<T_event>::once(const std::stop_token st,
   do {
     {
       std::scoped_lock lck{data_mutex_};
-#ifndef NDEBUG
-      {
-        std::osyncstream(std::cerr)
-            << "[SEQUENCER] once(): Acquired data_mutex_ at time "
-            << std::chrono::duration_cast<std::chrono::milliseconds>(
-                   Clock::now().time_since_epoch())
-                   .count()
-            << " ms\n"
-            << std::flush;
-      }
-#endif
+      debug_msg("oncw(): Acquired data_mutex_");
       // Inform concurrent threads which event we are about to copy
       event_idx = next_.load(std::memory_order_acquire);
-#ifndef NDEBUG
-      {
-        std::osyncstream(std::cerr)
-            << "[SEQUENCER] once(): next_ = " << event_idx << "\n"
-            << std::flush;
-      }
-#endif
+      debug_msg("once(): Loaded next_ = " + std::to_string(event_idx) +
+                " from atomic next_");
       events_size = events_.size();
-#ifndef NDEBUG
-      {
-        std::osyncstream(std::cerr)
-            << "[SEQUENCER] once(): events_size = " << events_size
-            << ", checking if " << event_idx << " >= " << events_size << "\n"
-            << std::flush;
-      }
-#endif
+      debug_msg("once(): Loaded events_.size() = " +
+                std::to_string(events_size));
       if (event_idx >= events_size) {
-#ifndef NDEBUG
-        {
-          std::osyncstream(std::cerr) << "[SEQUENCER] once(): BREAKING because "
-                                         "event_idx >= events_size\n"
-                                      << std::flush;
-        }
-#endif
+        debug_msg("once(): event_idx " + std::to_string(event_idx) +
+                  ">= events_size " + std::to_string(events_size) +
+                  ", BREAK loop");
         break;
       }
 
@@ -407,39 +404,33 @@ Sequencer<T_event>::once(const std::stop_token st,
       }
       next_.store(event_idx + 1, std::memory_order_release);
     }
+    debug_msg("once(): Released data_mutex_");
 
     const Duration cur_duration = buffer.duration;
 
-#ifndef NDEBUG
-    {
-      std::osyncstream(std::cerr)
-          << "[SEQUENCER] once(): submitting event to pool with "
-             "event.scheduled_time = "
-          << std::chrono::duration_cast<std::chrono::milliseconds>(
-                 buffer.scheduled_time.time_since_epoch())
-                 .count()
-          << " ms\n"
-          << std::flush;
-    }
-#endif
+    debug_msg(
+        "once(): Submitting event to pool with (scheduled_time=" +
+        std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
+                           buffer.scheduled_time.time_since_epoch())
+                           .count()) +
+        " ms, duration=" +
+        std::to_string(
+            std::chrono::duration_cast<std::chrono::milliseconds>(cur_duration)
+                .count()) +
+        " ms)");
 
     pool_.submit(std::forward<T_event>(buffer));
 
-// Inform other threads until when scheduler will be idle (or at least not
-// critically engaged) Other threads will load t_next_ with
-// memory_order_acquire and only try to lock the events mutex during this
-// time window
-#ifndef NDEBUG
-    {
-      std::osyncstream(std::cerr)
-          << "[SEQUENCER] once(): storing t_next_ as "
-          << std::chrono::duration_cast<std::chrono::milliseconds>(
-                 t_next.time_since_epoch())
-                 .count()
-          << " ms\n"
-          << std::flush;
-    }
-#endif
+    // Inform other threads until when scheduler will be idle (or at least not
+    // critically engaged) Other threads will load t_next_ with
+    // memory_order_acquire and only try to lock the events mutex during this
+    // time window
+    debug_msg(
+        "once(): Storing t_next_ as " +
+        std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
+                           t_next.time_since_epoch())
+                           .count()) +
+        " ms");
     t_next_.store(t_next, std::memory_order_release);
 
     std::this_thread::sleep_until(t_next);

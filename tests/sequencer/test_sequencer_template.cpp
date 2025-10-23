@@ -14,6 +14,31 @@ using namespace Micro_composer;
 using namespace Micro_composer::sequencer;
 using namespace Micro_composer::sequencable;
 
+namespace Micro_composer {
+
+namespace tests {
+
+namespace sequencer_tests {
+
+#ifndef NDEBUG
+
+long get_timestamp_ms() {
+  auto now = std::chrono::steady_clock::now();
+  return std::chrono::duration_cast<std::chrono::milliseconds>(
+             now.time_since_epoch())
+      .count();
+}
+
+inline void debug_msg(std::string msg, std::ostream& stream = std::cerr) {
+#ifndef NDEBUG
+  std::osyncstream(stream) << get_timestamp_ms() << " [TEST_SEQUENCER] "
+                           << ": " << msg << std::endl
+                           << std::flush;
+#endif
+}
+
+#endif
+
 // Test event type that properly satisfies Sequencable concept
 struct Test_event {
   using Clock = std::chrono::steady_clock;
@@ -71,15 +96,15 @@ public:
 
 TEST_CASE("Sequencer construction", "[sequencer]") {
   SECTION("Constructor creates empty sequencer") {
-    std::cerr << "DEBUG: Creating Event_capture\n" << std::flush;
+    debug_msg("Starting test: Constructor creates empty sequencer");
     Event_capture capture;
-    std::cerr << "DEBUG: Creating Sequencer\n" << std::flush;
+    debug_msg("Creating Sequencer\n");
     Sequencer<Test_event> seq(capture.make_handler());
-    std::cerr << "DEBUG: Calling empty()\n" << std::flush;
+    debug_msg("DEBUG: Calling empty()");
     REQUIRE(seq.empty());
-    std::cerr << "DEBUG: Calling size()\n" << std::flush;
+    debug_msg("DEBUG: Calling size()");
     REQUIRE(seq.size() == 0);
-    std::cerr << "DEBUG: Test complete\n" << std::flush;
+    debug_msg("DEBUG: Test complete\n");
   }
 
   SECTION("Initializer list constructor") {
@@ -247,15 +272,18 @@ TEST_CASE("Sequencer transport control", "[sequencer]") {
 
 TEST_CASE("Sequencer event retrieval", "[sequencer]") {
   SECTION("Handler receives scheduled events in once mode") {
+    debug_msg("[TEST SECTION] Handler receives scheduled events in once ");
     Event_capture capture;
     Sequencer<Test_event> seq(capture.make_handler(),
-                              {Test_event(std::chrono::milliseconds(50), 1),
-                               Test_event(std::chrono::milliseconds(50), 2),
-                               Test_event(std::chrono::milliseconds(50), 3)});
+                              {Test_event(std::chrono::milliseconds(10), 1),
+                               Test_event(std::chrono::milliseconds(10), 2),
+                               Test_event(std::chrono::milliseconds(10), 3)});
 
     auto start_time =
         Sequencer<Test_event>::Clock::now() + std::chrono::milliseconds(50);
+    debug_msg("[DEBUG] Calling seq.start() at ");
     seq.start(start_time, false);
+    debug_msg("Returned from seq.start()");
 
     // Wait for all events to be delivered
     REQUIRE(capture.wait_for_events(3, std::chrono::milliseconds(300)) == 3);
@@ -274,6 +302,8 @@ TEST_CASE("Sequencer event retrieval", "[sequencer]") {
 
     // Wait for sequencer to finish
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    debug_msg(
+        "[TEST SECTION] Handler receives scheduled events in once mode DONE");
   }
 
   SECTION("Handler receives events in repeat mode") {
@@ -499,31 +529,30 @@ TEST_CASE("Sequencer on-the-fly modifications", "[sequencer][concurrency]") {
   SECTION("Can insert events while scheduling") {
     Event_capture capture;
     Sequencer<Test_event> seq(capture.make_handler());
-    std::cerr << "[DEBUG]: Pushing initial events\n" << std::flush;
+    debug_msg("[DEBUG]: Pushing initial events\n");
     for (int i = 0; i < 5; ++i) {
       seq.push_back(Test_event(std::chrono::milliseconds(40), i));
     }
 
     auto start_time =
         Sequencer<Test_event>::Clock::now() + std::chrono::milliseconds(50);
-    std::cerr << "[DEBUG]: Starting sequencer\n" << std::flush;
+    debug_msg("[DEBUG]: Starting sequencer\n");
     seq.start(start_time, true);
 
     // Wait for first event
-    std::cerr << "[DEBUG]: Waiting for events\n" << std::flush;
+    debug_msg("[DEBUG]: Waiting for events\n");
     capture.wait_for_events(1, std::chrono::milliseconds(150));
 
     // Insert at end (should be safe)
-    std::cerr << "[DEBUG]: Pushing event back while running\n" << std::flush;
+    debug_msg("[DEBUG]: Pushing event back while running\n");
     seq.push_back(Test_event(std::chrono::milliseconds(40), 99));
 
     REQUIRE(seq.size() == 6);
 
-    std::cerr << "[DEBUG]: Pausing sequencer\n" << std::flush;
+    debug_msg("[DEBUG]: Pausing sequencer\n");
     seq.pause(Sequencer<Test_event>::Clock::now() +
               std::chrono::milliseconds(10));
-    std::cerr << "[DEBUG]: SECTION Can insert events while scheduling DONE\n"
-              << std::flush;
+    debug_msg("[DEBUG]: SECTION Can insert events while scheduling DONE\n");
   }
 }
 
@@ -545,9 +574,8 @@ TEST_CASE("Sequencer move constructor", "[sequencer]") {
   }
 
   SECTION("Move constructor stops source sequencer if running") {
-    std::cerr << "[DEBUG]: SECTION Move constructor stops source sequencer if "
-                 "running START\n"
-              << std::flush;
+    debug_msg("[DEBUG]: SECTION Move constructor stops source sequencer if "
+              "running START\n");
     Event_capture capture;
     Sequencer<Test_event> seq1(capture.make_handler(),
                                {Test_event(std::chrono::milliseconds(50), 1),
@@ -556,14 +584,13 @@ TEST_CASE("Sequencer move constructor", "[sequencer]") {
     auto start_time =
         Sequencer<Test_event>::Clock::now() + std::chrono::milliseconds(50);
 
-    std::cerr << "[DEBUG]: Starting sequencer\n" << std::flush;
+    debug_msg("[DEBUG]: Starting sequencer\n");
     seq1.start(start_time, false);
     REQUIRE(seq1.is_scheduling());
 
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
 
-    std::cerr << "[DEBUG]: Moving sequencer while it is running\n"
-              << std::flush;
+    debug_msg("[DEBUG]: Moving sequencer while it is running\n");
     Sequencer<Test_event> seq2(std::move(seq1));
 
     REQUIRE_FALSE(seq2.is_scheduling());
@@ -629,3 +656,9 @@ TEST_CASE("Sequencer timing accuracy", "[sequencer][timing]") {
               std::chrono::milliseconds(10));
   }
 }
+
+} // namespace sequencer_tests
+
+} // namespace tests
+
+} // namespace Micro_composer

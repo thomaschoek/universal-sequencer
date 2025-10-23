@@ -1,15 +1,37 @@
 #include "thread_pool.h"
+#include <cassert>
 #ifndef NDEBUG
 #include <iostream>
 #include <syncstream>
 #endif
-#include <cassert>
 
 namespace Micro_composer {
 
 namespace sequencer {
 
 namespace thread_pool {
+
+#ifndef NDEBUG
+
+long get_timestamp_ms() {
+  auto now = std::chrono::steady_clock::now();
+  return std::chrono::duration_cast<std::chrono::milliseconds>(
+             now.time_since_epoch())
+      .count();
+}
+
+inline void debug_msg(std::string msg, std::ostream& stream = std::cerr) {
+#ifndef NDEBUG
+
+  std::osyncstream(stream) << get_timestamp_ms() << " [THREAD_POOL] thread "
+                           << std::to_string(std::hash<std::thread::id>{}(
+                                  std::this_thread::get_id()))
+                           << ": " << msg << std::endl
+                           << std::flush;
+#endif
+}
+
+#endif
 
 // Constructors
 
@@ -29,29 +51,10 @@ Thread_pool<T_event>::Thread_pool(Task event_handler,
 // Destructor
 template <sequencable::Sequencable T_event>
 Thread_pool<T_event>::~Thread_pool() {
-#ifndef NDEBUG
-  {
-    std::osyncstream(std::cerr)
-        << "[THREAD_POOL] Destructor starting, workers_.size()="
-        << workers_.size() << "\n"
-        << std::flush;
-  }
-#endif
+  debug_msg("MAIN THREAD Destructor starting");
   std::scoped_lock lck{workers_mutex_, events_mutex_};
   stop_workers();
-#ifndef NDEBUG
-  {
-    std::osyncstream(std::cerr) << "[THREAD_POOL] Notified all workers\n"
-                                << std::flush;
-  }
-#endif
-  // jthread destructors will request stop and join automatically
-#ifndef NDEBUG
-  {
-    std::osyncstream(std::cerr) << "[THREAD_POOL] Destructor exiting\n"
-                                << std::flush;
-  }
-#endif
+  debug_msg("RETURNED FROM stop_workers()");
 }
 
 template <sequencable::Sequencable T_event>
@@ -130,52 +133,18 @@ inline T_event Thread_pool<T_event>::pop_event() {
 template <sequencable::Sequencable T_event>
 std::jthread Thread_pool<T_event>::worker() {
   return std::jthread([this](std::stop_token st) {
-#ifndef NDEBUG
-    {
-      std::osyncstream(std::cerr) << "[THREAD_POOL] Worker "
-                                  << std::this_thread::get_id() << " started\n"
-                                  << std::flush;
-    }
-#endif
+    debug_msg("LAUNCHED NEW THREAD");
     while (!st.stop_requested()) {
       workers_idle_.fetch_add(1, std::memory_order_acq_rel);
       {
-#ifndef NDEBUG
-        {
-          std::osyncstream(std::cerr)
-              << "[THREAD_POOL] Worker " << std::this_thread::get_id()
-              << " acquiring cv_mutex_...\n"
-              << std::flush;
-        }
-#endif
+        debug_msg("ACQUIRING cv_mutex_");
         std::unique_lock lck{cv_mutex_};
         while (!st.stop_requested() &&
                new_events_.load(std::memory_order_acquire) == 0) {
-#ifndef NDEBUG
-          {
-            std::osyncstream(std::cerr)
-                << "[THREAD_POOL] Worker " << std::this_thread::get_id()
-                << " new_events_.load() returned 0\n"
-                << std::flush;
-          }
-#endif
-#ifndef NDEBUG
-          {
-            std::osyncstream(std::cerr)
-                << "[THREAD_POOL] Worker " << std::this_thread::get_id()
-                << " WAITING...\n"
-                << std::flush;
-          }
-#endif
+          debug_msg("new_events_.load() == 0 && !stop_requested()");
+          debug_msg("WAITING on cv_");
           cv_.wait(lck);
-#ifndef NDEBUG
-          {
-            std::osyncstream(std::cerr)
-                << "[THREAD_POOL] Worker " << std::this_thread::get_id()
-                << " NOTIFIED\n"
-                << std::flush;
-          }
-#endif
+          debug_msg("NOTIFIED");
         }
         workers_idle_.fetch_sub(1, std::memory_order_acq_rel);
         if (st.stop_requested()) {
@@ -184,33 +153,21 @@ std::jthread Thread_pool<T_event>::worker() {
       }
       T_event event = pop_event();
       const Time_point& scheduled_time = event.scheduled_time;
-#ifndef NDEBUG
-      {
-        std::osyncstream(std::cerr)
-            << "[THREAD_POOL] Worker " << std::this_thread::get_id()
-            << " POPPED EVENT with scheduled_time "
-            << duration_cast<std::chrono::milliseconds>(
-                   scheduled_time.time_since_epoch())
-                   .count()
-            << "\n"
-            << std::flush;
-      }
-#endif
+      debug_msg(
+          "POPPED EVENT with scheduled_time " +
+          std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
+                             scheduled_time.time_since_epoch())
+                             .count()) +
+          " ms");
       std::this_thread::sleep_until(event.scheduled_time - spin_duration_);
       while (Clock::now() < event.scheduled_time) {
         if (st.stop_requested()) {
           return;
         }
       }
-#ifndef NDEBUG
-      {
-        std::osyncstream(std::cerr)
-            << "[THREAD_POOL] Worker " << std::this_thread::get_id()
-            << " CALLING HANDLER\n"
-            << std::flush;
-      }
-#endif
+      debug_msg("CALLING HANDLER");
       handler_(std::forward<T_event>(event));
+      debug_msg("RETURNED FROM HANDLER");
     }
   });
 }
