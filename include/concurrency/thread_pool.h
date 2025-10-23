@@ -23,7 +23,7 @@ template <typename T_event> struct Thread_pool {
   using Size_type = Worker_vector::size_type;
 
   Thread_pool(
-      Task event_handler = []() {},
+      Task event_handler = std::function<void>{[]() {}},
       Size_type initial_n_threads = std::thread::hardware_concurrency());
 
   // Prevent copying
