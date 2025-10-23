@@ -9,6 +9,7 @@
 #include <thread>
 #include <vector>
 
+#include "common_types.h"
 #include "sequencable/concepts.h"
 
 namespace Micro_composer {
@@ -23,8 +24,8 @@ template <sequencable::Sequencable T_event> struct Thread_pool {
   using Worker_vector = std::vector<std::unique_ptr<Worker>>;
   using Event_deque = std::deque<std::unique_ptr<T_event>>;
   using Size_type = Worker_vector::size_type;
-  using Duration = T_event::Duration;
-  using Clock = T_event::Clock;
+  using Clock = Common_types::Clock;
+  using Duration = Common_types::Duration;
 
   Thread_pool(
       Task event_handler = std::function<void>{[]() {}},
