@@ -344,7 +344,6 @@ Sequencer<T_event>::once(const std::stop_token st,
       std::scoped_lock lck{data_mutex_};
       // Inform concurrent threads which event we are about to copy
       event_idx = next_.load(std::memory_order_acquire);
-      // Load size of events_ with memory order acquire
       events_size = events_.size();
       if (event_idx >= events_size) {
         break;

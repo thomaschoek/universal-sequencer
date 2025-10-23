@@ -31,6 +31,9 @@ template <sequencable::Sequencable T_event> struct Thread_pool {
       Task event_handler = std::function<void>{[]() {}},
       Size_type initial_n_threads = std::thread::hardware_concurrency());
 
+  // Destructor - wake up all waiting workers
+  ~Thread_pool();
+
   // Prevent copying
   Thread_pool(const Thread_pool&) = delete;
   Thread_pool& operator=(const Thread_pool&) = delete;

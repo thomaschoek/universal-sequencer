@@ -18,6 +18,14 @@ Thread_pool<T_event>::Thread_pool(Task event_handler,
   }
 }
 
+// Destructor
+template <sequencable::Sequencable T_event>
+Thread_pool<T_event>::~Thread_pool() {
+  // Wake up all workers so they can check stop_requested()
+  cv_.notify_all();
+  // jthread destructors will request stop and join automatically
+}
+
 template <sequencable::Sequencable T_event>
 Thread_pool<T_event>::Thread_pool(Thread_pool&& other) noexcept
     : handler_{std::move(other.handler_)} {
