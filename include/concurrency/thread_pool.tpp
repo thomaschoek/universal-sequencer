@@ -8,19 +8,19 @@ namespace thread_pool {
 
 // Constructors
 
-template <typename T_event>
+template <sequencable::Sequencable T_event>
 Thread_pool<T_event>::Thread_pool(Task event_handler,
                                   Size_type initial_n_threads)
-    : handler_(event_handler) {
+    : handler_{event_handler} {
   std::scoped_lock lck{workers_mutex_};
   for (Size_type i = 0; i < initial_n_threads; ++i) {
     workers_.push_back(std::make_unique<std::jthread>(worker()));
   }
 }
 
-template <typename T_event>
+template <sequencable::Sequencable T_event>
 Thread_pool<T_event>::Thread_pool(Thread_pool&& other) noexcept
-    : handler_(std::move(other.handler_)) {
+    : handler_{std::move(other.handler_)} {
   {
     std::scoped_lock lck{other.workers_mutex_};
     workers_ = std::move(other.workers_);
@@ -31,7 +31,7 @@ Thread_pool<T_event>::Thread_pool(Thread_pool&& other) noexcept
   }
 }
 
-template <typename T_event>
+template <sequencable::Sequencable T_event>
 Thread_pool<T_event>&
 Thread_pool<T_event>::operator=(Thread_pool&& other) noexcept {
   if (this != &other) {
@@ -50,7 +50,7 @@ Thread_pool<T_event>::operator=(Thread_pool&& other) noexcept {
 
 // Public
 
-template <typename T_event>
+template <sequencable::Sequencable T_event>
 void Thread_pool<T_event>::set_handler(const Task& t) {
   std::scoped_lock lock_cv{cv_mutex_};
   std::scoped_lock lock_workers{workers_mutex_};
@@ -60,7 +60,8 @@ void Thread_pool<T_event>::set_handler(const Task& t) {
   handler_ = t;
 }
 
-template <typename T_event> void Thread_pool<T_event>::submit(T_event&& event) {
+template <sequencable::Sequencable T_event>
+void Thread_pool<T_event>::submit(T_event&& event) {
   push_event(std::forward<T_event>(event));
   std::scoped_lock lck{workers_mutex_};
   if (workers_idle_.load(std::memory_order_acquire) == 0) {
@@ -75,7 +76,7 @@ template <typename T_event> void Thread_pool<T_event>::submit(T_event&& event) {
 }
 
 // Private
-template <typename T_event>
+template <sequencable::Sequencable T_event>
 void Thread_pool<T_event>::push_event(T_event&& evt) {
   {
     std::scoped_lock lck{events_mutex_};
@@ -84,7 +85,8 @@ void Thread_pool<T_event>::push_event(T_event&& evt) {
   }
 }
 
-template <typename T_event> inline T_event&& Thread_pool<T_event>::pop_event() {
+template <sequencable::Sequencable T_event>
+inline T_event&& Thread_pool<T_event>::pop_event() {
   std::unique_ptr<T_event> event_ptr;
   {
     std::scoped_lock lck{events_mutex_};
@@ -95,7 +97,8 @@ template <typename T_event> inline T_event&& Thread_pool<T_event>::pop_event() {
   return std::move(*event_ptr);
 }
 
-template <typename T_event> std::jthread Thread_pool<T_event>::worker() {
+template <sequencable::Sequencable T_event>
+std::jthread Thread_pool<T_event>::worker() {
   return std::jthread([this](std::stop_token st) {
     while (!st.stop_requested()) {
       workers_idle_.fetch_add(1, std::memory_order_acq_rel);
@@ -110,7 +113,11 @@ template <typename T_event> std::jthread Thread_pool<T_event>::worker() {
         }
         workers_idle_.fetch_sub(1, std::memory_order_acq_rel);
       }
-      handler_(pop_event());
+      T_event event = pop_event();
+      std::this_thread::sleep_until(event.scheduled_time - spin_duration_);
+      while (Clock::now() < event.scheduled_time)
+        ;
+      handler_(std::forward<T_event>(event));
     }
   });
 }
