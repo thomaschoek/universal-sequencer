@@ -53,8 +53,17 @@ Thread_pool<T_event>::~Thread_pool() {
 template <sequencable::Sequencable T_event>
 Thread_pool<T_event>::Thread_pool(Thread_pool&& other) noexcept
     : handler_{std::move(other.handler_)} {
+  // Stop all workers in other before moving them
+  // The worker threads have captured 'this' pointer to other,
+  // so we must stop them before they try to access moved-from state
   {
     std::scoped_lock lck{other.workers_mutex_};
+    // Request stop and wake all workers
+    for (auto& worker : other.workers_) {
+      worker->request_stop();
+    }
+    other.cv_.notify_all();
+    // Now move the workers (jthread destructors will join if needed)
     workers_ = std::move(other.workers_);
   }
   {
@@ -70,6 +79,11 @@ Thread_pool<T_event>::operator=(Thread_pool&& other) noexcept {
     handler_ = std::move(other.handler_);
     {
       std::scoped_lock lck1{workers_mutex_, other.workers_mutex_};
+      // Stop all workers in other before moving them
+      for (auto& worker : other.workers_) {
+        worker->request_stop();
+      }
+      other.cv_.notify_all();
       workers_ = std::move(other.workers_);
     }
     {
