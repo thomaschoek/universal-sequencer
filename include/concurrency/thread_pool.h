@@ -26,6 +26,7 @@ template <sequencable::Sequencable T_event> struct Thread_pool {
   using Size_type = Worker_vector::size_type;
   using Clock = Common_types::Clock;
   using Duration = Common_types::Duration;
+  using Time_point = Common_types::Time_point;
 
   Thread_pool(Task event_handler = std::function<void>{[]() {}},
               Size_type initial_n_threads = 0);
@@ -52,7 +53,7 @@ protected:
 
 private:
   void push_event(T_event&&);
-  T_event&& pop_event();
+  T_event pop_event();
   std::jthread worker();
 
   // Task to be executed for each submitted event
