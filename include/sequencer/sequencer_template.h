@@ -28,7 +28,7 @@ template <sequencable::Sequencable T_event> struct Sequencer {
   explicit Sequencer(Handler, Events_initializer = {});
   Sequencer(Handler, const Container&);
   Sequencer(Handler, Container&&);
-  Sequencer(Handler, Sequencer&&) noexcept;
+  Sequencer(Sequencer&&) noexcept;
 
   // Set handler post-construction
   void set_handler(const Handler&);
