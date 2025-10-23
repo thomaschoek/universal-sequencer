@@ -81,7 +81,7 @@ private:
   mutable std::mutex data_mutex_;
 
   Container events_;
-  std::atomic<Size_type> current_{0};
+  std::atomic<Size_type> next_{0};
 
   Thread_pool pool_;
 
