@@ -247,10 +247,10 @@ void Sequencer<T_event>::erase(Size_type idx) {
   if (idx >= events_.size()) {
     throw std::out_of_range("Index out of range!");
   }
-  Size_type current{0};
+  Size_type current;
   while (is_scheduling()) {
     current = next_.load(std::memory_order_acquire);
-    if (current < idx - 1 || current > idx) {
+    if (current != idx) {
       break;
     }
     std::this_thread::yield();
@@ -258,6 +258,7 @@ void Sequencer<T_event>::erase(Size_type idx) {
   Time_point timeout;
   std::scoped_lock lck{lock_events(timeout)};
   events_.erase(events_.begin() + idx);
+  // If current > idx decrement current to account for the removed event
   if (current > idx) {
     // unsigned Size_type idx >= 0; so current > idx implies current > 0
     next_.fetch_sub(1, std::memory_order_acq_rel);
