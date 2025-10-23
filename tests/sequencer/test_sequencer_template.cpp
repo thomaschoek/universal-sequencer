@@ -6,6 +6,7 @@
 #include <condition_variable>
 #include <iostream>
 #include <mutex>
+#include <syncstream>
 #include <thread>
 #include <vector>
 

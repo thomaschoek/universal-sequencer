@@ -1,5 +1,9 @@
 #include "sequencer_template.h"
 #include <cassert>
+#ifndef NDEBUG
+#include <iostream>
+#include <syncstream>
+#endif
 
 namespace Micro_composer {
 
@@ -342,8 +346,26 @@ Sequencer<T_event>::once(const std::stop_token st,
   do {
     {
       std::scoped_lock lck{data_mutex_};
+#ifndef NDEBUG
+      {
+        std::osyncstream(std::cerr)
+            << "[SEQUENCER] once(): Acquired data_mutex_ at time "
+            << std::chrono::duration_cast<std::chrono::milliseconds>(
+                   Clock::now().time_since_epoch())
+                   .count()
+            << " ms\n"
+            << std::flush;
+      }
+#endif
       // Inform concurrent threads which event we are about to copy
       event_idx = next_.load(std::memory_order_acquire);
+#ifndef NDEBUG
+      {
+        std::osyncstream(std::cerr)
+            << "[SEQUENCER] once(): next_ = " << event_idx << "\n"
+            << std::flush;
+      }
+#endif
       events_size = events_.size();
       if (event_idx >= events_size) {
         break;
@@ -359,12 +381,36 @@ Sequencer<T_event>::once(const std::stop_token st,
 
     const Duration cur_duration = buffer.duration;
 
+#ifndef NDEBUG
+    {
+      std::osyncstream(std::cerr)
+          << "[SEQUENCER] once(): submitting event to pool with "
+             "event.scheduled_time = "
+          << std::chrono::duration_cast<std::chrono::milliseconds>(
+                 buffer.scheduled_time.time_since_epoch())
+                 .count()
+          << " ms\n"
+          << std::flush;
+    }
+#endif
+
     pool_.submit(std::forward<T_event>(buffer));
 
-    // Inform other threads until when scheduler will be idle (or at least not
-    // critically engaged) Other threads will load t_next_ with
-    // memory_order_acquire and only try to lock the events mutex during this
-    // time window
+// Inform other threads until when scheduler will be idle (or at least not
+// critically engaged) Other threads will load t_next_ with
+// memory_order_acquire and only try to lock the events mutex during this
+// time window
+#ifndef NDEBUG
+    {
+      std::osyncstream(std::cerr)
+          << "[SEQUENCER] once(): storing t_next_ as "
+          << std::chrono::duration_cast<std::chrono::milliseconds>(
+                 t_next.time_since_epoch())
+                 .count()
+          << " ms\n"
+          << std::flush;
+    }
+#endif
     t_next_.store(t_next, std::memory_order_release);
 
     std::this_thread::sleep_until(t_next);

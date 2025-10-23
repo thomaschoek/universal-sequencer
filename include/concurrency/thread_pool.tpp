@@ -1,4 +1,8 @@
 #include "thread_pool.h"
+#ifndef NDEBUG
+#include <iostream>
+#include <syncstream>
+#endif
 
 namespace Micro_composer {
 
@@ -21,9 +25,29 @@ Thread_pool<T_event>::Thread_pool(Task event_handler,
 // Destructor
 template <sequencable::Sequencable T_event>
 Thread_pool<T_event>::~Thread_pool() {
+#ifndef NDEBUG
+  {
+    std::osyncstream(std::cerr)
+        << "[THREAD_POOL] Destructor starting, workers_.size()="
+        << workers_.size() << "\n"
+        << std::flush;
+  }
+#endif
   // Wake up all workers so they can check stop_requested()
   cv_.notify_all();
+#ifndef NDEBUG
+  {
+    std::osyncstream(std::cerr) << "[THREAD_POOL] Notified all workers\n"
+                                << std::flush;
+  }
+#endif
   // jthread destructors will request stop and join automatically
+#ifndef NDEBUG
+  {
+    std::osyncstream(std::cerr) << "[THREAD_POOL] Destructor exiting\n"
+                                << std::flush;
+  }
+#endif
 }
 
 template <sequencable::Sequencable T_event>
@@ -94,37 +118,97 @@ void Thread_pool<T_event>::push_event(T_event&& evt) {
 }
 
 template <sequencable::Sequencable T_event>
-inline T_event&& Thread_pool<T_event>::pop_event() {
-  std::unique_ptr<T_event> event_ptr;
+inline T_event Thread_pool<T_event>::pop_event() {
+  T_event event;
   {
     std::scoped_lock lck{events_mutex_};
-    event_ptr = std::move(events_.front());
+    event = std::move(*events_.front());
     events_.pop_front();
     new_events_.fetch_sub(1, std::memory_order_acq_rel);
   }
-  return std::move(*event_ptr);
+  return event;
 }
 
 template <sequencable::Sequencable T_event>
 std::jthread Thread_pool<T_event>::worker() {
   return std::jthread([this](std::stop_token st) {
+#ifndef NDEBUG
+    {
+      std::osyncstream(std::cerr) << "[THREAD_POOL] Worker "
+                                  << std::this_thread::get_id() << " started\n"
+                                  << std::flush;
+    }
+#endif
     while (!st.stop_requested()) {
       workers_idle_.fetch_add(1, std::memory_order_acq_rel);
       {
+#ifndef NDEBUG
+        {
+          std::osyncstream(std::cerr)
+              << "[THREAD_POOL] Worker " << std::this_thread::get_id()
+              << " acquiring cv_mutex_...\n"
+              << std::flush;
+        }
+#endif
         std::unique_lock lck{cv_mutex_};
         while (new_events_.load(std::memory_order_acquire) == 0) {
+#ifndef NDEBUG
+          {
+            std::osyncstream(std::cerr)
+                << "[THREAD_POOL] Worker " << std::this_thread::get_id()
+                << " new_events_.load() returned 0\n"
+                << std::flush;
+          }
+#endif
           if (st.stop_requested()) {
             workers_idle_.fetch_sub(1, std::memory_order_acq_rel);
             return;
           }
+#ifndef NDEBUG
+          {
+            std::osyncstream(std::cerr)
+                << "[THREAD_POOL] Worker " << std::this_thread::get_id()
+                << " WAITING...\n"
+                << std::flush;
+          }
+#endif
           cv_.wait(lck);
+#ifndef NDEBUG
+          {
+            std::osyncstream(std::cerr)
+                << "[THREAD_POOL] Worker " << std::this_thread::get_id()
+                << " NOTIFIED\n"
+                << std::flush;
+          }
+#endif
         }
         workers_idle_.fetch_sub(1, std::memory_order_acq_rel);
       }
       T_event event = pop_event();
+      const Time_point& scheduled_time = event.scheduled_time;
+#ifndef NDEBUG
+      {
+        std::osyncstream(std::cerr)
+            << "[THREAD_POOL] Worker " << std::this_thread::get_id()
+            << " POPPED_EVENT with scheduled_time "
+            << duration_cast<std::chrono::milliseconds>(
+                   scheduled_time.time_since_epoch())
+                   .count()
+            << "\n"
+            << std::flush;
+      }
+#endif
       std::this_thread::sleep_until(event.scheduled_time - spin_duration_);
       while (Clock::now() < event.scheduled_time)
         ;
+#ifndef NDEBUG
+      {
+        std::osyncstream(std::cerr)
+            << "[THREAD_POOL] Worker " << std::this_thread::get_id()
+            << " CALLING HANDLER\n"
+            << std::flush;
+      }
+#endif
       handler_(std::forward<T_event>(event));
     }
   });
