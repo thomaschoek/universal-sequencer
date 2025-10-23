@@ -4,6 +4,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <chrono>
 #include <condition_variable>
+#include <iostream>
 #include <mutex>
 #include <thread>
 #include <vector>
@@ -68,10 +69,15 @@ public:
 
 TEST_CASE("Sequencer construction", "[sequencer]") {
   SECTION("Constructor creates empty sequencer") {
+    std::cerr << "DEBUG: Creating Event_capture\n" << std::flush;
     Event_capture capture;
+    std::cerr << "DEBUG: Creating Sequencer\n" << std::flush;
     Sequencer<Test_event> seq(capture.handler());
+    std::cerr << "DEBUG: Calling empty()\n" << std::flush;
     REQUIRE(seq.empty());
+    std::cerr << "DEBUG: Calling size()\n" << std::flush;
     REQUIRE(seq.size() == 0);
+    std::cerr << "DEBUG: Test complete\n" << std::flush;
   }
 
   SECTION("Initializer list constructor") {
