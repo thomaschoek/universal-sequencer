@@ -58,7 +58,7 @@ int main(int argc, char** argv) {
 
   std::cout << "[MAIN] About to create sequencer\n" << std::flush;
 
-  auto sequencer = Sequencer(handlers[0], std::move(sequences[0]));
+  auto sequencer = Sequencer(handlers[0], sequences[0]);
 
   std::cout << "[MAIN] Sequencer created\n" << std::flush;
   std::cout << "[MAIN] Starting sequencer with repeat=true\n" << std::flush;
@@ -76,6 +76,15 @@ int main(int argc, char** argv) {
 
   std::cout << "[MAIN] Waiting 2 seconds...\n";
   std::this_thread::sleep_for(std::chrono::seconds(2));
+
+  std::cout << "[MAIN] Changing sequencer tempo\n";
+  {
+    for (auto& evt : sequences[0]) {
+      evt->duration = std::chrono::milliseconds(
+          static_cast<int>(evt->duration.count() * 0.5)); // Double speed
+    }
+    sequencer.assign(sequences[0]);
+  }
 
   std::cout << "[MAIN] Restarting sequencer\n";
   auto restart_time = Sequencer::Clock::now() + std::chrono::milliseconds(50);

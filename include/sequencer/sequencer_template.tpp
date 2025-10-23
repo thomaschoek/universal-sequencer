@@ -149,7 +149,7 @@ inline Sequencer<T_event>::Size_type Sequencer<T_event>::size() {
 
 template <sequencable::Sequencable T_event>
 void Sequencer<T_event>::set_pos(Size_type pos) {
-  if (pos >= events_.size()) {
+  if (pos > 0 && pos >= events_.size()) {
     throw std::out_of_range("Index out of range!");
   }
   Time_point timeout;
@@ -271,19 +271,27 @@ void Sequencer<T_event>::erase(Size_type idx) {
 }
 template <sequencable::Sequencable T_event>
 void Sequencer<T_event>::assign(Events_initializer events) {
-  Time_point timeout;
-  std::scoped_lock lck{lock_events(timeout)};
-  events_.clear();
+  clear();
+  std::scoped_lock lck{data_mutex_};
   events_.reserve(events.size());
   for (const auto& item : events) {
     events_.push_back(std::make_unique<T_event>(item));
   }
 }
 template <sequencable::Sequencable T_event>
+void Sequencer<T_event>::assign(const Container& events) {
+  clear();
+  std::scoped_lock lck{data_mutex_};
+  events_.reserve(events.size());
+  for (const std::unique_ptr<T_event>& item : events) {
+    events_.push_back(std::make_unique<T_event>(*item));
+  }
+}
+
+template <sequencable::Sequencable T_event>
 void Sequencer<T_event>::assign(const std::vector<T_event>& events) {
-  Time_point timeout;
-  std::scoped_lock lck{lock_events(timeout)};
-  events_.clear();
+  clear();
+  std::scoped_lock lck{data_mutex_};
   events_.reserve(events.size());
   for (const auto& item : events) {
     events_.push_back(std::make_unique<T_event>(item));
@@ -293,8 +301,7 @@ void Sequencer<T_event>::assign(const std::vector<T_event>& events) {
 template <sequencable::Sequencable T_event>
 void Sequencer<T_event>::clear() noexcept {
   stop();
-  Time_point timeout;
-  std::scoped_lock lck{lock_events(timeout)};
+  std::scoped_lock lck{data_mutex_};
   events_.clear();
 }
 
@@ -374,7 +381,22 @@ Sequencer<T_event>::once(const std::stop_token st,
       }
 #endif
       events_size = events_.size();
+#ifndef NDEBUG
+      {
+        std::osyncstream(std::cerr)
+            << "[SEQUENCER] once(): events_size = " << events_size
+            << ", checking if " << event_idx << " >= " << events_size << "\n"
+            << std::flush;
+      }
+#endif
       if (event_idx >= events_size) {
+#ifndef NDEBUG
+        {
+          std::osyncstream(std::cerr) << "[SEQUENCER] once(): BREAKING because "
+                                         "event_idx >= events_size\n"
+                                      << std::flush;
+        }
+#endif
         break;
       }
 

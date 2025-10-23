@@ -61,6 +61,7 @@ template <sequencable::Sequencable T_event> struct Sequencer {
   void insert(Size_type, const T_event&);
   void erase(Size_type);
   void assign(Events_initializer);
+  void assign(const Container&);
   void assign(const std::vector<T_event>&);
   void clear() noexcept;
 
