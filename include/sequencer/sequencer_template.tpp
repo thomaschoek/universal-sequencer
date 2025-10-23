@@ -8,7 +8,8 @@ namespace sequencer {
 // PUBLIC
 // Constructors
 template <sequencable::Sequencable T_event>
-Sequencer<T_event>::Sequencer(Handler, Events_initializer data) {
+Sequencer<T_event>::Sequencer(Handler handler, Events_initializer data)
+    : pool_(handler) {
   events_.reserve(data.size());
   for (const auto& item : data) {
     events_.push_back(std::make_unique<T_event>(item));
@@ -16,7 +17,8 @@ Sequencer<T_event>::Sequencer(Handler, Events_initializer data) {
 }
 
 template <sequencable::Sequencable T_event>
-Sequencer<T_event>::Sequencer(Handler, const Container& data) {
+Sequencer<T_event>::Sequencer(Handler handler, const Container& data)
+    : pool_(handler) {
   events_.reserve(data.size());
   for (const auto& item_ptr : data) {
     events_.push_back(std::make_unique<T_event>(*item_ptr));
@@ -24,12 +26,12 @@ Sequencer<T_event>::Sequencer(Handler, const Container& data) {
 }
 
 template <sequencable::Sequencable T_event>
-Sequencer<T_event>::Sequencer(Handler, Container&& data)
-    : events_(std::move(data)) {}
+Sequencer<T_event>::Sequencer(Handler handler, Container&& data)
+    : events_(std::move(data)), pool_(handler) {}
 
 template <sequencable::Sequencable T_event>
-Sequencer<T_event>::Sequencer(Handler, Sequencer&& other) noexcept
-    : events_(std::move(other.events_)) {
+Sequencer<T_event>::Sequencer(Sequencer&& other) noexcept
+    : events_(std::move(other.events_)), pool_(std::move(other.pool_)) {
   // Stop the other sequencer if it's running
   if (other.is_scheduling()) {
     other.pause(Clock::now());
