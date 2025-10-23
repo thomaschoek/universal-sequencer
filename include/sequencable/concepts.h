@@ -1,16 +1,17 @@
 #ifndef MICRO_COMPOSER_SEQUENCABLE_H
 #define MICRO_COMPOSER_SEQUENCABLE_H
 
-#include <chrono>
 #include <concepts>
+
+#include "common_types.h"
 
 namespace Micro_composer {
 
 namespace sequencable {
 
-using Clock = std::chrono::steady_clock;
-using Time_point = Clock::time_point;
-using Duration = Clock::duration;
+using Clock = Common_types::Clock;
+using Time_point = Common_types::Time_point;
+using Duration = Common_types::Duration;
 
 template <typename T>
 concept Sequencable = requires(T t) {

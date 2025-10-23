@@ -8,6 +8,7 @@
 #include <mutex>
 #include <thread>
 
+#include "common_types.h"
 #include "concurrency/thread_pool.h"
 #include "sequencable/concepts.h"
 
@@ -16,9 +17,9 @@ namespace Micro_composer {
 namespace sequencer {
 
 template <sequencable::Sequencable T_event> struct Sequencer {
-  using Clock = std::chrono::steady_clock;
-  using Time_point = Clock::time_point;
-  using Duration = Clock::duration;
+  using Clock = Common_types::Clock;
+  using Time_point = Common_types::Time_point;
+  using Duration = Common_types::Duration;
   using Container = std::vector<std::unique_ptr<T_event>>;
   using Size_type = Container::size_type;
   using Thread_pool = thread_pool::Thread_pool<T_event>;
