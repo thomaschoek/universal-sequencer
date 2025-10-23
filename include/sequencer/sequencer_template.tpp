@@ -1,6 +1,5 @@
 #include "sequencer_template.h"
 #include <cassert>
-#include <future>
 
 namespace Micro_composer {
 
@@ -8,9 +7,8 @@ namespace sequencer {
 
 // PUBLIC
 // Constructors
-
 template <sequencable::Sequencable T_event>
-Sequencer<T_event>::Sequencer(Data_init_list data) {
+Sequencer<T_event>::Sequencer(Handler, Events_initializer data) {
   events_.reserve(data.size());
   for (const auto& item : data) {
     events_.push_back(std::make_unique<T_event>(item));
@@ -18,7 +16,7 @@ Sequencer<T_event>::Sequencer(Data_init_list data) {
 }
 
 template <sequencable::Sequencable T_event>
-Sequencer<T_event>::Sequencer(const Container& data) {
+Sequencer<T_event>::Sequencer(Handler, const Container& data) {
   events_.reserve(data.size());
   for (const auto& item_ptr : data) {
     events_.push_back(std::make_unique<T_event>(*item_ptr));
@@ -26,10 +24,11 @@ Sequencer<T_event>::Sequencer(const Container& data) {
 }
 
 template <sequencable::Sequencable T_event>
-Sequencer<T_event>::Sequencer(Container&& data) : events_(std::move(data)) {}
+Sequencer<T_event>::Sequencer(Handler, Container&& data)
+    : events_(std::move(data)) {}
 
 template <sequencable::Sequencable T_event>
-Sequencer<T_event>::Sequencer(Sequencer&& other) noexcept
+Sequencer<T_event>::Sequencer(Handler, Sequencer&& other) noexcept
     : events_(std::move(other.events_)) {
   // Stop the other sequencer if it's running
   if (other.is_scheduling()) {
@@ -98,59 +97,8 @@ inline bool Sequencer<T_event>::is_scheduling() const {
 }
 
 template <sequencable::Sequencable T_event>
-T_event Sequencer<T_event>::await_event() {
-  if (!is_scheduling()) {
-    throw std::runtime_error("Sequencer is not scheduling!");
-  }
-  std::unique_lock<std::mutex> lck{output_mutex_};
-  output_cv_.wait(lck,
-                  [this]() { return !output_.empty() || !is_scheduling(); });
-  if (!is_scheduling() && output_.empty()) {
-    throw std::runtime_error("Sequencer has stopped scheduling!");
-  }
-  return output_.pop_front();
-}
-
-template <sequencable::Sequencable T_event>
-std::jthread Sequencer<T_event>::subscribe(const Handler& handler) const {
-  return std::jthread{[this, &handler](std::stop_token st) {
-    while (!is_scheduling()) {
-      std::this_thread::sleep_for(min_duration_);
-      if (st.stop_requested()) {
-        return;
-      }
-    }
-
-    Time_point t_next;
-    T_event buffer;
-    do {
-      if (st.stop_requested()) {
-        return;
-      }
-      while ((t_next = t_next_.load(std::memory_order_acquire)) <=
-                 Clock::now() &&
-             is_scheduling()) {
-        std::this_thread::yield();
-        if (st.stop_requested()) {
-          return;
-        }
-      }
-      // Wait until there's actually an event in the queue using condition variable
-      {
-        std::unique_lock<std::mutex> lck{output_mutex_};
-        output_cv_.wait(lck, [this]() { return !output_.empty() || !is_scheduling(); });
-        if (!is_scheduling() && output_.empty()) {
-          break;
-        }
-        buffer = output_.pop_front();
-      }
-      std::ignore = std::async([&handler, &buffer, &t_next]() {
-        std::this_thread::sleep_until(t_next);
-        handler(buffer);
-      });
-      std::this_thread::sleep_until(t_next + (min_duration_ / 5));
-    } while (is_scheduling());
-  }};
+inline void Sequencer<T_event>::set_handler(const Handler& handler) {
+  pool_.set_handler(handler);
 }
 
 // Get the time of the next scheduled event
@@ -309,7 +257,7 @@ void Sequencer<T_event>::erase(Size_type idx) {
   }
 }
 template <sequencable::Sequencable T_event>
-void Sequencer<T_event>::assign(Data_init_list events) {
+void Sequencer<T_event>::assign(Events_initializer events) {
   Time_point timeout;
   std::scoped_lock lck{lock_events(timeout)};
   events_.clear();
@@ -384,7 +332,7 @@ Sequencer<T_event>::once(const std::stop_token st,
 
   Size_type events_size;
   Size_type event_idx = initial_index;
-  Time_point accumulated_time = initial_time;
+  Time_point t_next = initial_time;
   Duration cur_duration;
 
   current_.store(initial_index, std::memory_order_release);
@@ -400,9 +348,9 @@ Sequencer<T_event>::once(const std::stop_token st,
 
     {
       T_event* cur_ptr = events_[event_idx].get();
-      cur_ptr->scheduled_time = accumulated_time;
+      cur_ptr->scheduled_time = t_next;
       cur_duration = cur_ptr->duration;
-      output_.push(*cur_ptr);
+      pool_.submit(std::forward<T_event>(*cur_ptr));
     }
 
     current_.store(event_idx + 1, std::memory_order_release);
@@ -411,31 +359,13 @@ Sequencer<T_event>::once(const std::stop_token st,
     // critically engaged) Other threads will load t_next_ with
     // memory_order_acquire and only act on shared data if this t_next_ is in
     // the future
-    t_next_.store(accumulated_time, std::memory_order_release);
+    t_next_.store(t_next, std::memory_order_release);
 
-    std::this_thread::sleep_until(accumulated_time);
-
-    while (Clock::now() < accumulated_time - (spin_duration_ * 0.5)) {
-      // Check for last-moment aborts
-      if (st.stop_requested()) {
-        return accumulated_time;
-      }
-    }
-
-    while (Clock::now() < accumulated_time) {
-      // Spin until the exact scheduled time (disregarding timing inaccuracies
-      // due to OS scheduler policies etc. beyond control of this program)
-      ;
-    }
-    // Notify consumers of new event
-    output_cv_.notify_one();
-
-    // Update accumulated event time so next event will schedule right after
-    // current's duration ends
-    accumulated_time += cur_duration;
+    std::this_thread::sleep_until(t_next);
+    t_next += cur_duration;
   } while (!st.stop_requested());
 
-  return accumulated_time;
+  return t_next;
 }
 
 template <sequencable::Sequencable T_event>
