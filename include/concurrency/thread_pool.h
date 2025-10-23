@@ -9,18 +9,22 @@
 #include <thread>
 #include <vector>
 
+#include "sequencable/concepts.h"
+
 namespace Micro_composer {
 
 namespace sequencer {
 
 namespace thread_pool {
 
-template <typename T_event> struct Thread_pool {
+template <sequencable::Sequencable T_event> struct Thread_pool {
   using Task = std::function<void(T_event&&)>;
   using Worker = std::jthread;
   using Worker_vector = std::vector<std::unique_ptr<Worker>>;
   using Event_deque = std::deque<std::unique_ptr<T_event>>;
   using Size_type = Worker_vector::size_type;
+  using Duration = T_event::Duration;
+  using Clock = T_event::Clock;
 
   Thread_pool(
       Task event_handler = std::function<void>{[]() {}},
@@ -39,6 +43,9 @@ template <typename T_event> struct Thread_pool {
 
   // Submit an event to the pool
   void submit(T_event&&);
+
+protected:
+  static constexpr Duration spin_duration_ = std::chrono::milliseconds{5};
 
 private:
   void push_event(T_event&&);
