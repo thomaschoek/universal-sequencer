@@ -37,6 +37,7 @@ int main(int argc, char** argv) {
   }
 
   std::vector<Sequence> sequences;
+  seq1[2]->duration = std::chrono::milliseconds{500};
   sequences.push_back(std::move(seq1));
   sequences.push_back(std::move(seq2));
 
