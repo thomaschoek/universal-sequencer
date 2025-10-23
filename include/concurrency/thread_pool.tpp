@@ -50,6 +50,16 @@ Thread_pool<T_event>::operator=(Thread_pool&& other) noexcept {
 
 // Public
 
+template <typename T_event>
+void Thread_pool<T_event>::set_handler(const Task& t) {
+  std::scoped_lock lock_cv{cv_mutex_};
+  std::scoped_lock lock_workers{workers_mutex_};
+  while (workers_idle_.load(std::memory_order_acquire) < workers_.size()) {
+    std::this_thread::sleep_for(std::chrono::milliseconds{10});
+  }
+  handler_ = t;
+}
+
 template <typename T_event> void Thread_pool<T_event>::submit(T_event&& event) {
   push_event(std::forward<T_event>(event));
   std::scoped_lock lck{workers_mutex_};
