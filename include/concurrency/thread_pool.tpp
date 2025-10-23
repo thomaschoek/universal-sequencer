@@ -14,7 +14,7 @@ Thread_pool<T_event>::Thread_pool(Task event_handler,
     : handler_(event_handler) {
   std::scoped_lock lck{workers_mutex_};
   for (Size_type i = 0; i < initial_n_threads; ++i) {
-    workers_.push_back(worker());
+    workers_.push_back(std::make_unique<std::jthread>(worker()));
   }
 }
 
@@ -64,7 +64,7 @@ template <typename T_event> void Thread_pool<T_event>::submit(T_event&& event) {
   push_event(std::forward<T_event>(event));
   std::scoped_lock lck{workers_mutex_};
   if (workers_idle_.load(std::memory_order_acquire) == 0) {
-    workers_.push_back(worker());
+    workers_.push_back(std::make_unique<std::jthread>(worker()));
   }
   cv_.notify_one();
   const Size_type workers_idle = workers_idle_.load(std::memory_order_acquire);
@@ -101,12 +101,10 @@ template <typename T_event> std::jthread Thread_pool<T_event>::worker() {
       workers_idle_.fetch_add(1, std::memory_order_acq_rel);
       {
         std::unique_lock lck{cv_mutex_};
-        cv_.wait(
-            lck,
-            [](std::atomic<Size_type>* new_events) {
-              return new_events->load(std::memory_order_acquire) > 0;
-            },
-            &new_events_);
+        while (new_events_.load(std::memory_order_acquire) == 0 &&
+               !st.stop_requested()) {
+          cv_.wait(lck);
+        }
         workers_idle_.fetch_sub(1, std::memory_order_acq_rel);
       }
       handler_(pop_event());
