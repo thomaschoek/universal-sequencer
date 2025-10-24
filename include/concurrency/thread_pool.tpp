@@ -139,43 +139,35 @@ template <sequencable::Sequencable T_event>
 std::jthread Thread_pool<T_event>::worker() {
   return std::jthread([this](std::stop_token st) {
     debug_msg("LAUNCHED NEW THREAD");
+    thread_local T_event event;
     while (!st.stop_requested()) {
       workers_idle_.fetch_add(1, std::memory_order_acq_rel);
       {
-        debug_msg("ACQUIRING cv_mutex_");
         std::unique_lock lck{cv_mutex_};
         while (new_events_.load(std::memory_order_acquire) == 0) {
-          debug_msg("new_events_.load() == 0 && !stop_requested()");
           debug_msg("WAITING on cv_");
           cv_.wait(lck);
           debug_msg("NOTIFIED");
           if (st.stop_requested()) {
-            debug_msg("STOP REQUESTED - RETURNING");
             workers_idle_.fetch_sub(1, std::memory_order_acq_rel);
             return;
           }
         }
         workers_idle_.fetch_sub(1, std::memory_order_acq_rel);
+
+        try {
+          event = pop_event();
+        } catch (const std::exception& e) {
+          debug_msg(std::string("EXCEPTION in pop_event(): ") + e.what());
+          continue;
+        }
+        debug_msg("POPPED EVENT with scheduled_time " +
+                  std::to_string(
+                      std::chrono::duration_cast<std::chrono::milliseconds>(
+                          event.scheduled_time.time_since_epoch())
+                          .count()) +
+                  " ms");
       }
-      if (st.stop_requested()) {
-        debug_msg("STOP REQUESTED - RETURNING");
-        return;
-      }
-      T_event event;
-      try {
-        debug_msg("ABOUT TO POP ZHE EVENT LOL YES!");
-        event = pop_event();
-      } catch (const std::exception& e) {
-        debug_msg(std::string("EXCEPTION in pop_event(): ") + e.what());
-        continue;
-      }
-      const Time_point& scheduled_time = event.scheduled_time;
-      debug_msg(
-          "POPPED EVENT with scheduled_time " +
-          std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
-                             scheduled_time.time_since_epoch())
-                             .count()) +
-          " ms");
       std::this_thread::sleep_until(event.scheduled_time - spin_duration_);
       while (Clock::now() < event.scheduled_time) {
         if (st.stop_requested()) {
