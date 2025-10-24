@@ -4,6 +4,7 @@
 #include <iostream>
 #include <syncstream>
 #endif
+#include <stdexcept>
 
 namespace Micro_composer {
 
@@ -121,7 +122,12 @@ void Thread_pool<T_event>::push_event(T_event&& evt) {
 
 template <sequencable::Sequencable T_event>
 inline T_event Thread_pool<T_event>::pop_event() {
+  debug_msg("pop_event()");
   std::scoped_lock lck{events_mutex_};
+  if (events_.empty()) {
+    throw std::runtime_error(
+        "Thread_pool::pop_event() called while events_ is empty!");
+  }
   T_event event;
   event = std::move(*events_.front());
   events_.pop_front();
@@ -155,7 +161,14 @@ std::jthread Thread_pool<T_event>::worker() {
         debug_msg("STOP REQUESTED - RETURNING");
         return;
       }
-      T_event event = pop_event();
+      T_event event;
+      try {
+        debug_msg("ABOUT TO POP ZHE EVENT LOL YES!");
+        event = pop_event();
+      } catch (const std::exception& e) {
+        debug_msg(std::string("EXCEPTION in pop_event(): ") + e.what());
+        continue;
+      }
       const Time_point& scheduled_time = event.scheduled_time;
       debug_msg(
           "POPPED EVENT with scheduled_time " +
