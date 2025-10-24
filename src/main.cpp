@@ -1,4 +1,4 @@
-#include "sequencable/oscillation_event.h"
+#include "sequencable/premade_samples.h"
 #include "sequencer/sequencer_template.h"
 #include "synth/synth.h"
 #include <chrono>
@@ -12,7 +12,7 @@ int main(int argc, char** argv) {
   using namespace Micro_composer::sequencable;
   using namespace Micro_composer::synth;
 
-  using Sequencer = Sequencer<Oscillation_event>;
+  using Sequencer = Sequencer<Premade_samples>;
   using Sequence = Sequencer::Container;
 
   // Create example sequences with vector events
@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
     std::vector<double> frequencies1 = {261.63, 293.66, 329.63, 349.23};
     //, 392.00, 440.00, 493.88, 523.25};
     for (auto freq : frequencies1) {
-      auto evt = std::make_unique<Oscillation_event>();
+      auto evt = std::make_unique<Premade_samples>();
       evt->frequency = freq;
       evt->duration = std::chrono::milliseconds{250};
       seq1.push_back(std::move(evt));
@@ -33,7 +33,7 @@ int main(int argc, char** argv) {
     std::vector<double> frequencies2 = {523.25, 493.88, 440.00, 392.00,
                                         349.23, 329.63, 293.66, 261.63};
     for (auto freq : frequencies2) {
-      auto evt = std::make_unique<Oscillation_event>();
+      auto evt = std::make_unique<Premade_samples>();
       evt->frequency = freq;
       evt->duration = std::chrono::milliseconds{250};
       seq2.push_back(std::move(evt));
@@ -56,12 +56,12 @@ int main(int argc, char** argv) {
     synths.emplace_back(std::make_unique<Synthesizer>(*synth_outputs.back()));
     const auto idx = i;
     handlers.emplace_back(
-        Sequencer::Handler{[&synths, idx](const Oscillation_event& event) {
+        Sequencer::Handler{[&synths, idx](const Premade_samples& event) {
           synths[idx]->play(event);
         }});
   }
 
-  Sequencer::Handler proxy_handler{[&handlers](Oscillation_event&& evt) {
+  Sequencer::Handler proxy_handler{[&handlers](Premade_samples&& evt) {
     static std::future<void> calls[2] = {
         std::async(std::launch::async, handlers[0], std::move(evt)),
         std::async(std::launch::async, handlers[1], std::move(evt))};

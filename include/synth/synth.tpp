@@ -1,8 +1,23 @@
 #include "synth/synth.h"
 #include <cmath>
+#ifndef NDEBUG
+#include <iostream>
+#include <syncstream>
+#include <thread>
+#endif
 
 namespace Micro_composer {
 namespace synth {
+
+inline void debug_msg(std::string msg, std::ostream& stream = std::cerr) {
+#ifndef NDEBUG
+  std::osyncstream(stream) << "[SYNTHESIZER] thread "
+                           << std::to_string(std::hash<std::thread::id>{}(
+                                  std::this_thread::get_id()))
+                           << ": " << msg << std::endl
+                           << std::flush;
+#endif
+}
 
 inline void Synthesizer::write(const std::vector<double>& samples) const {
   output_.write(samples);
@@ -10,7 +25,10 @@ inline void Synthesizer::write(const std::vector<double>& samples) const {
 
 // Generate and immediately output audio samples
 template <Synthesizable T> void Synthesizer::play(const T& params) const {
+  debug_msg("calling generate_samples(params)");
   auto samples = generate_samples(params);
+  debug_msg("returned from generate_samples");
+  debug_msg("calling output_.write(samples)");
   output_.write(samples);
 }
 
@@ -20,7 +38,8 @@ Synthesizer::compute_n_samples(const T& params) const {
   // Convert duration to seconds as a double before multiplying by sample_rate
   const double duration_seconds =
       std::chrono::duration<double>(params.duration).count();
-  return static_cast<std::vector<double>::size_type>(duration_seconds * sample_rate_);
+  return static_cast<std::vector<double>::size_type>(duration_seconds *
+                                                     sample_rate_);
 }
 
 template <Synthesizable T>
