@@ -17,42 +17,36 @@ struct Premade_samples : public Oscillation_event {
   // Default constructor
   Premade_samples() = default;
 
-  explicit Premade_samples(double freq, double amp = 0.5, double ph = 0.0,
-                           double sample_rate = default_sample_rate)
-      : Oscillation_event{freq, amp, ph}, sample_rate_{sample_rate},
-        samples_{generate_sine_wave(freq, amp, ph, duration, sample_rate)} {}
-
-  explicit Premade_samples(const std::string& note_name, double amp = 0.5,
-                           double ph = 0.0,
-                           double sample_rate = default_sample_rate)
-      : Oscillation_event{freq_of(note_name), amp, ph},
-        sample_rate_{sample_rate},
-        samples_{generate_sine_wave(note_name, amp, ph, duration)} {}
-
   explicit Premade_samples(size_t note_number, double amp = 0.5,
                            double ph = 0.0,
                            double sample_rate = default_sample_rate)
       : Oscillation_event{freq_of(note_number), amp, ph},
         sample_rate_{sample_rate},
-        samples_{generate_sine_wave(note_number, amp, ph, duration)} {}
+        samples_{generate_sine_wave(frequency, amp, ph, duration)} {}
 
-  explicit Premade_samples(double freq, double amp, double ph, Duration offset,
-                           Duration duration)
-      : Oscillation_event{freq, amp, ph, offset, duration},
-        samples_{
-            generate_sine_wave(freq, amp, ph, duration, default_sample_rate)} {}
+  explicit Premade_samples(size_t note_number, double amp, double ph,
+                           Duration offset, Duration duration)
+      : Oscillation_event{freqs_[note_number], amp, ph, offset, duration},
+        samples_{generate_sine_wave(frequency, amp, ph, duration,
+                                    default_sample_rate)} {}
+  explicit Premade_samples(const std::string& note_name, double amp = 0.5,
+                           double ph = 0.0,
+                           double sample_rate = default_sample_rate)
+      : Oscillation_event{freq_of(note_name), amp, ph},
+        sample_rate_{sample_rate},
+        samples_{generate_sine_wave(frequency, amp, ph, duration)} {}
 
   explicit Premade_samples(const std::string& note_name, double amp, double ph,
                            Duration offset, Duration duration)
       : Oscillation_event{freq_of(note_name), amp, ph, offset, duration},
         samples_{generate_sine_wave(note_name, amp, ph, duration)} {}
 
-  void update(double freq = 440.0, double amp = 0.5, double ph = 0.0,
+  void update(size_t note_number = 39, double amp = 0.5, double ph = 0.0,
               double sample_rate = default_sample_rate) {
-    frequency = freq;
+    frequency = freqs_[note_number];
     amplitude = amp;
     phase = ph;
-    samples_ = generate_sine_wave(freq, amp, ph, duration, sample_rate);
+    samples_ = generate_sine_wave(frequency, amp, ph, duration, sample_rate);
   }
 
   static std::vector<double> generate_sine_wave(const Premade_samples& params) {
@@ -67,20 +61,21 @@ struct Premade_samples : public Oscillation_event {
                               default_sample_rate);
   }
 
-  static std::vector<double> generate_sine_wave(size_t note_number,
-                                                double amplitude, double phase,
-                                                Duration duration) {
-    debug::msg(
-        "generate_sine_wave(note_number= " + std::to_string(note_number) +
-        ", frequency=" + std::to_string(freq_of(note_number)) + " Hz)");
-    return generate_sine_wave(freq_of(note_number), amplitude, phase, duration,
-                              default_sample_rate);
-  }
-
-  static std::vector<double> generate_sine_wave(double frequency,
-                                                double amplitude, double phase,
-                                                Duration duration,
-                                                double sample_rate) {
+  //  static std::vector<double> generate_sine_wave(size_t note_number,
+  //                                                double amplitude, double
+  //                                                phase, Duration duration) {
+  //    debug::msg(
+  //        "generate_sine_wave(note_number= " + std::to_string(note_number) +
+  //        ", frequency=" + std::to_string(freq_of(note_number)) + " Hz)");
+  //    return generate_sine_wave(freq_of(note_number), amplitude, phase,
+  //    duration,
+  //                              default_sample_rate);
+  //  }
+  //
+  static std::vector<double>
+  generate_sine_wave(double frequency, double amplitude, double phase,
+                     Duration duration,
+                     double sample_rate = default_sample_rate) {
     using size_t = std::vector<double>::size_type;
     static constexpr double TWO_PI = 2.0 * M_PI;
 
