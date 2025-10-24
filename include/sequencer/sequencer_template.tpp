@@ -302,11 +302,18 @@ void Sequencer<T_event>::assign(Events_initializer events) {
 }
 template <sequencable::Sequencable T_event>
 void Sequencer<T_event>::assign(const Container& events) {
+  debug_msg("entered Sequencer::assign(const Container&)");
   clear();
+  debug_msg("returned from clear()");
   std::scoped_lock lck{data_mutex_};
+  debug_msg("acquired data_mutex_");
   events_.reserve(events.size());
-  for (const std::unique_ptr<T_event>& item : events) {
-    events_.push_back(std::make_unique<T_event>(*item));
+  debug_msg("reserved events.size()=" + std::to_string(events.size()));
+  for (const std::unique_ptr<T_event>& ptr : events) {
+    T_event item = *ptr.get();
+    debug_msg("pushing back item from pointer " +
+              std::to_string(reinterpret_cast<std::uintptr_t>(ptr.get())));
+    events_.push_back(std::make_unique<T_event>(std::move(item)));
   }
 }
 
