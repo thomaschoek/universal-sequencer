@@ -302,17 +302,17 @@ void Sequencer<T_event>::assign(Events_initializer events) {
 }
 template <sequencable::Sequencable T_event>
 void Sequencer<T_event>::assign(const Container& events) {
-  debug_msg("entered Sequencer::assign(const Container&)");
+  // debug_msg("entered Sequencer::assign(const Container&)");
   clear();
-  debug_msg("returned from clear()");
+  // debug_msg("returned from clear()");
   std::scoped_lock lck{data_mutex_};
-  debug_msg("acquired data_mutex_");
+  // debug_msg("acquired data_mutex_");
   events_.reserve(events.size());
-  debug_msg("reserved events.size()=" + std::to_string(events.size()));
+  // debug_msg("reserved events.size()=" + std::to_string(events.size()));
   for (const std::unique_ptr<T_event>& ptr : events) {
     T_event item = *ptr.get();
-    debug_msg("pushing back item from pointer " +
-              std::to_string(reinterpret_cast<std::uintptr_t>(ptr.get())));
+    // debug_msg("pushing back item from pointer " +
+    // std::to_string(reinterpret_cast<std::uintptr_t>(ptr.get())));
     events_.push_back(std::make_unique<T_event>(std::move(item)));
   }
 }
@@ -389,18 +389,19 @@ Sequencer<T_event>::once(const std::stop_token st,
   do {
     {
       std::scoped_lock lck{data_mutex_};
-      debug_msg("oncw(): Acquired data_mutex_");
-      // Inform concurrent threads which event we are about to copy
+      // debug_msg("oncw(): Acquired data_mutex_");
+      //  Inform concurrent threads which event we are about to copy
       event_idx = next_.load(std::memory_order_acquire);
-      debug_msg("once(): Loaded next_ = " + std::to_string(event_idx) +
-                " from atomic next_");
+      // debug_msg("once(): Loaded next_ = " + std::to_string(event_idx) +
+      //" from atomic next_");
       events_size = events_.size();
-      debug_msg("once(): Loaded events_.size() = " +
-                std::to_string(events_size));
+      // debug_msg("once(): Loaded events_.size() = " +
+      // std::to_string(events_size));
       if (event_idx >= events_size) {
-        debug_msg("once(): event_idx " + std::to_string(event_idx) +
-                  ">= events_size " + std::to_string(events_size) +
-                  ", BREAK loop");
+        // debug_msg("once(): event_idx " + std::to_string(event_idx)
+        // +
+        //">= events_size " + std::to_string(events_size) +
+        //", BREAK loop");
         break;
       }
 
@@ -411,20 +412,20 @@ Sequencer<T_event>::once(const std::stop_token st,
       }
       next_.store(event_idx + 1, std::memory_order_release);
     }
-    debug_msg("once(): Released data_mutex_");
+    // debug_msg("once(): Released data_mutex_");
 
     const Duration cur_duration = buffer.duration;
 
-    debug_msg(
-        "once(): Submitting event to pool with (scheduled_time=" +
-        std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
-                           buffer.scheduled_time.time_since_epoch())
-                           .count()) +
-        " ms, duration=" +
-        std::to_string(
-            std::chrono::duration_cast<std::chrono::milliseconds>(cur_duration)
-                .count()) +
-        " ms)");
+    // debug_msg(
+    //        "once(): Submitting event to pool with (scheduled_time=" +
+    //        std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
+    //                           buffer.scheduled_time.time_since_epoch())
+    //                           .count()) +
+    //        " ms, duration=" +
+    //        std::to_string(
+    //            std::chrono::duration_cast<std::chrono::milliseconds>(cur_duration)
+    //                .count()) +
+    //        " ms)");
 
     pool_.submit(std::forward<T_event>(buffer));
 
@@ -432,12 +433,12 @@ Sequencer<T_event>::once(const std::stop_token st,
     // critically engaged) Other threads will load t_next_ with
     // memory_order_acquire and only try to lock the events mutex during this
     // time window
-    debug_msg(
-        "once(): Storing t_next_ as " +
-        std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
-                           t_next.time_since_epoch())
-                           .count()) +
-        " ms");
+    // debug_msg(
+    //        "once(): Storing t_next_ as " +
+    //        std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
+    //                           t_next.time_since_epoch())
+    //                           .count()) +
+    //        " ms");
     t_next_.store(t_next, std::memory_order_release);
 
     std::this_thread::sleep_until(t_next);
