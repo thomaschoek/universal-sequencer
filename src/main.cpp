@@ -2,7 +2,6 @@
 #include "sequencer/sequencer_template.h"
 #include "synth/synth.h"
 #include <chrono>
-#include <future>
 #include <iostream>
 
 int main(int argc, char** argv) {
@@ -20,7 +19,6 @@ int main(int argc, char** argv) {
   std::vector<Sequence> sequences;
   {
     Sequence seq1;
-    //, 392.00, 440.00, 493.88, 523.25};
     for (size_t note : {39, 51, 39, 43}) {
       auto evt = std::make_unique<Premade_samples>(
           note, 0.5, 0.0, std::chrono::milliseconds{0},
@@ -38,20 +36,26 @@ int main(int argc, char** argv) {
       seq2.push_back(std::move(evt));
     }
 
-    //     seq1[2]->duration = std::chrono::milliseconds{250};
-    //     seq1[2]->samples = Premade_samples::generate_sine_wave(
-    //         seq1[2]->frequency, seq1[2]->amplitude, seq1[2]->phase,
-    //         seq1[2]->duration, Premade_samples::default_sample_rate);
-    //     seq2[2]->duration = std::chrono::milliseconds{250};
-    //     seq2[2]->samples = Premade_samples::generate_sine_wave(
-    //         seq2[2]->frequency, seq2[2]->amplitude, seq2[2]->phase,
-    //         seq2[2]->duration, Premade_samples::default_sample_rate);
-    //     seq2[6]->duration = std::chrono::milliseconds{250};
-    //     seq2[6]->samples = Premade_samples::generate_sine_wave(
-    //         seq2[6]->frequency, seq2[6]->amplitude, seq2[6]->phase,
-    //         seq2[6]->duration, Premade_samples::default_sample_rate);
+    Sequence seq3;
+    for (size_t note : {41, 42, 43, 44, 45, 46, 47, 48}) {
+      auto evt = std::make_unique<Premade_samples>(
+          note, 0.5, 0.0, std::chrono::milliseconds{0},
+          std::chrono::milliseconds{100});
+      seq3.push_back(std::move(evt));
+    }
+
+    Sequence seq4;
+    for (size_t note : {27, 29, 31, 33, 35, 37, 39, 41}) {
+      auto evt = std::make_unique<Premade_samples>(
+          note, 0.5, 0.0, std::chrono::milliseconds{0},
+          std::chrono::milliseconds{100});
+      seq4.push_back(std::move(evt));
+    }
+
     sequences.push_back(std::move(seq1));
     sequences.push_back(std::move(seq2));
+    sequences.push_back(std::move(seq3));
+    sequences.push_back(std::move(seq4));
   }
 
   // Set up audio output - create a pool of synthesizers
@@ -69,37 +73,34 @@ int main(int argc, char** argv) {
         }});
   }
 
-  Sequencer::Handler proxy_handler{[&handlers](Premade_samples&& evt) {
-    static std::future<void> calls[2] = {
-        std::async(std::launch::async, handlers[0], std::move(evt)),
-        std::async(std::launch::async, handlers[1], std::move(evt))};
-    calls[0].get();
-    calls[1].get();
-  }};
-
   std::cout << "[MAIN] About to create sequencer\n" << std::flush;
 
-  auto seqr1 = Sequencer(handlers[0], sequences[0]);
-  auto seqr2 = Sequencer(handlers[1], sequences[1]);
+  std::vector<std::unique_ptr<Sequencer>> seqrs;
+  for (size_t i = 0; i < SYNTH_VOICES; ++i) {
+    seqrs.push_back(
+        std::make_unique<Sequencer>(Sequencer{handlers[i], sequences[i]}));
+  }
 
   std::cout << "[MAIN] Sequencer created\n" << std::flush;
   std::cout << "[MAIN] Starting sequencer with repeat=true\n" << std::flush;
   auto start_time = Sequencer::Clock::now() + std::chrono::milliseconds(50);
 
   std::cout << "[MAIN] About to call start()\n" << std::flush;
-  seqr1.start(start_time, true);
-  seqr2.start(start_time, true);
+  for (const auto& seqr : (seqrs)) {
+    seqr->start(start_time, true);
+  }
   std::cout << "[MAIN] start() returned\n" << std::flush;
 
   std::cout << "[MAIN] Playing for 10 seconds...\n";
   std::this_thread::sleep_for(std::chrono::seconds(10));
 
   std::cout << "[MAIN] Pausing sequencer\n";
-  seqr1.pause();
+  for (const auto& seqr : (seqrs)) {
+    seqr->pause();
+  }
 
   std::cout << "[MAIN] Waiting 2 seconds...\n";
   std::this_thread::sleep_for(std::chrono::seconds(2));
-  seqr2.pause();
 
   std::cout << "[MAIN] Changing sequencer tempo\n";
   {
@@ -108,18 +109,22 @@ int main(int argc, char** argv) {
           static_cast<int>(evt->duration.count() * 0.5)); // Double speed
       evt->samples_ = Premade_samples::generate_sine_wave(*evt);
     }
-    seqr1.assign(sequences[0]);
+    seqrs[0]->assign(sequences[0]);
   }
 
   std::cout << "[MAIN] Restarting sequencer\n";
   auto restart_time = Sequencer::Clock::now() + std::chrono::milliseconds(50);
-  seqr1.start(restart_time, true);
+  for (const auto& seqr : seqrs) {
+    seqr->start(restart_time, true);
+  }
 
   std::cout << "[MAIN] Playing for 5 more seconds...\n";
   std::this_thread::sleep_for(std::chrono::seconds(5));
 
   std::cout << "[MAIN] Stopping sequencer\n";
-  seqr1.stop();
+  for (const auto& seqr : seqrs) {
+    seqr->stop();
+  }
 
   std::cout << "[MAIN] Stopping player thread\n";
 

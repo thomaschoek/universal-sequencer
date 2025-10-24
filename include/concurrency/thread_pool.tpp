@@ -101,9 +101,12 @@ void Thread_pool<T_event>::submit(T_event&& event) {
     workers_.push_back(std::make_unique<std::jthread>(worker()));
   }
   cv_.notify_one();
+  std::scoped_lock cv_lck{cv_mutex_};
   const Size_type workers_idle = workers_idle_.load(std::memory_order_acquire);
   if (workers_idle > 1 && workers_idle > std::thread::hardware_concurrency()) {
-    // Too many idle workers, remove one
+    debug_msg("Too many idle workers (" + std::to_string(workers_idle) +
+              "), removing one worker thread");
+    workers_.back()->request_stop();
     workers_.pop_back();
   }
 }
@@ -111,22 +114,18 @@ void Thread_pool<T_event>::submit(T_event&& event) {
 // Private
 template <sequencable::Sequencable T_event>
 void Thread_pool<T_event>::push_event(T_event&& evt) {
-  {
-    std::scoped_lock lck{events_mutex_};
-    events_.emplace_back(std::make_unique<T_event>(std::move(evt)));
-    new_events_.fetch_add(1, std::memory_order_acq_rel);
-  }
+  std::scoped_lock lck{events_mutex_};
+  events_.emplace_back(std::make_unique<T_event>(std::move(evt)));
+  new_events_.fetch_add(1, std::memory_order_acq_rel);
 }
 
 template <sequencable::Sequencable T_event>
 inline T_event Thread_pool<T_event>::pop_event() {
+  std::scoped_lock lck{events_mutex_};
   T_event event;
-  {
-    std::scoped_lock lck{events_mutex_};
-    event = std::move(*events_.front());
-    events_.pop_front();
-    new_events_.fetch_sub(1, std::memory_order_acq_rel);
-  }
+  event = std::move(*events_.front());
+  events_.pop_front();
+  new_events_.fetch_sub(1, std::memory_order_acq_rel);
   return event;
 }
 
@@ -139,17 +138,22 @@ std::jthread Thread_pool<T_event>::worker() {
       {
         debug_msg("ACQUIRING cv_mutex_");
         std::unique_lock lck{cv_mutex_};
-        while (!st.stop_requested() &&
-               new_events_.load(std::memory_order_acquire) == 0) {
+        while (new_events_.load(std::memory_order_acquire) == 0) {
           debug_msg("new_events_.load() == 0 && !stop_requested()");
           debug_msg("WAITING on cv_");
           cv_.wait(lck);
           debug_msg("NOTIFIED");
+          if (st.stop_requested()) {
+            debug_msg("STOP REQUESTED - RETURNING");
+            workers_idle_.fetch_sub(1, std::memory_order_acq_rel);
+            return;
+          }
         }
         workers_idle_.fetch_sub(1, std::memory_order_acq_rel);
-        if (st.stop_requested()) {
-          return;
-        }
+      }
+      if (st.stop_requested()) {
+        debug_msg("STOP REQUESTED - RETURNING");
+        return;
       }
       T_event event = pop_event();
       const Time_point& scheduled_time = event.scheduled_time;
