@@ -29,7 +29,7 @@ template <Synthesizable T> void Synthesizer::play(const T& params) const {
   auto samples = generate_samples(params);
   debug_msg("returned from generate_samples");
   debug_msg("calling output_.write(samples)");
-  output_.write(samples);
+  output_.write(std::move(samples));
 }
 
 template <Synthesizable T>
@@ -76,7 +76,7 @@ std::vector<double> Synthesizer::generate_samples(const T& params) const {
     samples.push_back(amplitude * std::sin(phase));
   }
 
-  return samples;
+  return std::move(samples);
 }
 
 } // namespace synth

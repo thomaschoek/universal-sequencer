@@ -9,20 +9,19 @@ namespace Micro_composer {
 namespace sequencable {
 
 struct Premade_samples : public Oscillation_event {
-  std::vector<double> samples; // Audio samples
 
   // Default constructor
   Premade_samples() = default;
 
   explicit Premade_samples(double freq, double amp = 0.5, double ph = 0.0,
                            double sample_rate = default_sample_rate)
-      : Oscillation_event{freq, amp, ph},
-        samples{generate_sine_wave(freq, amp, ph, duration, sample_rate)} {}
+      : Oscillation_event{freq, amp, ph}, sample_rate_{sample_rate},
+        samples_{generate_sine_wave(freq, amp, ph, duration, sample_rate)} {}
 
   explicit Premade_samples(double freq, double amp, double ph, Duration offset,
                            Duration duration)
       : Oscillation_event{freq, amp, ph, offset, duration},
-        samples{
+        samples_{
             generate_sine_wave(freq, amp, ph, duration, default_sample_rate)} {}
 
   void update(double freq = 440.0, double amp = 0.5, double ph = 0.0,
@@ -30,10 +29,15 @@ struct Premade_samples : public Oscillation_event {
     frequency = freq;
     amplitude = amp;
     phase = ph;
-    samples = generate_sine_wave(freq, amp, ph, duration, sample_rate);
+    samples_ = generate_sine_wave(freq, amp, ph, duration, sample_rate);
   }
 
   static constexpr size_t default_sample_rate = 44100;
+
+  static std::vector<double> generate_sine_wave(const Premade_samples& params) {
+    return generate_sine_wave(params.frequency, params.amplitude, params.phase,
+                              params.duration, params.sample_rate_);
+  }
 
   static std::vector<double> generate_sine_wave(double frequency,
                                                 double amplitude, double phase,
@@ -80,6 +84,10 @@ struct Premade_samples : public Oscillation_event {
 
     return samples;
   }
+
+  double sample_rate_{default_sample_rate};
+  // Pre-generated audio samples
+  std::vector<double> samples_;
 };
 
 } // namespace sequencable

@@ -23,9 +23,9 @@ int main(int argc, char** argv) {
     std::vector<double> frequencies1 = {261.63, 293.66, 329.63, 349.23};
     //, 392.00, 440.00, 493.88, 523.25};
     for (auto freq : frequencies1) {
-      auto evt = std::make_unique<Premade_samples>();
-      evt->frequency = freq;
-      evt->duration = std::chrono::milliseconds{250};
+      auto evt = std::make_unique<Premade_samples>(
+          freq, 0.5, 0.0, std::chrono::milliseconds{0},
+          std::chrono::milliseconds{100});
       seq1.push_back(std::move(evt));
     }
 
@@ -33,15 +33,24 @@ int main(int argc, char** argv) {
     std::vector<double> frequencies2 = {523.25, 493.88, 440.00, 392.00,
                                         349.23, 329.63, 293.66, 261.63};
     for (auto freq : frequencies2) {
-      auto evt = std::make_unique<Premade_samples>();
-      evt->frequency = freq;
-      evt->duration = std::chrono::milliseconds{250};
+      auto evt = std::make_unique<Premade_samples>(
+          freq, 0.5, 0.0, std::chrono::milliseconds{0},
+          std::chrono::milliseconds{100});
       seq2.push_back(std::move(evt));
     }
 
-    seq1[2]->duration = std::chrono::milliseconds{500};
-    seq2[2]->duration = std::chrono::milliseconds{500};
-    seq2[6]->duration = std::chrono::milliseconds{500};
+    //     seq1[2]->duration = std::chrono::milliseconds{250};
+    //     seq1[2]->samples = Premade_samples::generate_sine_wave(
+    //         seq1[2]->frequency, seq1[2]->amplitude, seq1[2]->phase,
+    //         seq1[2]->duration, Premade_samples::default_sample_rate);
+    //     seq2[2]->duration = std::chrono::milliseconds{250};
+    //     seq2[2]->samples = Premade_samples::generate_sine_wave(
+    //         seq2[2]->frequency, seq2[2]->amplitude, seq2[2]->phase,
+    //         seq2[2]->duration, Premade_samples::default_sample_rate);
+    //     seq2[6]->duration = std::chrono::milliseconds{250};
+    //     seq2[6]->samples = Premade_samples::generate_sine_wave(
+    //         seq2[6]->frequency, seq2[6]->amplitude, seq2[6]->phase,
+    //         seq2[6]->duration, Premade_samples::default_sample_rate);
     sequences.push_back(std::move(seq1));
     sequences.push_back(std::move(seq2));
   }
@@ -57,6 +66,11 @@ int main(int argc, char** argv) {
     const auto idx = i;
     handlers.emplace_back(
         Sequencer::Handler{[&synths, idx](const Premade_samples& event) {
+          std::vector<double> cpy_for_alloc_test;
+          cpy_for_alloc_test.reserve(event.samples_.size());
+          for (const auto& sample : event.samples_) {
+            cpy_for_alloc_test.push_back(sample);
+          }
           synths[idx]->play(event);
         }});
   }
@@ -98,6 +112,7 @@ int main(int argc, char** argv) {
     for (auto& evt : sequences[0]) {
       evt->duration = std::chrono::milliseconds(
           static_cast<int>(evt->duration.count() * 0.5)); // Double speed
+      evt->samples_ = Premade_samples::generate_sine_wave(*evt);
     }
     seqr1.assign(sequences[0]);
   }
