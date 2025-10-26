@@ -2,7 +2,7 @@
 #define MICRO_COMPOSER_POLY_SEQUENCER_H
 
 #include "container/atomic_vector.h"
-#include "sequencer/sequencer.h"
+#include "sequencer/sequencer_template.h"
 #include <mutex>
 #include <vector>
 
@@ -10,10 +10,10 @@ namespace Micro_composer {
 
 namespace sequencer {
 
-template <Sequencable T_event>
-class Poly_sequencer : public container::Atomic_vector<Sequencer<T_event>> {
+template <sequencable::Mut_seq_event Event_t>
+class Poly_sequencer : public container::Atomic_vector<Sequencer<Event_t>> {
 public:
-  using Sequencer_t = Sequencer<T_event>;
+  using Sequencer_t = Sequencer<Event_t>;
   using Base_vector = container::Atomic_vector<Sequencer_t>;
   using Seq_idx = typename Base_vector::Size_type;
   using Event_handler = typename Sequencer_t::Event_handler;
@@ -29,8 +29,8 @@ public:
   Poly_sequencer(Poly_sequencer&&) noexcept = default;
   ~Poly_sequencer() = default;
 
-  Poly_sequencer(const std::vector<std::vector<T_event>>&);
-  Poly_sequencer(std::vector<std::vector<T_event>>&&);
+  Poly_sequencer(const std::vector<std::vector<Event_t>>&);
+  Poly_sequencer(std::vector<std::vector<Event_t>>&&);
   Poly_sequencer(std::vector<Sequencer_t>&&);
 
   // Synchronized transport control
@@ -65,6 +65,6 @@ protected:
 } // namespace sequencer
 } // namespace Micro_composer
 
-#include "sequencer/poly_sequencer.tpp"
+#include "sequencer/poly_sequencer_template.tpp"
 
 #endif // MICRO_COMPOSER_POLY_SEQUENCER_H

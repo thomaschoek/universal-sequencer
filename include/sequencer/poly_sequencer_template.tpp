@@ -1,4 +1,4 @@
-#include "sequencer/poly_sequencer.h"
+#include "sequencer/poly_sequencer_template.h"
 #include <future>
 #include <stdexcept>
 
@@ -8,7 +8,7 @@ namespace sequencer {
 
 // Constructors
 
-template <Has_duration T_event>
+template <sequencable::Mut_seq_event T_event>
 Poly_sequencer<T_event>::Poly_sequencer(
     const std::vector<std::vector<T_event>>& sequences) {
   for (const auto& seq : sequences) {
@@ -16,7 +16,7 @@ Poly_sequencer<T_event>::Poly_sequencer(
   }
 }
 
-template <Has_duration T_event>
+template <sequencable::Mut_seq_event T_event>
 Poly_sequencer<T_event>::Poly_sequencer(
     std::vector<std::vector<T_event>>&& sequences) {
   for (auto& seq : sequences) {
@@ -24,16 +24,15 @@ Poly_sequencer<T_event>::Poly_sequencer(
   }
 }
 
-template <Has_duration T_event>
-Poly_sequencer<T_event>::Poly_sequencer(
-    std::vector<Sequencer_t>&& sequencers)
+template <sequencable::Mut_seq_event T_event>
+Poly_sequencer<T_event>::Poly_sequencer(std::vector<Sequencer_t>&& sequencers)
     : Base_vector(std::move(sequencers)) {}
 
 // Transport control
 
-template <Has_duration T_event>
+template <sequencable::Mut_seq_event T_event>
 void Poly_sequencer<T_event>::start(Seq_idx idx, Time_point start_time,
-                                     bool repeat) {
+                                    bool repeat) {
   std::scoped_lock lck{transport_mutex_};
   if (idx >= Base_vector::size()) {
     throw std::out_of_range(
@@ -42,7 +41,7 @@ void Poly_sequencer<T_event>::start(Seq_idx idx, Time_point start_time,
   Base_vector::operator[](idx).start(start_time, repeat);
 }
 
-template <Has_duration T_event>
+template <sequencable::Mut_seq_event T_event>
 void Poly_sequencer<T_event>::start_all(Time_point start_time, bool repeat) {
   std::scoped_lock lck{transport_mutex_};
   auto count = Base_vector::size();
@@ -53,7 +52,7 @@ void Poly_sequencer<T_event>::start_all(Time_point start_time, bool repeat) {
   }
 }
 
-template <Has_duration T_event>
+template <sequencable::Mut_seq_event T_event>
 void Poly_sequencer<T_event>::pause(Seq_idx idx, Time_point pause_time) {
   std::scoped_lock lck{transport_mutex_};
   if (idx >= Base_vector::size()) {
@@ -63,7 +62,7 @@ void Poly_sequencer<T_event>::pause(Seq_idx idx, Time_point pause_time) {
   Base_vector::operator[](idx).pause(pause_time);
 }
 
-template <Has_duration T_event>
+template <sequencable::Mut_seq_event T_event>
 void Poly_sequencer<T_event>::pause_all(Time_point pause_time) {
   std::scoped_lock lck{transport_mutex_};
   auto count = Base_vector::size();
@@ -72,9 +71,9 @@ void Poly_sequencer<T_event>::pause_all(Time_point pause_time) {
   }
 }
 
-template <Has_duration T_event>
+template <sequencable::Mut_seq_event T_event>
 void Poly_sequencer<T_event>::reset(Seq_idx idx, Time_point reset_time,
-                                     size_t reset_pos) {
+                                    size_t reset_pos) {
   std::scoped_lock lck{transport_mutex_};
   if (idx >= Base_vector::size()) {
     throw std::out_of_range(
@@ -83,9 +82,9 @@ void Poly_sequencer<T_event>::reset(Seq_idx idx, Time_point reset_time,
   Base_vector::operator[](idx).reset(reset_time, reset_pos);
 }
 
-template <Has_duration T_event>
+template <sequencable::Mut_seq_event T_event>
 void Poly_sequencer<T_event>::reset_all(Time_point reset_time,
-                                         size_t reset_pos) {
+                                        size_t reset_pos) {
   std::scoped_lock lck{transport_mutex_};
   auto count = Base_vector::size();
   for (Seq_idx i = 0; i < count; ++i) {
@@ -93,7 +92,7 @@ void Poly_sequencer<T_event>::reset_all(Time_point reset_time,
   }
 }
 
-template <Has_duration T_event>
+template <sequencable::Mut_seq_event T_event>
 void Poly_sequencer<T_event>::set_next(Seq_idx idx, size_t pos) {
   std::scoped_lock lck{transport_mutex_};
   if (idx >= Base_vector::size()) {
@@ -103,7 +102,7 @@ void Poly_sequencer<T_event>::set_next(Seq_idx idx, size_t pos) {
   Base_vector::operator[](idx).set_next(pos);
 }
 
-template <Has_duration T_event>
+template <sequencable::Mut_seq_event T_event>
 void Poly_sequencer<T_event>::set_next_all(size_t pos) {
   std::scoped_lock lck{transport_mutex_};
   auto count = Base_vector::size();
@@ -112,7 +111,7 @@ void Poly_sequencer<T_event>::set_next_all(size_t pos) {
   }
 }
 
-template <Has_duration T_event>
+template <sequencable::Mut_seq_event T_event>
 bool Poly_sequencer<T_event>::is_scheduling(Seq_idx idx) const {
   std::scoped_lock lck{transport_mutex_};
   if (idx >= Base_vector::size()) {
@@ -122,7 +121,7 @@ bool Poly_sequencer<T_event>::is_scheduling(Seq_idx idx) const {
   return Base_vector::operator[](idx).is_scheduling();
 }
 
-template <Has_duration T_event>
+template <sequencable::Mut_seq_event T_event>
 bool Poly_sequencer<T_event>::any_scheduling() const {
   std::scoped_lock lck{transport_mutex_};
   auto count = Base_vector::size();
@@ -134,7 +133,7 @@ bool Poly_sequencer<T_event>::any_scheduling() const {
   return false;
 }
 
-template <Has_duration T_event>
+template <sequencable::Mut_seq_event T_event>
 bool Poly_sequencer<T_event>::all_scheduling() const {
   std::scoped_lock lck{transport_mutex_};
   auto count = Base_vector::size();
@@ -151,7 +150,7 @@ bool Poly_sequencer<T_event>::all_scheduling() const {
 
 // Handler management
 
-template <Has_duration T_event>
+template <sequencable::Mut_seq_event T_event>
 void Poly_sequencer<T_event>::listen(Seq_idx idx, Event_handler handler) {
   // Note: listen() blocks until sequencer stops, so we don't lock here
   if (idx >= Base_vector::size()) {
@@ -161,7 +160,7 @@ void Poly_sequencer<T_event>::listen(Seq_idx idx, Event_handler handler) {
   Base_vector::operator[](idx).listen(handler);
 }
 
-template <Has_duration T_event>
+template <sequencable::Mut_seq_event T_event>
 void Poly_sequencer<T_event>::set_handler(Seq_idx idx, Event_handler handler) {
   std::scoped_lock lck{transport_mutex_};
   if (idx >= Base_vector::size()) {
@@ -173,10 +172,9 @@ void Poly_sequencer<T_event>::set_handler(Seq_idx idx, Event_handler handler) {
   // For now, this is a placeholder
 }
 
-template <Has_duration T_event>
+template <sequencable::Mut_seq_event T_event>
 template <typename Handler_container>
-void Poly_sequencer<T_event>::set_handlers(
-    const Handler_container& handlers) {
+void Poly_sequencer<T_event>::set_handlers(const Handler_container& handlers) {
   std::scoped_lock lck{transport_mutex_};
   auto seq_count = Base_vector::size();
   Seq_idx idx = 0;
