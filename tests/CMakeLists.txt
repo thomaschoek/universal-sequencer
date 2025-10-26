@@ -17,7 +17,7 @@ add_executable(tests
     # container/test_atomic_ring_deque.cpp
     # container/test_atomic_vector.cpp
     sequencer/test_sequencer_template.cpp
-    # sequencer/test_poly_sequencer.cpp
+    sequencer/test_poly_sequencer.cpp
     # controller/test_poly_sequencer_controller.cpp
 )
 

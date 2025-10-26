@@ -368,8 +368,8 @@ TEST_CASE("Poly_sequencer duration operations", "[poly_sequencer]") {
     REQUIRE(data0[1].duration == std::chrono::milliseconds(50));
 
     auto data1 = poly[1].data();
-    REQUIRE(data1[0].duration == std::chrono::milliseconds(37));
-    REQUIRE(data1[1].duration == std::chrono::milliseconds(62));
+    REQUIRE(data1[0].duration == std::chrono::nanoseconds(37500000)); // 37.5ms
+    REQUIRE(data1[1].duration == std::chrono::nanoseconds(62500000)); // 62.5ms
   }
 
   SECTION("adjust_durations throws for out of range index") {
