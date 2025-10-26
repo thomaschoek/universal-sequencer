@@ -82,9 +82,7 @@ template <sequencable::Sequencable T_event> Sequencer<T_event>::~Sequencer() {
 
 template <sequencable::Sequencable T_event>
 void Sequencer<T_event>::start(const Time_point start_time, const bool repeat) {
-  if (start_time < Clock::now() + min_duration_ - spin_duration_) {
-    throw std::invalid_argument("Start time cannot be in the past!");
-  }
+  validate(start_time);
   if (is_scheduling()) {
     return;
   }
@@ -177,68 +175,34 @@ inline std::vector<T_event> Sequencer<T_event>::data() const noexcept {
 
 template <sequencable::Sequencable T_event>
 void Sequencer<T_event>::set_pos(Size_type pos) {
-  if (pos > 0 && pos >= events_.size()) {
-    throw std::out_of_range("Index out of range!");
-  }
+  range_check(pos);
   Time_point timeout;
   std::scoped_lock lck{lock_events(timeout)};
   next_.store(pos, std::memory_order_release);
 }
 
+// Setters / Modifiers
 template <sequencable::Sequencable T_event>
-void Sequencer<T_event>::assign(Size_type n, const T_event& event) {
-  if (event.duration < min_duration_) {
-    throw std::invalid_argument(
-        "Durations must be at least " +
-        std::to_string(
-            std::chrono::duration_cast<std::chrono::milliseconds>(min_duration_)
-                .count()) +
-        " ms");
-  }
-  // Stop and clear existing events
-  clear();
-  std::scoped_lock lck{data_mutex_};
-  events_.reserve(n);
-  for (Size_type i = 0; i < n; ++i) {
-    events_.push_back(std::make_unique<T_event>(event));
-  }
+void Sequencer<T_event>::update(Size_type idx, const T_event& event) {
+  validate(event);
+  range_check(idx);
+  Time_point timeout;
+  std::scoped_lock lck{lock_events(timeout)};
+  *(events_[idx]) = event;
 }
 
 template <sequencable::Sequencable T_event>
 void Sequencer<T_event>::push_back(const T_event& event) {
-  if (event.duration < min_duration_) {
-    throw std::invalid_argument(
-        "Durations must be at least " +
-        std::to_string(
-            std::chrono::duration_cast<std::chrono::milliseconds>(min_duration_)
-                .count()) +
-        " ms");
-  }
+  validate(event);
   Time_point timeout;
   std::scoped_lock lck{lock_events(timeout)};
   events_.push_back(std::make_unique<T_event>(event));
 }
 
 template <sequencable::Sequencable T_event>
-void Sequencer<T_event>::pop_back() {
-  Time_point timeout;
-  std::scoped_lock lck{lock_events(timeout)};
-  events_.pop_back();
-}
-
-template <sequencable::Sequencable T_event>
 void Sequencer<T_event>::insert(Size_type pos, const T_event& event) {
-  if (event.duration < min_duration_) {
-    throw std::invalid_argument(
-        "Durations must be at least " +
-        std::to_string(
-            std::chrono::duration_cast<std::chrono::milliseconds>(min_duration_)
-                .count()) +
-        " ms");
-  }
-  if (pos >= events_.size()) {
-    throw std::out_of_range("Index out of range!");
-  }
+  validate(event);
+  range_check(pos);
 
   Size_type current;
   while (is_scheduling()) {
@@ -270,28 +234,7 @@ void Sequencer<T_event>::insert(Size_type pos, const T_event& event) {
     }
   }
 }
-template <sequencable::Sequencable T_event>
-void Sequencer<T_event>::erase(Size_type idx) {
-  if (idx >= events_.size()) {
-    throw std::out_of_range("Index out of range!");
-  }
-  Size_type current;
-  while (is_scheduling()) {
-    current = next_.load(std::memory_order_acquire);
-    if (current != idx) {
-      break;
-    }
-    std::this_thread::yield();
-  }
-  Time_point timeout;
-  std::scoped_lock lck{lock_events(timeout)};
-  events_.erase(events_.begin() + idx);
-  // If current > idx decrement current to account for the removed event
-  if (current > idx) {
-    // unsigned Size_type idx >= 0; so current > idx implies current > 0
-    next_.fetch_sub(1, std::memory_order_acq_rel);
-  }
-}
+
 template <sequencable::Sequencable T_event>
 void Sequencer<T_event>::assign(Events_initializer events) {
   clear();
@@ -329,6 +272,48 @@ void Sequencer<T_event>::assign(const std::vector<T_event>& events) {
 }
 
 template <sequencable::Sequencable T_event>
+void Sequencer<T_event>::assign(Size_type n, const T_event& event) {
+  validate(event);
+  // Stop and clear existing events
+  clear();
+  std::scoped_lock lck{data_mutex_};
+  events_.reserve(n);
+  for (Size_type i = 0; i < n; ++i) {
+    events_.push_back(std::make_unique<T_event>(event));
+  }
+}
+
+// Delete operations
+
+template <sequencable::Sequencable T_event>
+void Sequencer<T_event>::pop_back() {
+  Time_point timeout;
+  std::scoped_lock lck{lock_events(timeout)};
+  events_.pop_back();
+}
+
+template <sequencable::Sequencable T_event>
+void Sequencer<T_event>::erase(Size_type idx) {
+  range_check(idx);
+  Size_type current;
+  while (is_scheduling()) {
+    current = next_.load(std::memory_order_acquire);
+    if (current != idx) {
+      break;
+    }
+    std::this_thread::yield();
+  }
+  Time_point timeout;
+  std::scoped_lock lck{lock_events(timeout)};
+  events_.erase(events_.begin() + idx);
+  // If current > idx decrement current to account for the removed event
+  if (current > idx) {
+    // unsigned Size_type idx >= 0; so current > idx implies current > 0
+    next_.fetch_sub(1, std::memory_order_acq_rel);
+  }
+}
+
+template <sequencable::Sequencable T_event>
 void Sequencer<T_event>::clear() noexcept {
   stop();
   std::scoped_lock lck{data_mutex_};
@@ -336,6 +321,44 @@ void Sequencer<T_event>::clear() noexcept {
 }
 
 // PROTECTED
+// Validation
+template <sequencable::Sequencable T_event>
+inline void Sequencer<T_event>::validate(const std::vector<T_event>& events) {
+  for (const auto& event : events) {
+    validate(event);
+  }
+}
+
+template <sequencable::Sequencable T_event>
+inline void Sequencer<T_event>::validate(const T_event& event) {
+  if (event.duration < min_duration_) {
+    throw std::invalid_argument(
+        "Durations must be at least " +
+        std::to_string(
+            std::chrono::duration_cast<std::chrono::milliseconds>(min_duration_)
+                .count()) +
+        " ms");
+  }
+}
+
+template <sequencable::Sequencable T_event>
+inline void Sequencer<T_event>::validate(const Time_point& scheduled_time) {
+  if (scheduled_time <= Clock::now() + min_duration_ - spin_duration_) {
+    throw std::invalid_argument(
+        "Scheduled time must be at least " +
+        std::to_string(
+            std::chrono::duration_cast<std::chrono::milliseconds>(min_duration_)
+                .count()) +
+        " ms in the future!");
+  }
+}
+
+template <sequencable::Sequencable T_event>
+inline void Sequencer<T_event>::range_check(Size_type idx) const {
+  if (idx >= events_.size()) {
+    throw std::out_of_range("Index out of range!");
+  }
+}
 
 template <sequencable::Sequencable T_event>
 Sequencer<T_event>::Time_point
@@ -371,14 +394,7 @@ Sequencer<T_event>::once(const std::stop_token st,
   if (initial_index >= events_.size()) {
     return initial_time;
   }
-  if (initial_time <= Clock::now() + min_duration_ - spin_duration_) {
-    throw std::invalid_argument(
-        "For synchronization purposes, initial tick must be at least " +
-        std::to_string(
-            std::chrono::duration_cast<std::chrono::milliseconds>(min_duration_)
-                .count()) +
-        " ms in the future!");
-  }
+  validate(initial_time);
 
   Size_type events_size;
   Size_type event_idx = initial_index;
@@ -461,15 +477,7 @@ void Sequencer<T_event>::repeat(const std::stop_token st,
   if (initial_index >= events_.size()) {
     return;
   }
-  if (initial_time <= Clock::now() + min_duration_ - spin_duration_) {
-    throw std::invalid_argument(
-        "For synchronization purposes, initial tick must be at least " +
-        std::to_string(
-            std::chrono::duration_cast<std::chrono::milliseconds>(min_duration_)
-                .count()) +
-        " ms in the future!");
-  }
-
+  validate(initial_time);
   Time_point t_next = initial_time;
   Size_type current = initial_index;
   do {

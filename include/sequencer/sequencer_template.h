@@ -49,7 +49,7 @@ template <sequencable::Sequencable T_event> struct Sequencer {
   Time_point t_next() const;
 
   // Thread-safe time signature CRUD operations
-  // Getters
+  // Read operations
   bool empty() const noexcept;
   Size_type size() const noexcept;
   Size_type get_pos() const noexcept;
@@ -60,16 +60,23 @@ template <sequencable::Sequencable T_event> struct Sequencer {
   void update(Size_type, const T_event&);
 
   void push_back(const T_event&);
-  void pop_back();
   void insert(Size_type, const T_event&);
-  void erase(Size_type);
+
   void assign(Events_initializer);
   void assign(const Container&);
   void assign(const std::vector<T_event>&);
   void assign(Size_type, const T_event&);
+
+  // Delete operations
+  void pop_back();
+  void erase(Size_type);
   void clear() noexcept;
 
 protected:
+  static void validate(const std::vector<T_event>&);
+  static void validate(const T_event&);
+  static void validate(const Time_point&);
+  void range_check(Size_type) const;
   static constexpr const Duration min_duration_{std::chrono::milliseconds{10}};
   static constexpr const Duration operation_timeout_{std::chrono::seconds{30}};
   static constexpr const Duration spin_duration_{std::chrono::milliseconds{5}};
