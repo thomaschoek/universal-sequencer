@@ -116,7 +116,7 @@ struct Premade_samples : public Oscillation_event {
       }
     }
 
-    return samples;
+    return std::move(samples);
   }
 
   static double freq_of(const std::string& name) {

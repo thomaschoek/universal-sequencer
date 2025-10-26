@@ -1,6 +1,7 @@
 #include "sequencable/premade_samples.h"
 #include "sequencer/sequencer_template.h"
 #include "synth/synth.h"
+#include "utility/debug.h"
 #include <chrono>
 #include <iostream>
 
@@ -104,11 +105,22 @@ int main(int argc, char** argv) {
 
   std::cout << "[MAIN] Changing sequencer tempo\n";
   {
+    debug::msg("[MAIN] modifying durations of seqeunce 0");
+    size_t i = 0;
     for (auto& evt : sequences[0]) {
+      debug::msg("[MAIN] Modifying event " + std::to_string(i++));
       evt->duration = std::chrono::milliseconds(
           static_cast<int>(evt->duration.count() * 0.5)); // Double speed
+      debug::msg(
+          "[MAIN] Event duration changed to " +
+          std::to_string(
+              std::chrono::duration_cast<std::chrono::seconds>(evt->duration)
+                  .count()) +
+          " seconds for event " + std::to_string(i));
+      debug::msg("[MAIN] Assigning new samples to event");
       evt->samples_ = Premade_samples::generate_sine_wave(*evt);
     }
+    debug::msg("[MAIN] Reassigning sequence data");
     seqrs[0]->assign(sequences[0]);
   }
 
