@@ -361,7 +361,7 @@ inline void Sequencer<T_event>::range_check(Size_type idx) const {
 }
 
 template <sequencable::Sequencable T_event>
-Sequencer<T_event>::Time_point
+inline Sequencer<T_event>::Time_point
 Sequencer<T_event>::await_scheduler() const noexcept {
   // Mechanism to avoid interfering with the scheduler (make other threads run
   // only while scheduler sleeps). Returns the time until which the scheduler
@@ -378,7 +378,7 @@ Sequencer<T_event>::await_scheduler() const noexcept {
 }
 
 template <sequencable::Sequencable T_event>
-std::scoped_lock<std::mutex>
+inline std::scoped_lock<std::mutex>
 Sequencer<T_event>::lock_events(Time_point& lock_timeout) const {
   lock_timeout = await_scheduler();
   return std::scoped_lock<std::mutex>(data_mutex_);
