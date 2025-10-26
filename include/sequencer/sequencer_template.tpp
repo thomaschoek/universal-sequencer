@@ -249,13 +249,30 @@ void Sequencer<T_event>::adjust_durations(Duration delta) {
 template <sequencable::Sequencable T_event>
 void Sequencer<T_event>::multiply_durations(double factor) {
   if (factor < 0.0) {
-    throw std::invalid_argument("Tempo factor cannot be negative!");
+    throw std::invalid_argument("Invalid factor: '" + std::to_string(factor) +
+                                "'; Tempo factor cannot be negative!");
   }
+  debug_msg("Multiplying durations by factor: " + std::to_string(factor));
   Time_point timeout;
   std::scoped_lock lck{lock_events(timeout)};
   for (auto& ptr : events_) {
-    Duration& duration = ptr->duration;
-    duration *= factor;
+    debug_msg(
+        "Old duration: " +
+        std::to_string(
+            std::chrono::duration_cast<std::chrono::milliseconds>(ptr->duration)
+                .count()) +
+        " ms");
+    // Convert to floating-point duration, multiply, then round and convert back
+    ptr->duration = std::chrono::duration_cast<Duration>(
+        std::chrono::duration_cast<
+            std::chrono::duration<double, Duration::period>>(ptr->duration) *
+        factor);
+    debug_msg(
+        "New duration: " +
+        std::to_string(
+            std::chrono::duration_cast<std::chrono::milliseconds>(ptr->duration)
+                .count()) +
+        " ms");
     validate(*ptr);
   }
 }
@@ -378,10 +395,10 @@ inline void Sequencer<T_event>::validate(const T_event& event) {
   if (event.duration < min_duration_) {
     throw std::invalid_argument(
         "Duration too small: " +
-        std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::to_string(std::chrono::duration_cast<std::chrono::microseconds>(
                            event.duration)
                            .count()) +
-        " ms > " +
+        " microseconds > " +
         std::to_string(
             std::chrono::duration_cast<std::chrono::milliseconds>(min_duration_)
                 .count()));
