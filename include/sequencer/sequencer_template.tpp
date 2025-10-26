@@ -323,8 +323,7 @@ void Sequencer<T_event>::erase(Size_type idx) {
   }
 }
 
-template <sequencable::Sequencable T_event>
-void Sequencer<T_event>::clear() noexcept {
+template <sequencable::Sequencable T_event> void Sequencer<T_event>::clear() {
   stop();
   std::scoped_lock lck{data_mutex_};
   events_.clear();

@@ -70,7 +70,7 @@ template <sequencable::Sequencable T_event> struct Sequencer {
   // Delete operations
   void pop_back();
   void erase(Size_type);
-  void clear() noexcept;
+  void clear();
 
 protected:
   static void validate(const std::vector<T_event>&);
