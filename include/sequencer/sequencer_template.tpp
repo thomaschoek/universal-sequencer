@@ -144,6 +144,26 @@ Sequencer<T_event>::Time_point Sequencer<T_event>::t_next() const {
 // Time signature CRUD thread-safe operations
 
 template <sequencable::Sequencable T_event>
+inline bool Sequencer<T_event>::empty() const noexcept {
+  Time_point timeout;
+  std::scoped_lock lck{lock_events(timeout)};
+  return events_.empty();
+}
+
+template <sequencable::Sequencable T_event>
+inline Sequencer<T_event>::Size_type Sequencer<T_event>::size() const noexcept {
+  Time_point timeout;
+  std::scoped_lock lck{lock_events(timeout)};
+  return events_.size();
+}
+
+template <sequencable::Sequencable T_event>
+Sequencer<T_event>::Size_type inline Sequencer<T_event>::get_pos()
+    const noexcept {
+  return next_.load(std::memory_order_acquire);
+}
+
+template <sequencable::Sequencable T_event>
 inline std::vector<T_event> Sequencer<T_event>::data() const noexcept {
   Time_point timeout;
   std::scoped_lock lck{lock_events(timeout)};
@@ -156,20 +176,6 @@ inline std::vector<T_event> Sequencer<T_event>::data() const noexcept {
 }
 
 template <sequencable::Sequencable T_event>
-inline bool Sequencer<T_event>::empty() {
-  Time_point timeout;
-  std::scoped_lock lck{lock_events(timeout)};
-  return events_.empty();
-}
-
-template <sequencable::Sequencable T_event>
-inline Sequencer<T_event>::Size_type Sequencer<T_event>::size() {
-  Time_point timeout;
-  std::scoped_lock lck{lock_events(timeout)};
-  return events_.size();
-}
-
-template <sequencable::Sequencable T_event>
 void Sequencer<T_event>::set_pos(Size_type pos) {
   if (pos > 0 && pos >= events_.size()) {
     throw std::out_of_range("Index out of range!");
@@ -177,12 +183,6 @@ void Sequencer<T_event>::set_pos(Size_type pos) {
   Time_point timeout;
   std::scoped_lock lck{lock_events(timeout)};
   next_.store(pos, std::memory_order_release);
-}
-
-template <sequencable::Sequencable T_event>
-Sequencer<T_event>::Size_type inline Sequencer<T_event>::get_pos()
-    const noexcept {
-  return next_.load(std::memory_order_acquire);
 }
 
 template <sequencable::Sequencable T_event>

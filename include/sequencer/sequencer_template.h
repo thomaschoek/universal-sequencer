@@ -49,11 +49,16 @@ template <sequencable::Sequencable T_event> struct Sequencer {
   Time_point t_next() const;
 
   // Thread-safe time signature CRUD operations
-  std::vector<T_event> data() const noexcept;
-  bool empty();
-  Size_type size();
-  void set_pos(Size_type = 0);
+  // Getters
+  bool empty() const noexcept;
+  Size_type size() const noexcept;
   Size_type get_pos() const noexcept;
+  std::vector<T_event> data() const noexcept;
+
+  // Setters / Modifiers
+  void set_pos(Size_type = 0);
+  void update(Size_type, const T_event&);
+
   void push_back(const T_event&);
   void pop_back();
   void insert(Size_type, const T_event&);
@@ -82,15 +87,12 @@ private:
               const Time_point initial_time = Clock::now() + min_duration_,
               const Size_type initial_index = 0);
 
+  std::jthread scheduler_;
+  Thread_pool pool_;
   mutable std::mutex transport_mutex_;
   mutable std::mutex data_mutex_;
-
   Container events_;
   std::atomic<Size_type> next_{0};
-
-  Thread_pool pool_;
-
-  std::jthread scheduler_;
   std::atomic<Time_point> t_next_{Time_point::min()};
 };
 
