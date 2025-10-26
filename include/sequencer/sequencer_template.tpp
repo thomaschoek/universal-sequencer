@@ -35,21 +35,11 @@ inline void debug_msg(std::string msg, std::ostream& stream = std::cerr) {
 // Constructors
 template <sequencable::Mut_seq_event T_event>
 Sequencer<T_event>::Sequencer(Handler handler, Events_initializer data)
-    : pool_(handler) {
-  events_.reserve(data.size());
-  for (const auto& item : data) {
-    events_.push_back(std::make_unique<T_event>(item));
-  }
-}
+    : pool_(handler), events_(data) {}
 
 template <sequencable::Mut_seq_event T_event>
 Sequencer<T_event>::Sequencer(Handler handler, const Container& data)
-    : pool_(handler) {
-  events_.reserve(data.size());
-  for (const auto& item_ptr : data) {
-    events_.push_back(std::make_unique<T_event>(*item_ptr));
-  }
-}
+    : pool_(handler), events_(data) {}
 
 template <sequencable::Mut_seq_event T_event>
 Sequencer<T_event>::Sequencer(Handler handler, Container&& data)
@@ -165,12 +155,7 @@ template <sequencable::Mut_seq_event T_event>
 inline std::vector<T_event> Sequencer<T_event>::data() const noexcept {
   Time_point timeout;
   std::scoped_lock lck{lock_events(timeout)};
-  std::vector<T_event> result;
-  result.reserve(events_.size());
-  for (const auto& ptr : events_) {
-    result.push_back(*ptr);
-  }
-  return result;
+  return events_;
 }
 
 // Setters / Modifiers
@@ -189,7 +174,7 @@ void Sequencer<T_event>::update(Size_type pos, const T_event& event) {
   range_check(pos);
   Time_point timeout;
   std::scoped_lock lck{lock_events(timeout)};
-  events_[pos]->update(event);
+  events_[pos].update(event);
 }
 
 template <sequencable::Mut_seq_event T_event>
@@ -199,7 +184,7 @@ void Sequencer<T_event>::update(Size_type pos, Args&&... update_args) {
   Time_point timeout;
   std::scoped_lock lck{lock_events(timeout)};
   // Assume validation exists within the event's update method
-  events_[pos]->update(std::forward<Args>(update_args)...);
+  events_[pos].update(std::forward<Args>(update_args)...);
 }
 
 template <sequencable::Mut_seq_event T_event>
@@ -207,7 +192,7 @@ void Sequencer<T_event>::push_back(const T_event& event) {
   validate(event);
   Time_point timeout;
   std::scoped_lock lck{lock_events(timeout)};
-  events_.push_back(std::make_unique<T_event>(event));
+  events_.push_back(event);
 }
 
 template <sequencable::Mut_seq_event T_event>
@@ -228,7 +213,7 @@ void Sequencer<T_event>::insert(Size_type pos, const T_event& event) {
 
   Time_point timeout;
   std::scoped_lock lck{lock_events(timeout)};
-  events_.insert(events_.begin() + pos, std::make_unique<T_event>(event));
+  events_.insert(events_.begin() + pos, event);
 
   if (current > pos) {
     // We need to increment current to account for the inserted event
@@ -250,11 +235,11 @@ template <sequencable::Mut_seq_event T_event>
 void Sequencer<T_event>::adjust_durations(Duration delta) {
   Time_point timeout;
   std::scoped_lock lck{lock_events(timeout)};
-  for (auto& ptr : events_) {
-    T_event tmp = *ptr;
+  for (auto& event : events_) {
+    T_event tmp = event;
     tmp.duration += delta;
     validate(tmp);
-    ptr->update(tmp);
+    event.update(tmp);
   }
 }
 
@@ -267,25 +252,25 @@ void Sequencer<T_event>::multiply_durations(double factor) {
   debug_msg("Multiplying durations by factor: " + std::to_string(factor));
   Time_point timeout;
   std::scoped_lock lck{lock_events(timeout)};
-  for (auto& ptr : events_) {
+  for (auto& event : events_) {
     debug_msg(
         "Old duration: " +
         std::to_string(
-            std::chrono::duration_cast<std::chrono::milliseconds>(ptr->duration)
+            std::chrono::duration_cast<std::chrono::milliseconds>(event.duration)
                 .count()) +
         " ms");
     // Convert to floating-point duration, multiply, then round and convert back
-    T_event tmp = *ptr;
+    T_event tmp = event;
     tmp.duration = std::chrono::duration_cast<Duration>(
         std::chrono::duration_cast<
-            std::chrono::duration<double, Duration::period>>(ptr->duration) *
+            std::chrono::duration<double, Duration::period>>(event.duration) *
         factor);
     validate(tmp);
-    ptr->update(tmp);
+    event.update(tmp);
     debug_msg(
         "New duration: " +
         std::to_string(
-            std::chrono::duration_cast<std::chrono::milliseconds>(ptr->duration)
+            std::chrono::duration_cast<std::chrono::milliseconds>(event.duration)
                 .count()) +
         " ms");
   }
@@ -295,9 +280,9 @@ template <sequencable::Mut_seq_event T_event>
 void Sequencer<T_event>::for_each(const std::function<void(T_event&)>& func) {
   Time_point timeout;
   std::scoped_lock lck{lock_events(timeout)};
-  for (auto& ptr : events_) {
-    func(*ptr);
-    validate(*ptr);
+  for (auto& event : events_) {
+    func(event);
+    validate(event);
   }
 }
 
@@ -307,7 +292,7 @@ void Sequencer<T_event>::replace(Size_type idx, const T_event& event) {
   range_check(idx);
   Time_point timeout;
   std::scoped_lock lck{lock_events(timeout)};
-  *(events_[idx]) = event;
+  events_[idx] = event;
 }
 
 template <sequencable::Mut_seq_event T_event>
@@ -325,7 +310,7 @@ void Sequencer<T_event>::replace(Size_type start,
   Time_point timeout;
   std::scoped_lock lck{lock_events(timeout)};
   for (Size_type i = 0; i < events.size(); ++i) {
-    *(events_[start + i]) = events[i];
+    events_[start + i] = events[i];
   }
 }
 
@@ -334,10 +319,7 @@ void Sequencer<T_event>::assign(Events_initializer events) {
   std::scoped_lock lck{data_mutex_};
   pause();
   events_.clear();
-  events_.reserve(events.size());
-  for (const auto& item : events) {
-    events_.push_back(std::make_unique<T_event>(item));
-  }
+  events_ = events;
   if (next_.load(std::memory_order_acquire) >= events.size()) {
     next_.store(0, std::memory_order_release);
   }
@@ -346,26 +328,7 @@ template <sequencable::Mut_seq_event T_event>
 void Sequencer<T_event>::assign(const Container& events) {
   std::scoped_lock lck{data_mutex_};
   pause();
-  events_.clear();
-  events_.reserve(events.size());
-  for (const std::unique_ptr<T_event>& ptr : events) {
-    T_event item = *ptr.get();
-    events_.push_back(std::make_unique<T_event>(std::move(item)));
-  }
-  if (next_.load(std::memory_order_acquire) >= events.size()) {
-    next_.store(0, std::memory_order_release);
-  }
-}
-
-template <sequencable::Mut_seq_event T_event>
-void Sequencer<T_event>::assign(const std::vector<T_event>& events) {
-  std::scoped_lock lck{data_mutex_};
-  pause();
-  events_.clear();
-  events_.reserve(events.size());
-  for (const auto& item : events) {
-    events_.push_back(std::make_unique<T_event>(item));
-  }
+  events_ = events;
   if (next_.load(std::memory_order_acquire) >= events.size()) {
     next_.store(0, std::memory_order_release);
   }
@@ -377,11 +340,7 @@ void Sequencer<T_event>::assign(Size_type n, const T_event& event) {
   // Stop and clear existing events
   std::scoped_lock lck{data_mutex_};
   pause();
-  events_.clear();
-  events_.reserve(n);
-  for (Size_type i = 0; i < n; ++i) {
-    events_.push_back(std::make_unique<T_event>(event));
-  }
+  events_.assign(n, event);
   if (next_.load(std::memory_order_acquire) >= n) {
     next_.store(0, std::memory_order_release);
   }
@@ -529,9 +488,9 @@ Sequencer<T_event>::once(const std::stop_token st,
       }
 
       {
-        T_event* const cur_ptr = events_[event_idx].get();
-        cur_ptr->scheduled_time = t_next;
-        buffer = *cur_ptr;
+        T_event& cur = events_[event_idx];
+        cur.scheduled_time = t_next;
+        buffer = cur;
       }
       next_.store(event_idx + 1, std::memory_order_release);
     }

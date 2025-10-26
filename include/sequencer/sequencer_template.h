@@ -20,7 +20,7 @@ template <sequencable::Mut_seq_event T_event> struct Sequencer {
   using Clock = Common_types::Clock;
   using Time_point = Common_types::Time_point;
   using Duration = Common_types::Duration;
-  using Container = std::vector<std::unique_ptr<T_event>>;
+  using Container = std::vector<T_event>;
   using Size_type = Container::size_type;
   using Thread_pool = thread_pool::Thread_pool<T_event>;
   using Events_initializer = std::initializer_list<T_event>;
@@ -72,7 +72,6 @@ template <sequencable::Mut_seq_event T_event> struct Sequencer {
   void replace(Size_type start, const std::vector<T_event>&);
   void assign(Events_initializer);
   void assign(const Container&);
-  void assign(const std::vector<T_event>&);
   void assign(Size_type, const T_event&);
 
   // Delete operations

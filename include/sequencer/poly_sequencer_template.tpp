@@ -17,13 +17,7 @@ Poly_sequencer<T_event>::Poly_sequencer(
         "Poly_sequencer: number of handlers must match number of sequences");
   }
   for (size_t i = 0; i < sequences.size(); ++i) {
-    // Convert vector<T_event> to vector<unique_ptr<T_event>>
-    typename Sequencer_t::Container events;
-    events.reserve(sequences[i].size());
-    for (const auto& event : sequences[i]) {
-      events.push_back(std::make_unique<T_event>(event));
-    }
-    Base_vector::push_back(Sequencer_t(handlers[i], std::move(events)));
+    Base_vector::push_back(Sequencer_t(handlers[i], sequences[i]));
   }
 }
 
@@ -36,13 +30,7 @@ Poly_sequencer<T_event>::Poly_sequencer(
         "Poly_sequencer: number of handlers must match number of sequences");
   }
   for (size_t i = 0; i < sequences.size(); ++i) {
-    // Convert vector<T_event> to vector<unique_ptr<T_event>>
-    typename Sequencer_t::Container events;
-    events.reserve(sequences[i].size());
-    for (auto& event : sequences[i]) {
-      events.push_back(std::make_unique<T_event>(std::move(event)));
-    }
-    Base_vector::push_back(Sequencer_t(handlers[i], std::move(events)));
+    Base_vector::push_back(Sequencer_t(handlers[i], std::move(sequences[i])));
   }
 }
 
