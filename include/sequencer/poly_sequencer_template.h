@@ -17,6 +17,7 @@ public:
   using Base_vector = container::Atomic_vector<Sequencer_t>;
   using Seq_idx = Base_vector::Size_type;
   using Handler = Sequencer_t::Handler;
+  using Handler_factory = std::function<Handler()>;
   using Clock = Sequencer_t::Clock;
   using Time_point = Sequencer_t::Time_point;
   using Duration = Sequencer_t::Duration;
@@ -30,6 +31,8 @@ public:
   ~Poly_sequencer() = default;
 
   // Construct from sequences with corresponding handlers
+  explicit Poly_sequencer(const Handler_factory&,
+                          const std::vector<std::vector<Event_t>>& = {});
   Poly_sequencer(const std::vector<Handler>& handlers,
                  const std::vector<std::vector<Event_t>>& sequences);
   Poly_sequencer(const std::vector<Handler>& handlers,
@@ -55,6 +58,7 @@ public:
   bool all_scheduling() const;
 
   // Handler management
+  void set_handler_factory(const Handler_factory&);
   void set_handler(Seq_idx, const Handler&);
   template <typename Handler_container>
   void set_handlers(const Handler_container&);
@@ -81,6 +85,8 @@ public:
 
 protected:
   mutable std::mutex transport_mutex_;
+
+  Handler_factory handler_factory_;
 };
 
 } // namespace sequencer
