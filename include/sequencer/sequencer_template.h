@@ -65,6 +65,8 @@ template <sequencable::Sequencable T_event> struct Sequencer {
   void adjust_tempo(Duration delta);
   void multiply_tempo(double factor);
 
+  void for_each(const std::function<void(T_event&)>&);
+
   void assign(Events_initializer);
   void assign(const Container&);
   void assign(const std::vector<T_event>&);

@@ -261,6 +261,16 @@ void Sequencer<T_event>::multiply_tempo(double factor) {
 }
 
 template <sequencable::Sequencable T_event>
+void Sequencer<T_event>::for_each(const std::function<void(T_event&)>& func) {
+  Time_point timeout;
+  std::scoped_lock lck{lock_events(timeout)};
+  for (auto& ptr : events_) {
+    func(*ptr);
+    validate(*ptr);
+  }
+}
+
+template <sequencable::Sequencable T_event>
 void Sequencer<T_event>::assign(Events_initializer events) {
   std::scoped_lock lck{data_mutex_};
   pause();
