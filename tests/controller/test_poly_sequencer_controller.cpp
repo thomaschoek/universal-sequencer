@@ -1,10 +1,12 @@
 #include "controller/poly_sequencer_controller.h"
 #include "sequencable/concepts.h"
 #include "sequencable/mutable_event.h"
+#include "utility/debug.h"
 #include <catch2/catch_test_macros.hpp>
 #include <chrono>
 #include <vector>
 
+using namespace Micro_composer;
 using namespace Micro_composer::sequencer;
 using namespace Micro_composer::controller;
 using namespace Micro_composer::sequencable;
@@ -28,6 +30,7 @@ static_assert(Mut_seq_event<Controller_test_event>,
 TEST_CASE("Poly_sequencer_controller selection management",
           "[poly_sequencer_controller]") {
   using Controller = Poly_sequencer_controller<Controller_test_event>;
+  using Handler = Controller::Handler;
 
   // Create test sequences
   std::vector<Controller_test_event> seq1 = {
@@ -40,14 +43,18 @@ TEST_CASE("Poly_sequencer_controller selection management",
 
   std::vector<std::vector<Controller_test_event>> sequences = {seq1, seq2};
 
+  std::vector<Handler> handlers{
+      [](Controller_test_event&&) { debug::msg("handler(): "); },
+      [](Controller_test_event&&) { debug::msg("handler(): "); }};
+
   SECTION("Initial state - no selection") {
-    Controller ctrl{sequences};
+    Controller ctrl{handlers, sequences};
     REQUIRE(!ctrl.selected_seq().has_value());
     REQUIRE(!ctrl.selected_pos().has_value());
   }
 
   SECTION("Direct selection") {
-    Controller ctrl{sequences};
+    Controller ctrl{handlers, sequences};
 
     ctrl.select(0, 1);
     REQUIRE(ctrl.selected_seq().has_value());
@@ -61,14 +68,14 @@ TEST_CASE("Poly_sequencer_controller selection management",
   }
 
   SECTION("Selection out of range throws") {
-    Controller ctrl{sequences};
+    Controller ctrl{handlers, sequences};
 
     REQUIRE_THROWS_AS(ctrl.select(2, 0), std::out_of_range);
     REQUIRE_THROWS_AS(ctrl.select(0, 5), std::out_of_range);
   }
 
   SECTION("Clear selection") {
-    Controller ctrl{sequences};
+    Controller ctrl{handlers, sequences};
     ctrl.select(0, 1);
     REQUIRE(ctrl.selected_seq().has_value());
 
@@ -78,7 +85,7 @@ TEST_CASE("Poly_sequencer_controller selection management",
   }
 
   SECTION("Navigate next/prev sequencer") {
-    Controller ctrl{sequences};
+    Controller ctrl{handlers, sequences};
 
     // Initially no selection, select_next_seq should select first
     ctrl.select_next_seq();
@@ -104,7 +111,7 @@ TEST_CASE("Poly_sequencer_controller selection management",
   }
 
   SECTION("Navigate next/prev position") {
-    Controller ctrl{sequences};
+    Controller ctrl{handlers, sequences};
     ctrl.select(0, 0);
 
     // Move to next position
@@ -134,7 +141,7 @@ TEST_CASE("Poly_sequencer_controller selection management",
   }
 
   SECTION("Position navigation without seq selection does nothing") {
-    Controller ctrl{sequences};
+    Controller ctrl{handlers, sequences};
     // No selection yet
     ctrl.select_next_pos();
     REQUIRE(!ctrl.selected_pos().has_value());
@@ -145,7 +152,8 @@ TEST_CASE("Poly_sequencer_controller selection management",
 
   SECTION("Empty controller") {
     std::vector<std::vector<Controller_test_event>> empty;
-    Controller ctrl{empty};
+    std::vector<Handler> empty_handlers;
+    Controller ctrl{empty_handlers, empty};
 
     ctrl.select_next_seq();
     REQUIRE(!ctrl.selected_seq().has_value());
@@ -155,7 +163,7 @@ TEST_CASE("Poly_sequencer_controller selection management",
   }
 
   SECTION("Changing sequencers resets position to 0") {
-    Controller ctrl{sequences};
+    Controller ctrl{handlers, sequences};
     ctrl.select(0, 2);
     REQUIRE(ctrl.selected_pos().value() == 2);
 
@@ -181,9 +189,12 @@ TEST_CASE("Poly_sequencer_controller inherits base functionality",
       Controller_test_event{std::chrono::milliseconds(150)}};
 
   std::vector<std::vector<Controller_test_event>> sequences = {seq1, seq2};
+  std::vector<Controller::Handler> handlers{
+      [](Controller_test_event&&) { debug::msg("handler(): "); },
+      [](Controller_test_event&&) { debug::msg("handler(): "); }};
 
   SECTION("Can use base Poly_sequencer methods") {
-    Controller ctrl{sequences};
+    Controller ctrl{handlers, sequences};
 
     // Size check
     REQUIRE(ctrl.size() == 2);
@@ -202,7 +213,7 @@ TEST_CASE("Poly_sequencer_controller inherits base functionality",
     REQUIRE_FALSE(ctrl.is_scheduling(1));
 
     // Set next position
-    ctrl.set_next(0, 1);
-    ctrl.set_next(1, 0);
+    ctrl.set_pos(0, 1);
+    ctrl.set_pos(1, 0);
   }
 }

@@ -13,11 +13,11 @@ template <sequencable::Mut_seq_event Event_t>
 class Poly_sequencer_controller : public sequencer::Poly_sequencer<Event_t> {
 public:
   using Base_sequencer = sequencer::Poly_sequencer<Event_t>;
-  using Sequencer_t = typename Base_sequencer::Sequencer_t;
-  using Seq_idx = typename Base_sequencer::Seq_idx;
-  using Handler = typename Base_sequencer::Handler;
-  using Clock = typename Base_sequencer::Clock;
-  using Time_point = typename Base_sequencer::Time_point;
+  using Sequencer_t = Base_sequencer::Sequencer_t;
+  using Seq_idx = Base_sequencer::Seq_idx;
+  using Handler = Base_sequencer::Handler;
+  using Clock = Base_sequencer::Clock;
+  using Time_point = Base_sequencer::Time_point;
   using Pos_idx = size_t;
 
   // Constructors - inherit from Poly_sequencer
