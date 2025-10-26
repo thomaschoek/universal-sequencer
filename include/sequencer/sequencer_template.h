@@ -57,7 +57,8 @@ template <sequencable::Mut_seq_event T_event> struct Sequencer {
 
   // Setters / Modifiers
   void set_pos(Size_type = 0);
-  void update(Size_type, const T_event&);
+  void update(Size_type pos, const T_event&);
+  template <typename... Args> void update(Size_type pos, Args&&... update_args);
 
   void push_back(const T_event&);
   void insert(Size_type, const T_event&);
@@ -67,6 +68,8 @@ template <sequencable::Mut_seq_event T_event> struct Sequencer {
 
   void for_each(const std::function<void(T_event&)>&);
 
+  void replace(Size_type, const T_event&);
+  void replace(Size_type start, const std::vector<T_event>&);
   void assign(Events_initializer);
   void assign(const Container&);
   void assign(const std::vector<T_event>&);

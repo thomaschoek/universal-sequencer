@@ -173,6 +173,8 @@ inline std::vector<T_event> Sequencer<T_event>::data() const noexcept {
   return result;
 }
 
+// Setters / Modifiers
+
 template <sequencable::Mut_seq_event T_event>
 void Sequencer<T_event>::set_pos(Size_type pos) {
   range_check(pos);
@@ -181,14 +183,23 @@ void Sequencer<T_event>::set_pos(Size_type pos) {
   next_.store(pos, std::memory_order_release);
 }
 
-// Setters / Modifiers
 template <sequencable::Mut_seq_event T_event>
-void Sequencer<T_event>::update(Size_type idx, const T_event& event) {
+void Sequencer<T_event>::update(Size_type pos, const T_event& event) {
   validate(event);
-  range_check(idx);
+  range_check(pos);
   Time_point timeout;
   std::scoped_lock lck{lock_events(timeout)};
-  *(events_[idx]) = event;
+  events_[pos]->update(event);
+}
+
+template <sequencable::Mut_seq_event T_event>
+template <typename... Args>
+void Sequencer<T_event>::update(Size_type pos, Args&&... update_args) {
+  range_check(pos);
+  Time_point timeout;
+  std::scoped_lock lck{lock_events(timeout)};
+  // Assume validation exists within the event's update method
+  events_[pos]->update(std::forward<Args>(update_args)...);
 }
 
 template <sequencable::Mut_seq_event T_event>
@@ -284,6 +295,34 @@ void Sequencer<T_event>::for_each(const std::function<void(T_event&)>& func) {
   for (auto& ptr : events_) {
     func(*ptr);
     validate(*ptr);
+  }
+}
+
+template <sequencable::Mut_seq_event T_event>
+void Sequencer<T_event>::replace(Size_type idx, const T_event& event) {
+  validate(event);
+  range_check(idx);
+  Time_point timeout;
+  std::scoped_lock lck{lock_events(timeout)};
+  *(events_[idx]) = event;
+}
+
+template <sequencable::Mut_seq_event T_event>
+void Sequencer<T_event>::replace(Size_type start,
+                                 const std::vector<T_event>& events) {
+  validate(events);
+  range_check(start);
+  if (start + events.size() > events_.size()) {
+    throw std::out_of_range("Replacement exceeds sequencer size: start index " +
+                            std::to_string(start) + " + events size " +
+                            std::to_string(events.size()) +
+                            " > sequencer size " +
+                            std::to_string(events_.size()));
+  }
+  Time_point timeout;
+  std::scoped_lock lck{lock_events(timeout)};
+  for (Size_type i = 0; i < events.size(); ++i) {
+    *(events_[start + i]) = events[i];
   }
 }
 
