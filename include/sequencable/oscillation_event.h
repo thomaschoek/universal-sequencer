@@ -32,10 +32,8 @@ struct Oscillation_event : public Event {
 
   // Comparison operators (compare event parameters, not scheduled_time)
   bool operator==(const Oscillation_event& other) const {
-    return frequency == other.frequency &&
-           amplitude == other.amplitude &&
-           phase == other.phase &&
-           duration == other.duration &&
+    return frequency == other.frequency && amplitude == other.amplitude &&
+           phase == other.phase && duration == other.duration &&
            offset == other.offset;
   }
 
@@ -44,7 +42,7 @@ struct Oscillation_event : public Event {
   }
 };
 
-static_assert(Sequencable_updatable<Oscillation_event>,
+static_assert(Mut_seq_event<Oscillation_event>,
               "Oscillation_event does not satisfy Sequencable concept");
 
 } // namespace sequencable

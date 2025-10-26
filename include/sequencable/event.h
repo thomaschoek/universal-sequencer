@@ -12,7 +12,7 @@ struct Event {
   Time_point scheduled_time;
 };
 
-static_assert(Sequencable<Event>, "Event does not satisfy Sequencable concept");
+static_assert(Seq_event<Event>, "Event does not satisfy Sequencable concept");
 
 } // namespace sequencable
 

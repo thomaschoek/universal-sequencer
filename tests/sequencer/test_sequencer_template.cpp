@@ -58,10 +58,15 @@ struct Test_event {
     return id == other.id && duration == other.duration &&
            scheduled_time == other.scheduled_time;
   }
+
+  void update(Duration d, int event_id = 0) {
+    duration = d;
+    id = event_id;
+  }
 };
 
 // Verify Test_event satisfies Sequencable concept
-static_assert(Sequencable<Test_event>,
+static_assert(Mut_seq_event<Test_event>,
               "Test_event does not satisfy Sequencable concept");
 
 // Helper class to capture events from the handler

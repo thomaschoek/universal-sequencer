@@ -36,7 +36,7 @@ inline void debug_msg(std::string msg, std::ostream& stream = std::cerr) {
 
 // Constructors
 
-template <sequencable::Sequencable T_event>
+template <sequencable::Mut_seq_event T_event>
 Thread_pool<T_event>::Thread_pool(Task event_handler,
                                   Size_type initial_n_threads)
     : handler_{event_handler} {
@@ -50,7 +50,7 @@ Thread_pool<T_event>::Thread_pool(Task event_handler,
 }
 
 // Destructor
-template <sequencable::Sequencable T_event>
+template <sequencable::Mut_seq_event T_event>
 Thread_pool<T_event>::~Thread_pool() {
   debug_msg("MAIN THREAD Destructor starting");
   std::scoped_lock lck{workers_mutex_, events_mutex_};
@@ -58,7 +58,7 @@ Thread_pool<T_event>::~Thread_pool() {
   debug_msg("RETURNED FROM stop_workers()");
 }
 
-template <sequencable::Sequencable T_event>
+template <sequencable::Mut_seq_event T_event>
 Thread_pool<T_event>::Thread_pool(Thread_pool&& other) noexcept {
   {
     std::scoped_lock lck{other.events_mutex_};
@@ -72,7 +72,7 @@ Thread_pool<T_event>::Thread_pool(Thread_pool&& other) noexcept {
   workers_ = std::move(other.workers_);
 }
 
-template <sequencable::Sequencable T_event>
+template <sequencable::Mut_seq_event T_event>
 Thread_pool<T_event>&
 Thread_pool<T_event>::operator=(Thread_pool&& other) noexcept {
   Thread_pool(std::move(other));
@@ -81,7 +81,7 @@ Thread_pool<T_event>::operator=(Thread_pool&& other) noexcept {
 
 // Public
 
-template <sequencable::Sequencable T_event>
+template <sequencable::Mut_seq_event T_event>
 void Thread_pool<T_event>::set_handler(const Task& t) {
   if (t == nullptr) {
     throw std::invalid_argument("Thread_pool: handler cannot be null");
@@ -94,7 +94,7 @@ void Thread_pool<T_event>::set_handler(const Task& t) {
   handler_ = t;
 }
 
-template <sequencable::Sequencable T_event>
+template <sequencable::Mut_seq_event T_event>
 void Thread_pool<T_event>::submit(T_event&& event) {
   push_event(std::forward<T_event>(event));
   std::scoped_lock lck{workers_mutex_};
@@ -113,14 +113,14 @@ void Thread_pool<T_event>::submit(T_event&& event) {
 }
 
 // Private
-template <sequencable::Sequencable T_event>
+template <sequencable::Mut_seq_event T_event>
 void Thread_pool<T_event>::push_event(T_event&& evt) {
   std::scoped_lock lck{events_mutex_};
   events_.emplace_back(std::make_unique<T_event>(std::move(evt)));
   new_events_.fetch_add(1, std::memory_order_acq_rel);
 }
 
-template <sequencable::Sequencable T_event>
+template <sequencable::Mut_seq_event T_event>
 inline T_event Thread_pool<T_event>::pop_event() {
   debug_msg("pop_event()");
   std::scoped_lock lck{events_mutex_};
@@ -135,7 +135,7 @@ inline T_event Thread_pool<T_event>::pop_event() {
   return event;
 }
 
-template <sequencable::Sequencable T_event>
+template <sequencable::Mut_seq_event T_event>
 std::jthread Thread_pool<T_event>::worker() {
   return std::jthread([this](std::stop_token st) {
     debug_msg("LAUNCHED NEW THREAD");
@@ -181,7 +181,7 @@ std::jthread Thread_pool<T_event>::worker() {
   });
 }
 
-template <sequencable::Sequencable T_event>
+template <sequencable::Mut_seq_event T_event>
 void Thread_pool<T_event>::stop_workers() {
   // Assert that we have the workers_mutex_ and events_mutex_ locked
   assert(workers_mutex_.try_lock() == false &&

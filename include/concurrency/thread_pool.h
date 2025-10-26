@@ -18,7 +18,7 @@ namespace sequencer {
 
 namespace thread_pool {
 
-template <sequencable::Sequencable T_event> struct Thread_pool {
+template <sequencable::Mut_seq_event T_event> struct Thread_pool {
   using Task = std::function<void(T_event&&)>;
   using Worker = std::jthread;
   using Worker_vector = std::vector<std::unique_ptr<Worker>>;

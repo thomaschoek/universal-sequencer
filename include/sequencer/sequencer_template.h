@@ -16,7 +16,7 @@ namespace Micro_composer {
 
 namespace sequencer {
 
-template <sequencable::Sequencable T_event> struct Sequencer {
+template <sequencable::Mut_seq_event T_event> struct Sequencer {
   using Clock = Common_types::Clock;
   using Time_point = Common_types::Time_point;
   using Duration = Common_types::Duration;
