@@ -251,9 +251,10 @@ void Sequencer<T_event>::adjust_durations(Duration delta) {
   Time_point timeout;
   std::scoped_lock lck{lock_events(timeout)};
   for (auto& ptr : events_) {
-    Duration& duration = ptr->duration;
-    duration += delta;
-    validate(*ptr);
+    T_event tmp = *ptr;
+    tmp.duration += delta;
+    validate(tmp);
+    ptr->update(tmp);
   }
 }
 
@@ -274,17 +275,19 @@ void Sequencer<T_event>::multiply_durations(double factor) {
                 .count()) +
         " ms");
     // Convert to floating-point duration, multiply, then round and convert back
-    ptr->duration = std::chrono::duration_cast<Duration>(
+    T_event tmp = *ptr;
+    tmp.duration = std::chrono::duration_cast<Duration>(
         std::chrono::duration_cast<
             std::chrono::duration<double, Duration::period>>(ptr->duration) *
         factor);
+    validate(tmp);
+    ptr->update(tmp);
     debug_msg(
         "New duration: " +
         std::to_string(
             std::chrono::duration_cast<std::chrono::milliseconds>(ptr->duration)
                 .count()) +
         " ms");
-    validate(*ptr);
   }
 }
 

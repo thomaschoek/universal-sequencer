@@ -21,44 +21,46 @@ struct Premade_samples : public Oscillation_event {
                            double ph = 0.0,
                            double sample_rate = default_sample_rate)
       : Oscillation_event{freq_of(note_number), amp, ph},
-        sample_rate_{sample_rate},
-        samples_{generate_sine_wave(frequency, amp, ph, duration)} {}
+        sample_rate_{sample_rate} {
+    generate_samples();
+  }
 
   explicit Premade_samples(size_t note_number, double amp, double ph,
                            Duration offset, Duration duration)
-      : Oscillation_event{freqs_[note_number], amp, ph, offset, duration},
-        samples_{generate_sine_wave(frequency, amp, ph, duration,
-                                    default_sample_rate)} {}
+      : Oscillation_event{freqs_[note_number], amp, ph, offset, duration} {
+    generate_samples();
+  }
   explicit Premade_samples(const std::string& note_name, double amp = 0.5,
                            double ph = 0.0,
                            double sample_rate = default_sample_rate)
       : Oscillation_event{freq_of(note_name), amp, ph},
-        sample_rate_{sample_rate},
-        samples_{generate_sine_wave(frequency, amp, ph, duration)} {}
+        sample_rate_{sample_rate} {
+    generate_samples();
+  }
 
   explicit Premade_samples(const std::string& note_name, double amp, double ph,
                            Duration offset, Duration duration)
-      : Oscillation_event{freq_of(note_name), amp, ph, offset, duration},
-        samples_{generate_sine_wave(note_name, amp, ph, duration)} {}
+      : Oscillation_event{freq_of(note_name), amp, ph, offset, duration} {
+    generate_samples();
+  }
 
   void update(size_t note_number = 39, double amp = 0.5, double ph = 0.0,
               double sample_rate = default_sample_rate) {
     frequency = freqs_[note_number];
     amplitude = amp;
     phase = ph;
-    samples_ = generate_sine_wave(frequency, amp, ph, duration, sample_rate);
+    generate_samples();
   }
 
-  static std::vector<double> generate_sine_wave(const Premade_samples& params) {
-    return generate_sine_wave(params.frequency, params.amplitude, params.phase,
-                              params.duration, params.sample_rate_);
+  void update(const Premade_samples& other) {
+    Oscillation_event::update(other);
+    generate_samples();
   }
 
-  static std::vector<double> generate_sine_wave(const std::string& note_name,
-                                                double amplitude, double phase,
-                                                Duration duration) {
-    return generate_sine_wave(freq_of(note_name), amplitude, phase, duration,
-                              default_sample_rate);
+  void generate_sine_wave(const std::string& note_name, double amplitude,
+                          double phase, Duration duration) {
+    frequency = freq_of(note_name);
+    generate_samples();
   }
 
   //  static std::vector<double> generate_sine_wave(size_t note_number,
@@ -72,23 +74,20 @@ struct Premade_samples : public Oscillation_event {
   //                              default_sample_rate);
   //  }
   //
-  static std::vector<double>
-  generate_sine_wave(double frequency, double amplitude, double phase,
-                     Duration duration,
-                     double sample_rate = default_sample_rate) {
+  void generate_samples() {
     using size_t = std::vector<double>::size_type;
     static constexpr double TWO_PI = 2.0 * M_PI;
 
-    std::vector<double> samples;
     const size_t n_samples = static_cast<size_t>(
-        std::chrono::duration<double>(duration).count() * sample_rate);
-    samples.reserve(n_samples);
+        std::chrono::duration<double>(duration).count() * sample_rate_);
+    samples_.clear();
+    samples_.reserve(n_samples);
 
-    const double phase_increment = TWO_PI * frequency / sample_rate;
+    const double phase_increment = TWO_PI * frequency / sample_rate_;
 
     // Simple envelope to prevent clicks (fade in/out)
     const size_t fade_samples =
-        std::min(n_samples / 20, 3 * size_t(sample_rate / frequency));
+        std::min(n_samples / 20, 3 * size_t(sample_rate_ / frequency));
     const double amplitude_inc = amplitude / fade_samples;
 
     double current_phase = phase;
@@ -108,15 +107,13 @@ struct Premade_samples : public Oscillation_event {
 
       double sample_value = current_amplitude * sin(current_phase);
 
-      samples.push_back(sample_value);
+      samples_.push_back(sample_value);
 
       current_phase += phase_increment;
       if (current_phase >= TWO_PI) {
         current_phase -= TWO_PI;
       }
     }
-
-    return std::move(samples);
   }
 
   static double freq_of(const std::string& name) {
@@ -187,6 +184,8 @@ struct Premade_samples : public Oscillation_event {
   // Pre-generated audio samples
   std::vector<double> samples_;
 };
+
+static_assert(Seq_event<Event>, "Event does not satisfy Sequencable concept");
 
 } // namespace sequencable
 

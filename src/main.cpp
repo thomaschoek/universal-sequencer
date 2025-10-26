@@ -105,10 +105,6 @@ int main(int argc, char** argv) {
   std::cout << "[MAIN] Changing sequencer tempos\n";
   for (const auto& seqr : seqrs) {
     seqr->multiply_durations(4); // Slower
-    seqr->for_each([](Premade_samples& evt) {
-      // Recompute samples for new duration
-      evt.samples_ = evt.generate_sine_wave(evt);
-    });
   }
 
   std::cout << "[MAIN] Restarting sequencers\n";
@@ -129,10 +125,6 @@ int main(int argc, char** argv) {
   std::cout << "[MAIN] Adjusting tempos again\n";
   for (const auto& seqr : seqrs) {
     seqr->adjust_durations(std::chrono::milliseconds{-100}); // Faster
-    seqr->for_each([](Premade_samples& evt) {
-      // Recompute samples for new duration
-      evt.samples_ = evt.generate_sine_wave(evt);
-    });
   }
 
   std::cout << "[MAIN] Restarting sequencers\n";
@@ -147,10 +139,6 @@ int main(int argc, char** argv) {
   std::cout << "[MAIN] Adjusting tempo again...\n";
   for (const auto& seqr : seqrs) {
     seqr->adjust_durations(std::chrono::milliseconds{-50}); // Even faster
-    seqr->for_each([](Premade_samples& evt) {
-      // Recompute samples for new duration
-      evt.samples_ = evt.generate_sine_wave(evt);
-    });
   }
 
   std::cout << "[MAIN] Restarting sequencers\n";
@@ -164,10 +152,6 @@ int main(int argc, char** argv) {
   std::cout << "[MAIN] Adjusting tempo again...\n";
   for (const auto& seqr : seqrs) {
     seqr->multiply_durations(0.5); // Even faster
-    seqr->for_each([](Premade_samples& evt) {
-      // Recompute samples for new duration
-      evt.samples_ = evt.generate_sine_wave(evt);
-    });
   }
 
   std::this_thread::sleep_for(std::chrono::seconds(4));

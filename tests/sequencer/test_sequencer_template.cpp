@@ -63,6 +63,11 @@ struct Test_event {
     duration = d;
     id = event_id;
   }
+
+  void update(const Test_event& other) {
+    duration = other.duration;
+    id = other.id;
+  }
 };
 
 // Verify Test_event satisfies Sequencable concept

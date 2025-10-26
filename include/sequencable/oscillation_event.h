@@ -30,6 +30,14 @@ struct Oscillation_event : public Event {
     phase = ph;
   }
 
+  void update(const Oscillation_event& other) {
+    frequency = other.frequency;
+    amplitude = other.amplitude;
+    phase = other.phase;
+    duration = other.duration;
+    offset = other.offset;
+  }
+
   // Comparison operators (compare event parameters, not scheduled_time)
   bool operator==(const Oscillation_event& other) const {
     return frequency == other.frequency && amplitude == other.amplitude &&
