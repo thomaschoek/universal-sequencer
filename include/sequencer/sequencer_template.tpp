@@ -236,7 +236,7 @@ void Sequencer<T_event>::insert(Size_type pos, const T_event& event) {
 }
 
 template <sequencable::Sequencable T_event>
-void Sequencer<T_event>::adjust_tempo(Duration delta) {
+void Sequencer<T_event>::adjust_durations(Duration delta) {
   Time_point timeout;
   std::scoped_lock lck{lock_events(timeout)};
   for (auto& ptr : events_) {
@@ -247,7 +247,7 @@ void Sequencer<T_event>::adjust_tempo(Duration delta) {
 }
 
 template <sequencable::Sequencable T_event>
-void Sequencer<T_event>::multiply_tempo(double factor) {
+void Sequencer<T_event>::multiply_durations(double factor) {
   if (factor < 0.0) {
     throw std::invalid_argument("Tempo factor cannot be negative!");
   }
