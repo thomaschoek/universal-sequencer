@@ -237,37 +237,43 @@ void Sequencer<T_event>::insert(Size_type pos, const T_event& event) {
 
 template <sequencable::Sequencable T_event>
 void Sequencer<T_event>::assign(Events_initializer events) {
-  clear();
   std::scoped_lock lck{data_mutex_};
+  pause();
+  events_.clear();
   events_.reserve(events.size());
   for (const auto& item : events) {
     events_.push_back(std::make_unique<T_event>(item));
   }
+  if (next_.load(std::memory_order_acquire) >= events.size()) {
+    next_.store(0, std::memory_order_release);
+  }
 }
 template <sequencable::Sequencable T_event>
 void Sequencer<T_event>::assign(const Container& events) {
-  debug_msg("entered Sequencer::assign(const Container&)");
-  clear();
-  debug_msg("returned from clear()");
   std::scoped_lock lck{data_mutex_};
-  debug_msg("acquired data_mutex_");
+  pause();
+  events_.clear();
   events_.reserve(events.size());
-  debug_msg("reserved events.size()=" + std::to_string(events.size()));
   for (const std::unique_ptr<T_event>& ptr : events) {
     T_event item = *ptr.get();
-    debug_msg("pushing back item from pointer " +
-              std::to_string(reinterpret_cast<std::uintptr_t>(ptr.get())));
     events_.push_back(std::make_unique<T_event>(std::move(item)));
+  }
+  if (next_.load(std::memory_order_acquire) >= events.size()) {
+    next_.store(0, std::memory_order_release);
   }
 }
 
 template <sequencable::Sequencable T_event>
 void Sequencer<T_event>::assign(const std::vector<T_event>& events) {
-  clear();
   std::scoped_lock lck{data_mutex_};
+  pause();
+  events_.clear();
   events_.reserve(events.size());
   for (const auto& item : events) {
     events_.push_back(std::make_unique<T_event>(item));
+  }
+  if (next_.load(std::memory_order_acquire) >= events.size()) {
+    next_.store(0, std::memory_order_release);
   }
 }
 
@@ -275,11 +281,15 @@ template <sequencable::Sequencable T_event>
 void Sequencer<T_event>::assign(Size_type n, const T_event& event) {
   validate(event);
   // Stop and clear existing events
-  clear();
   std::scoped_lock lck{data_mutex_};
+  pause();
+  events_.clear();
   events_.reserve(n);
   for (Size_type i = 0; i < n; ++i) {
     events_.push_back(std::make_unique<T_event>(event));
+  }
+  if (next_.load(std::memory_order_acquire) >= n) {
+    next_.store(0, std::memory_order_release);
   }
 }
 
