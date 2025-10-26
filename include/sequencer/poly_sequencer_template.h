@@ -15,12 +15,12 @@ class Poly_sequencer : public container::Atomic_vector<Sequencer<Event_t>> {
 public:
   using Sequencer_t = Sequencer<Event_t>;
   using Base_vector = container::Atomic_vector<Sequencer_t>;
-  using Seq_idx = typename Base_vector::Size_type;
-  using Handler = typename Sequencer_t::Handler;
-  using Clock = typename Sequencer_t::Clock;
-  using Time_point = typename Sequencer_t::Time_point;
-  using Duration = typename Sequencer_t::Duration;
-  using Events_initializer = typename Sequencer_t::Events_initializer;
+  using Seq_idx = Base_vector::Size_type;
+  using Handler = Sequencer_t::Handler;
+  using Clock = Sequencer_t::Clock;
+  using Time_point = Sequencer_t::Time_point;
+  using Duration = Sequencer_t::Duration;
+  using Events_initializer = Sequencer_t::Events_initializer;
 
   // Constructors
   Poly_sequencer() = default;
@@ -63,8 +63,7 @@ public:
   void update(Seq_idx seq, typename Sequencer_t::Size_type pos,
               const Event_t& event);
   template <typename... Args>
-  void update(Seq_idx seq, typename Sequencer_t::Size_type pos,
-              Args&&... args);
+  void update(Seq_idx seq, typename Sequencer_t::Size_type pos, Args&&... args);
 
   void adjust_durations(Seq_idx, Duration delta);
   void adjust_durations_all(Duration delta);
