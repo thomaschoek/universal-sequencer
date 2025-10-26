@@ -19,8 +19,12 @@ concept Seq_event = requires(T t) {
   { t.scheduled_time } -> std::assignable_from<Time_point>;
   { t.duration } -> std::convertible_to<Duration>;
   { t.duration } -> std::assignable_from<Duration>;
-  requires std::default_initializable<T> && std::movable<T> &&
-               std::destructible<T> && std::copyable<T>;
+  // Require all properties needed for efficient std::vector<T> storage
+  requires std::is_object_v<T>;
+  requires std::destructible<T>;
+  requires std::move_constructible<T>;
+  requires std::copy_constructible<T>;
+  requires std::default_initializable<T>;
 };
 
 template <typename T>
