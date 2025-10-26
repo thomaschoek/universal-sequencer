@@ -5,9 +5,9 @@ namespace Micro_composer {
 
 namespace controller {
 
-template <sequencer::Has_duration T_event>
+template <sequencable::Mut_seq_event T_event>
 void Poly_sequencer_controller<T_event>::select(Seq_idx seq_idx,
-                                                  Pos_idx pos_idx) {
+                                                Pos_idx pos_idx) {
   std::scoped_lock lck{selection_mutex_};
 
   if (seq_idx >= Base_sequencer::size()) {
@@ -26,7 +26,7 @@ void Poly_sequencer_controller<T_event>::select(Seq_idx seq_idx,
   selected_pos_idx_ = pos_idx;
 }
 
-template <sequencer::Has_duration T_event>
+template <sequencable::Mut_seq_event T_event>
 void Poly_sequencer_controller<T_event>::select_next_seq() {
   std::scoped_lock lck{selection_mutex_};
 
@@ -46,7 +46,7 @@ void Poly_sequencer_controller<T_event>::select_next_seq() {
   }
 }
 
-template <sequencer::Has_duration T_event>
+template <sequencable::Mut_seq_event T_event>
 void Poly_sequencer_controller<T_event>::select_prev_seq() {
   std::scoped_lock lck{selection_mutex_};
 
@@ -70,7 +70,7 @@ void Poly_sequencer_controller<T_event>::select_prev_seq() {
   }
 }
 
-template <sequencer::Has_duration T_event>
+template <sequencable::Mut_seq_event T_event>
 void Poly_sequencer_controller<T_event>::select_next_pos() {
   std::scoped_lock lck{selection_mutex_};
 
@@ -91,7 +91,7 @@ void Poly_sequencer_controller<T_event>::select_next_pos() {
   }
 }
 
-template <sequencer::Has_duration T_event>
+template <sequencable::Mut_seq_event T_event>
 void Poly_sequencer_controller<T_event>::select_prev_pos() {
   std::scoped_lock lck{selection_mutex_};
 
@@ -116,21 +116,21 @@ void Poly_sequencer_controller<T_event>::select_prev_pos() {
   }
 }
 
-template <sequencer::Has_duration T_event>
+template <sequencable::Mut_seq_event T_event>
 std::optional<typename Poly_sequencer_controller<T_event>::Seq_idx>
 Poly_sequencer_controller<T_event>::selected_seq() const {
   std::scoped_lock lck{selection_mutex_};
   return selected_seq_idx_;
 }
 
-template <sequencer::Has_duration T_event>
+template <sequencable::Mut_seq_event T_event>
 std::optional<typename Poly_sequencer_controller<T_event>::Pos_idx>
 Poly_sequencer_controller<T_event>::selected_pos() const {
   std::scoped_lock lck{selection_mutex_};
   return selected_pos_idx_;
 }
 
-template <sequencer::Has_duration T_event>
+template <sequencable::Mut_seq_event T_event>
 void Poly_sequencer_controller<T_event>::clear_selection() {
   std::scoped_lock lck{selection_mutex_};
   selected_seq_idx_.reset();

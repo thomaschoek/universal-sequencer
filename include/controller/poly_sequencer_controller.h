@@ -1,20 +1,21 @@
 #ifndef MICRO_COMPOSER_POLY_SEQUENCER_CONTROLLER_H
 #define MICRO_COMPOSER_POLY_SEQUENCER_CONTROLLER_H
 
-#include "sequencer/poly_sequencer.h"
+#include "sequencable/concepts.h"
+#include "sequencer/poly_sequencer_template.h"
 #include <optional>
 
 namespace Micro_composer {
 
 namespace controller {
 
-template <sequencer::Sequencable T_event>
-class Poly_sequencer_controller : public sequencer::Poly_sequencer<T_event> {
+template <sequencable::Mut_seq_event Event_t>
+class Poly_sequencer_controller : public sequencer::Poly_sequencer<Event_t> {
 public:
-  using Base_sequencer = sequencer::Poly_sequencer<T_event>;
+  using Base_sequencer = sequencer::Poly_sequencer<Event_t>;
   using Sequencer_t = typename Base_sequencer::Sequencer_t;
   using Seq_idx = typename Base_sequencer::Seq_idx;
-  using Event_handler = typename Base_sequencer::Event_handler;
+  using Handler = typename Base_sequencer::Handler;
   using Clock = typename Base_sequencer::Clock;
   using Time_point = typename Base_sequencer::Time_point;
   using Pos_idx = size_t;

@@ -18,7 +18,7 @@ add_executable(tests
     # container/test_atomic_vector.cpp
     sequencer/test_sequencer_template.cpp
     sequencer/test_poly_sequencer.cpp
-    # controller/test_poly_sequencer_controller.cpp
+    controller/test_poly_sequencer_controller.cpp
 )
 
 # Link against Catch2 and project sources

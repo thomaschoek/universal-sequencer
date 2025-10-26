@@ -1,25 +1,28 @@
 #include "controller/poly_sequencer_controller.h"
+#include "sequencable/concepts.h"
+#include "sequencable/mutable_event.h"
 #include <catch2/catch_test_macros.hpp>
 #include <chrono>
 #include <vector>
 
 using namespace Micro_composer::sequencer;
 using namespace Micro_composer::controller;
+using namespace Micro_composer::sequencable;
 
 // Test event type that satisfies Has_duration concept
-struct Controller_test_event {
-  using Duration = std::chrono::steady_clock::duration;
-  Duration dur;
+struct Controller_test_event : public Mutable_event {
 
-  Controller_test_event() : dur(std::chrono::milliseconds(100)) {}
-  explicit Controller_test_event(Duration d) : dur(d) {}
+  Controller_test_event() : Mutable_event() {
+    duration = std::chrono::milliseconds(100);
+  }
+  explicit Controller_test_event(Duration d) : Mutable_event() { duration = d; }
 
   // Conversion operator to Duration for use in Sequencer
-  operator Duration() const { return dur; }
+  operator Duration() const { return duration; }
 };
 
 // Verify Controller_test_event satisfies Has_duration concept
-static_assert(Sequencable<Controller_test_event>,
+static_assert(Mut_seq_event<Controller_test_event>,
               "Controller_test_event does not satisfy Has_duration concept");
 
 TEST_CASE("Poly_sequencer_controller selection management",
