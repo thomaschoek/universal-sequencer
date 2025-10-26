@@ -195,14 +195,15 @@ void Sequencer<T_event>::assign(Size_type n, const T_event& event) {
                 .count()) +
         " ms");
   }
-  Time_point timeout;
-  std::scoped_lock lck{lock_events(timeout)};
-  events_.clear();
+  // Stop and clear existing events
+  clear();
+  std::scoped_lock lck{data_mutex_};
   events_.reserve(n);
   for (Size_type i = 0; i < n; ++i) {
     events_.push_back(std::make_unique<T_event>(event));
   }
 }
+
 template <sequencable::Sequencable T_event>
 void Sequencer<T_event>::push_back(const T_event& event) {
   if (event.duration < min_duration_) {
