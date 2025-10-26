@@ -16,11 +16,11 @@ public:
   using Sequencer_t = Sequencer<Event_t>;
   using Base_vector = container::Atomic_vector<Sequencer_t>;
   using Seq_idx = typename Base_vector::Size_type;
-  using Event_handler = typename Sequencer_t::Event_handler;
+  using Handler = typename Sequencer_t::Handler;
   using Clock = typename Sequencer_t::Clock;
   using Time_point = typename Sequencer_t::Time_point;
   using Duration = typename Sequencer_t::Duration;
-  using Data_init_list = typename Sequencer_t::Data_init_list;
+  using Events_initializer = typename Sequencer_t::Events_initializer;
 
   // Constructors
   Poly_sequencer() = default;
@@ -29,8 +29,11 @@ public:
   Poly_sequencer(Poly_sequencer&&) noexcept = default;
   ~Poly_sequencer() = default;
 
-  Poly_sequencer(const std::vector<std::vector<Event_t>>&);
-  Poly_sequencer(std::vector<std::vector<Event_t>>&&);
+  // Construct from sequences with corresponding handlers
+  Poly_sequencer(const std::vector<Handler>& handlers,
+                 const std::vector<std::vector<Event_t>>& sequences);
+  Poly_sequencer(const std::vector<Handler>& handlers,
+                 std::vector<std::vector<Event_t>>&& sequences);
   Poly_sequencer(std::vector<Sequencer_t>&&);
 
   // Synchronized transport control
@@ -41,22 +44,41 @@ public:
   void pause(Seq_idx, Time_point pause_time = Clock::now());
   void pause_all(Time_point pause_time = Clock::now());
 
-  void reset(Seq_idx, Time_point reset_time = Clock::now(),
-             size_t reset_pos = 0);
-  void reset_all(Time_point reset_time = Clock::now(), size_t reset_pos = 0);
+  void stop(Seq_idx, Time_point stop_time = Clock::now(), size_t stop_pos = 0);
+  void stop_all(Time_point stop_time = Clock::now(), size_t stop_pos = 0);
 
-  void set_next(Seq_idx, size_t pos = 0);
-  void set_next_all(size_t pos = 0);
+  void set_pos(Seq_idx, size_t pos = 0);
+  void set_pos_all(size_t pos = 0);
 
   bool is_scheduling(Seq_idx) const;
   bool any_scheduling() const;
   bool all_scheduling() const;
 
   // Handler management
-  void listen(Seq_idx, Event_handler);
-  void set_handler(Seq_idx, Event_handler);
+  void set_handler(Seq_idx, const Handler&);
   template <typename Handler_container>
   void set_handlers(const Handler_container&);
+
+  // Event modification methods
+  void update(Seq_idx seq, typename Sequencer_t::Size_type pos,
+              const Event_t& event);
+  template <typename... Args>
+  void update(Seq_idx seq, typename Sequencer_t::Size_type pos,
+              Args&&... args);
+
+  void adjust_durations(Seq_idx, Duration delta);
+  void adjust_durations_all(Duration delta);
+
+  void multiply_durations(Seq_idx, double factor);
+  void multiply_durations_all(double factor);
+
+  void for_each(Seq_idx, const std::function<void(Event_t&)>&);
+  void for_each_all(const std::function<void(Event_t&)>&);
+
+  void replace(Seq_idx, typename Sequencer_t::Size_type pos,
+               const Event_t& event);
+  void replace(Seq_idx, typename Sequencer_t::Size_type start,
+               const std::vector<Event_t>& events);
 
 protected:
   mutable std::mutex transport_mutex_;
