@@ -667,6 +667,267 @@ TEST_CASE("Sequencer timing accuracy", "[sequencer][timing]") {
   }
 }
 
+TEST_CASE("Sequencer set_handler", "[sequencer]") {
+  SECTION("set_handler changes event handler") {
+    int handler1_calls = 0;
+    int handler2_calls = 0;
+
+    auto handler1 = [&handler1_calls](Test_event&&) { handler1_calls++; };
+    auto handler2 = [&handler2_calls](Test_event&&) { handler2_calls++; };
+
+    Sequencer<Test_event> seq(handler1,
+                               {Test_event(std::chrono::milliseconds(50), 1)});
+
+    auto start_time =
+        Sequencer<Test_event>::Clock::now() + std::chrono::milliseconds(50);
+    seq.start(start_time, false);
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(150));
+    seq.pause();
+
+    REQUIRE(handler1_calls == 1);
+    REQUIRE(handler2_calls == 0);
+
+    // Change handler and restart
+    seq.set_handler(handler2);
+    seq.set_pos(0);
+    auto restart_time =
+        Sequencer<Test_event>::Clock::now() + std::chrono::milliseconds(50);
+    seq.start(restart_time, false);
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(150));
+    seq.pause();
+
+    REQUIRE(handler1_calls == 1); // No new calls to handler1
+    REQUIRE(handler2_calls == 1); // New handler was called
+  }
+}
+
+TEST_CASE("Sequencer update operations", "[sequencer]") {
+  SECTION("update with event object updates event at position") {
+    Event_capture capture;
+    Sequencer<Test_event> seq(capture.make_handler(),
+                               {Test_event(std::chrono::milliseconds(50), 1),
+                                Test_event(std::chrono::milliseconds(50), 2),
+                                Test_event(std::chrono::milliseconds(50), 3)});
+
+    Test_event new_event(std::chrono::milliseconds(100), 99);
+    seq.update(1, new_event);
+
+    auto events = seq.data();
+    REQUIRE(events.size() == 3);
+    REQUIRE(events[0].id == 1);
+    REQUIRE(events[1].id == 99);
+    REQUIRE(events[1].duration == std::chrono::milliseconds(100));
+    REQUIRE(events[2].id == 3);
+  }
+
+  SECTION("update with variadic args updates event at position") {
+    Event_capture capture;
+    Sequencer<Test_event> seq(capture.make_handler(),
+                               {Test_event(std::chrono::milliseconds(50), 1),
+                                Test_event(std::chrono::milliseconds(50), 2),
+                                Test_event(std::chrono::milliseconds(50), 3)});
+
+    seq.update(1, std::chrono::milliseconds(100), 77);
+
+    auto events = seq.data();
+    REQUIRE(events.size() == 3);
+    REQUIRE(events[0].id == 1);
+    REQUIRE(events[1].id == 77);
+    REQUIRE(events[1].duration == std::chrono::milliseconds(100));
+    REQUIRE(events[2].id == 3);
+  }
+
+  SECTION("update throws on out of range index") {
+    Event_capture capture;
+    Sequencer<Test_event> seq(capture.make_handler(),
+                               {Test_event(std::chrono::milliseconds(50), 1)});
+
+    Test_event new_event(std::chrono::milliseconds(100), 99);
+    REQUIRE_THROWS_AS(seq.update(10, new_event), std::out_of_range);
+  }
+}
+
+TEST_CASE("Sequencer duration operations", "[sequencer]") {
+  SECTION("adjust_durations adds delta to all durations") {
+    Event_capture capture;
+    Sequencer<Test_event> seq(
+        capture.make_handler(),
+        {Test_event(std::chrono::milliseconds(50), 1),
+         Test_event(std::chrono::milliseconds(100), 2),
+         Test_event(std::chrono::milliseconds(150), 3)});
+
+    seq.adjust_durations(std::chrono::milliseconds(25));
+
+    auto events = seq.data();
+    REQUIRE(events[0].duration == std::chrono::milliseconds(75));
+    REQUIRE(events[1].duration == std::chrono::milliseconds(125));
+    REQUIRE(events[2].duration == std::chrono::milliseconds(175));
+  }
+
+  SECTION("adjust_durations can subtract from durations") {
+    Event_capture capture;
+    Sequencer<Test_event> seq(
+        capture.make_handler(),
+        {Test_event(std::chrono::milliseconds(50), 1),
+         Test_event(std::chrono::milliseconds(100), 2)});
+
+    seq.adjust_durations(std::chrono::milliseconds(-20));
+
+    auto events = seq.data();
+    REQUIRE(events[0].duration == std::chrono::milliseconds(30));
+    REQUIRE(events[1].duration == std::chrono::milliseconds(80));
+  }
+
+  SECTION("adjust_durations throws if result would be too short") {
+    Event_capture capture;
+    Sequencer<Test_event> seq(
+        capture.make_handler(),
+        {Test_event(std::chrono::milliseconds(50), 1)});
+
+    REQUIRE_THROWS_AS(seq.adjust_durations(std::chrono::milliseconds(-45)),
+                      std::invalid_argument);
+  }
+
+  SECTION("multiply_durations scales all durations") {
+    Event_capture capture;
+    Sequencer<Test_event> seq(
+        capture.make_handler(),
+        {Test_event(std::chrono::milliseconds(100), 1),
+         Test_event(std::chrono::milliseconds(200), 2),
+         Test_event(std::chrono::milliseconds(300), 3)});
+
+    seq.multiply_durations(2.0);
+
+    auto events = seq.data();
+    REQUIRE(events[0].duration == std::chrono::milliseconds(200));
+    REQUIRE(events[1].duration == std::chrono::milliseconds(400));
+    REQUIRE(events[2].duration == std::chrono::milliseconds(600));
+  }
+
+  SECTION("multiply_durations works with fractional factors") {
+    Event_capture capture;
+    Sequencer<Test_event> seq(
+        capture.make_handler(),
+        {Test_event(std::chrono::milliseconds(100), 1),
+         Test_event(std::chrono::milliseconds(200), 2)});
+
+    seq.multiply_durations(0.5);
+
+    auto events = seq.data();
+    REQUIRE(events[0].duration == std::chrono::milliseconds(50));
+    REQUIRE(events[1].duration == std::chrono::milliseconds(100));
+  }
+
+  SECTION("multiply_durations throws on negative factor") {
+    Event_capture capture;
+    Sequencer<Test_event> seq(
+        capture.make_handler(),
+        {Test_event(std::chrono::milliseconds(100), 1)});
+
+    REQUIRE_THROWS_AS(seq.multiply_durations(-1.0), std::invalid_argument);
+  }
+}
+
+TEST_CASE("Sequencer for_each operation", "[sequencer]") {
+  SECTION("for_each applies function to all events") {
+    Event_capture capture;
+    Sequencer<Test_event> seq(capture.make_handler(),
+                               {Test_event(std::chrono::milliseconds(50), 1),
+                                Test_event(std::chrono::milliseconds(50), 2),
+                                Test_event(std::chrono::milliseconds(50), 3)});
+
+    seq.for_each([](Test_event& evt) { evt.id += 10; });
+
+    auto events = seq.data();
+    REQUIRE(events[0].id == 11);
+    REQUIRE(events[1].id == 12);
+    REQUIRE(events[2].id == 13);
+  }
+
+  SECTION("for_each can modify durations") {
+    Event_capture capture;
+    Sequencer<Test_event> seq(
+        capture.make_handler(),
+        {Test_event(std::chrono::milliseconds(50), 1),
+         Test_event(std::chrono::milliseconds(100), 2)});
+
+    seq.for_each([](Test_event& evt) {
+      evt.duration = std::chrono::milliseconds(200);
+    });
+
+    auto events = seq.data();
+    REQUIRE(events[0].duration == std::chrono::milliseconds(200));
+    REQUIRE(events[1].duration == std::chrono::milliseconds(200));
+  }
+}
+
+TEST_CASE("Sequencer replace operations", "[sequencer]") {
+  SECTION("replace single event at position") {
+    Event_capture capture;
+    Sequencer<Test_event> seq(capture.make_handler(),
+                               {Test_event(std::chrono::milliseconds(50), 1),
+                                Test_event(std::chrono::milliseconds(50), 2),
+                                Test_event(std::chrono::milliseconds(50), 3)});
+
+    Test_event replacement(std::chrono::milliseconds(100), 99);
+    seq.replace(1, replacement);
+
+    auto events = seq.data();
+    REQUIRE(events.size() == 3);
+    REQUIRE(events[0].id == 1);
+    REQUIRE(events[1].id == 99);
+    REQUIRE(events[1].duration == std::chrono::milliseconds(100));
+    REQUIRE(events[2].id == 3);
+  }
+
+  SECTION("replace throws on out of range index") {
+    Event_capture capture;
+    Sequencer<Test_event> seq(capture.make_handler(),
+                               {Test_event(std::chrono::milliseconds(50), 1)});
+
+    Test_event replacement(std::chrono::milliseconds(100), 99);
+    REQUIRE_THROWS_AS(seq.replace(10, replacement), std::out_of_range);
+  }
+
+  SECTION("replace multiple events from position") {
+    Event_capture capture;
+    Sequencer<Test_event> seq(capture.make_handler(),
+                               {Test_event(std::chrono::milliseconds(50), 1),
+                                Test_event(std::chrono::milliseconds(50), 2),
+                                Test_event(std::chrono::milliseconds(50), 3),
+                                Test_event(std::chrono::milliseconds(50), 4)});
+
+    std::vector<Test_event> replacements{
+        Test_event(std::chrono::milliseconds(100), 88),
+        Test_event(std::chrono::milliseconds(100), 99)};
+
+    seq.replace(1, replacements);
+
+    auto events = seq.data();
+    REQUIRE(events.size() == 4);
+    REQUIRE(events[0].id == 1);
+    REQUIRE(events[1].id == 88);
+    REQUIRE(events[2].id == 99);
+    REQUIRE(events[3].id == 4);
+  }
+
+  SECTION("replace multiple throws if out of range") {
+    Event_capture capture;
+    Sequencer<Test_event> seq(capture.make_handler(),
+                               {Test_event(std::chrono::milliseconds(50), 1),
+                                Test_event(std::chrono::milliseconds(50), 2)});
+
+    std::vector<Test_event> replacements{
+        Test_event(std::chrono::milliseconds(100), 88),
+        Test_event(std::chrono::milliseconds(100), 99),
+        Test_event(std::chrono::milliseconds(100), 77)};
+
+    REQUIRE_THROWS_AS(seq.replace(1, replacements), std::out_of_range);
+  }
+}
+
 } // namespace sequencer_tests
 
 } // namespace tests
