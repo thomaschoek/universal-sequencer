@@ -104,25 +104,10 @@ int main(int argc, char** argv) {
   std::this_thread::sleep_for(std::chrono::seconds(2));
 
   std::cout << "[MAIN] Changing sequencer tempo\n";
-  {
-    debug::msg("[MAIN] modifying durations of seqeunce 0");
-    size_t i = 0;
-    for (auto& evt : sequences[0]) {
-      debug::msg("[MAIN] Modifying event " + std::to_string(i++));
-      evt->duration = std::chrono::milliseconds(
-          static_cast<int>(evt->duration.count() * 0.5)); // Double speed
-      debug::msg(
-          "[MAIN] Event duration changed to " +
-          std::to_string(
-              std::chrono::duration_cast<std::chrono::seconds>(evt->duration)
-                  .count()) +
-          " seconds for event " + std::to_string(i));
-      debug::msg("[MAIN] Assigning new samples to event");
-      evt->samples_ = Premade_samples::generate_sine_wave(*evt);
-    }
-    debug::msg("[MAIN] Reassigning sequence data");
-    seqrs[0]->assign(sequences[0]);
-  }
+  seqrs[0]->adjust_tempo(std::chrono::milliseconds(50)); // Slower
+  seqrs[1]->adjust_tempo(std::chrono::milliseconds(50)); // Slower
+  seqrs[2]->adjust_tempo(std::chrono::milliseconds(50)); // Slower
+  seqrs[3]->adjust_tempo(std::chrono::milliseconds(50)); // Slower
 
   std::cout << "[MAIN] Restarting sequencer\n";
   auto restart_time = Sequencer::Clock::now() + std::chrono::milliseconds(50);

@@ -236,6 +236,31 @@ void Sequencer<T_event>::insert(Size_type pos, const T_event& event) {
 }
 
 template <sequencable::Sequencable T_event>
+void Sequencer<T_event>::adjust_tempo(Duration delta) {
+  Time_point timeout;
+  std::scoped_lock lck{lock_events(timeout)};
+  for (auto& ptr : events_) {
+    Duration& duration = ptr->duration;
+    duration += delta;
+    validate(*ptr);
+  }
+}
+
+template <sequencable::Sequencable T_event>
+void Sequencer<T_event>::multiply_tempo(double factor) {
+  if (factor < 0.0) {
+    throw std::invalid_argument("Tempo factor cannot be negative!");
+  }
+  Time_point timeout;
+  std::scoped_lock lck{lock_events(timeout)};
+  for (auto& ptr : events_) {
+    Duration& duration = ptr->duration;
+    duration *= factor;
+    validate(*ptr);
+  }
+}
+
+template <sequencable::Sequencable T_event>
 void Sequencer<T_event>::assign(Events_initializer events) {
   std::scoped_lock lck{data_mutex_};
   pause();
@@ -342,11 +367,14 @@ template <sequencable::Sequencable T_event>
 inline void Sequencer<T_event>::validate(const T_event& event) {
   if (event.duration < min_duration_) {
     throw std::invalid_argument(
-        "Durations must be at least " +
+        "Duration too small: " +
+        std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
+                           event.duration)
+                           .count()) +
+        " ms > " +
         std::to_string(
             std::chrono::duration_cast<std::chrono::milliseconds>(min_duration_)
-                .count()) +
-        " ms");
+                .count()));
   }
 }
 
