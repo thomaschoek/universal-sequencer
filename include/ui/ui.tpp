@@ -7,13 +7,13 @@ namespace Micro_composer {
 
 namespace user_interface {
 
-template <typename T_event_params>
+template <sequencable::Mut_seq_event T_event_params>
 User_interface<T_event_params>::User_interface(
     std::shared_ptr<Controller> controller)
     : controller_(controller),
       gui_(std::make_unique<gui::Gui<T_event_params>>(controller)) {}
 
-template <typename T_event_params>
+template <sequencable::Mut_seq_event T_event_params>
 void User_interface<T_event_params>::init(int argc, char** argv) {
   // Initialize GUI (GTK)
   gui_->init(argc, argv);
@@ -21,7 +21,7 @@ void User_interface<T_event_params>::init(int argc, char** argv) {
   running_ = false;
 }
 
-template <typename T_event_params>
+template <sequencable::Mut_seq_event T_event_params>
 void User_interface<T_event_params>::run() {
   if (running_) {
     return;
@@ -45,7 +45,7 @@ void User_interface<T_event_params>::run() {
   gtk_main();
 }
 
-template <typename T_event_params>
+template <sequencable::Mut_seq_event T_event_params>
 void User_interface<T_event_params>::stop() {
   if (!running_) {
     return;
@@ -61,7 +61,7 @@ void User_interface<T_event_params>::stop() {
   std::cout << "[INFO] User interface event loop stopped" << std::endl;
 }
 
-template <typename T_event_params>
+template <sequencable::Mut_seq_event T_event_params>
 void User_interface<T_event_params>::notify() {
   if (!controller_ || !gui_) {
     return;
@@ -77,7 +77,7 @@ void User_interface<T_event_params>::notify() {
   }
 }
 
-template <typename T_event_params>
+template <sequencable::Mut_seq_event T_event_params>
 bool User_interface<T_event_params>::on_update_timer() {
   if (!running_) {
     return false; // Stop timer

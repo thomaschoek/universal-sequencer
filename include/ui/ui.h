@@ -1,19 +1,19 @@
 #ifndef MICRO_COMPOSER_USER_INTERFACE_H
 #define MICRO_COMPOSER_USER_INTERFACE_H
 
-#include "controller/matrix_sequencer_controller.h"
+#include "controller/poly_sequencer_controller.h"
 #include "gui/display_state.h"
 #include "gui/gui.h"
+#include "sequencable/vector_event.h"
 #include <memory>
 
 namespace Micro_composer {
 
 namespace user_interface {
 
-template <typename T_event_params>
-class User_interface {
+template <sequencable::Mut_seq_event T_event_params> class User_interface {
 public:
-  using Controller = controller::Matrix_sequencer_controller<T_event_params>;
+  using Controller = controller::Poly_sequencer_controller<T_event_params>;
 
   // Constructor
   explicit User_interface(std::shared_ptr<Controller> controller);

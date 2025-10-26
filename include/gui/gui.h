@@ -1,6 +1,7 @@
 #ifndef MICRO_COMPOSER_GUI_H
 #define MICRO_COMPOSER_GUI_H
 
+#include "controller/poly_sequencer_controller.h"
 #include "gui/display_state.h"
 #include <gtk/gtk.h>
 #include <map>
@@ -9,17 +10,11 @@
 
 namespace Micro_composer {
 
-// Forward declaration
-namespace controller {
-template <typename T> class Matrix_sequencer_controller;
-}
-
 namespace gui {
 
-template <typename T_event_params>
-class Gui {
+template <typename T_event_params> class Gui {
 public:
-  using Controller = controller::Matrix_sequencer_controller<T_event_params>;
+  using Controller = controller::Poly_sequencer_controller<T_event_params>;
 
   explicit Gui(std::shared_ptr<Controller> controller);
   ~Gui();
@@ -70,8 +65,8 @@ private:
   void create_menu_bar();
   void rebuild_grid(const Display_state& state);
   void create_sequence_header(std::size_t seq_idx,
-                               const Sequencer_display_state& seq_state,
-                               int row);
+                              const Sequencer_display_state& seq_state,
+                              int row);
   void create_parameter_row(std::size_t seq_idx, std::size_t param_idx,
                             const Sequencer_display_state& seq_state, int row);
   void create_duration_row(std::size_t seq_idx,
@@ -85,7 +80,7 @@ private:
 
   // Helper methods for cell management
   std::string make_cell_key(std::size_t seq, std::size_t step,
-                           std::size_t param) const;
+                            std::size_t param) const;
   void clear_highlighting();
   void scroll_to_selection(const Display_state& state);
   void show_help_dialog();
@@ -122,9 +117,9 @@ private:
                                     gpointer user_data);
   static void on_expand_clicked(GtkButton* button, gpointer user_data);
   static gboolean on_cell_key_press(GtkWidget* widget, GdkEventKey* event,
-                                   gpointer user_data);
+                                    gpointer user_data);
   static gboolean on_window_key_press(GtkWidget* widget, GdkEventKey* event,
-                                     gpointer user_data);
+                                      gpointer user_data);
 };
 
 } // namespace gui

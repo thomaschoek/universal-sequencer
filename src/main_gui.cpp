@@ -3,7 +3,6 @@
 #include "sequencable/vector_event.h"
 #include "synth/synth.h"
 #include "ui/ui.h"
-#include <future>
 #include <iostream>
 #include <memory>
 
@@ -14,33 +13,33 @@ int main(int argc, char** argv) {
   using namespace Micro_composer::sequencable;
   using namespace Micro_composer::synth;
 
-  using VectorEvent = Vector_event<double>;
+  using Vector_event = Vector_event<double>;
+  using Controller = Poly_sequencer_controller<Vector_event>;
 
   // Create example sequences with vector events
   // Each event has 3 parameters: [frequency, amplitude, phase]
-  std::vector<VectorEvent> seq1;
+  std::vector<Vector_event> seq1;
   std::vector<double> frequencies1 = {261.63, 293.66, 329.63, 349.23,
                                       392.00, 440.00, 493.88, 523.25};
   for (auto freq : frequencies1) {
-    VectorEvent evt;
-    evt.params = {freq, 1.0, 0.0}; // frequency, amplitude, phase
+    Vector_event evt;
+    evt.data = {freq, 1.0, 0.0}; // frequency, amplitude, phase
     seq1.push_back(evt);
   }
 
-  std::vector<VectorEvent> seq2;
+  std::vector<Vector_event> seq2;
   std::vector<double> frequencies2 = {523.25, 493.88, 440.00, 392.00,
                                       349.23, 329.63, 293.66, 261.63};
   for (auto freq : frequencies2) {
-    VectorEvent evt;
-    evt.params = {freq, 0.8, 0.1}; // frequency, amplitude, phase
+    Vector_event evt;
+    evt.data = {freq, 0.8, 0.1}; // frequency, amplitude, phase
     seq2.push_back(evt);
   }
 
-  std::vector<std::vector<VectorEvent>> sequences = {seq1, seq2};
+  std::vector<std::vector<Vector_event>> sequences = {seq1, seq2};
 
   // Create controller with sequences
-  auto controller =
-      std::make_shared<Matrix_sequencer_controller<double>>(sequences);
+  auto controller = std::make_shared<Controller>(sequences);
 
   std::cout << "[INFO] Created controller with " << controller->size()
             << " sequences" << std::endl;
@@ -58,26 +57,23 @@ int main(int argc, char** argv) {
   // Create handlers that convert Vector_event to Oscillation_event for audio
   // playback
   auto create_handler = [](Synthesizer& synth) {
-    return [&synth](const VectorEvent&& event) {
+    return [&synth](const Vector_event&& event) {
       // Convert Vector_event to Oscillation_event for synthesis
       Oscillation_event osc_event;
-      if (event.params.size() >= 1)
-        osc_event.frequency = event.params[0];
-      if (event.params.size() >= 2)
-        osc_event.amplitude = event.params[1];
-      if (event.params.size() >= 3)
-        osc_event.phase = event.params[2];
+      if (event.data.size() >= 1)
+        osc_event.frequency = event.data[0];
+      if (event.data.size() >= 2)
+        osc_event.amplitude = event.data[1];
+      if (event.data.size() >= 3)
+        osc_event.phase = event.data[2];
       osc_event.duration = event.duration;
-      osc_event.offset = event.offset;
 
-      // Play asynchronously to avoid blocking sequencer
-      std::ignore = std::async(
-          std::launch::async, [&synth, osc_event]() { synth.play(osc_event); });
+      synth.play(osc_event);
     };
   };
 
   // Set handlers for initial sequences
-  std::vector<std::function<void(VectorEvent&&)>> handlers;
+  std::vector<std::function<void(Vector_event&&)>> handlers;
   for (std::size_t i = 0; i < controller->size() && i < SYNTH_POOL_SIZE; ++i) {
     handlers.push_back(create_handler(*synths[i]));
   }
@@ -92,20 +88,17 @@ int main(int argc, char** argv) {
     std::cout << "[INFO] Creating handler using synth " << idx << std::endl;
 
     // Create handler using the lambda from above
-    return [synth_ptr = synths[idx].get()](const VectorEvent&& event) {
+    return [synth_ptr = synths[idx].get()](const Vector_event&& event) {
       Oscillation_event osc_event;
-      if (event.params.size() >= 1)
-        osc_event.frequency = event.params[0];
-      if (event.params.size() >= 2)
-        osc_event.amplitude = event.params[1];
-      if (event.params.size() >= 3)
-        osc_event.phase = event.params[2];
+      if (event.data.size() >= 1)
+        osc_event.frequency = event.data[0];
+      if (event.data.size() >= 2)
+        osc_event.amplitude = event.data[1];
+      if (event.data.size() >= 3)
+        osc_event.phase = event.data[2];
       osc_event.duration = event.duration;
-      osc_event.offset = event.offset;
 
-      std::ignore = std::async(std::launch::async, [synth_ptr, osc_event]() {
-        synth_ptr->play(osc_event);
-      });
+      synth_ptr->play(osc_event);
     };
   });
 
@@ -113,7 +106,7 @@ int main(int argc, char** argv) {
             << " synthesizers" << std::endl;
 
   // Create user interface with controller
-  auto ui = std::make_unique<User_interface<double>>(controller);
+  auto ui = std::make_unique<User_interface<Vector_event>>(controller);
 
   // Initialize GTK and show window
   ui->init(argc, argv);

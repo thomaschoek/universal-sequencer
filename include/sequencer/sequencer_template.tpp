@@ -255,9 +255,9 @@ void Sequencer<T_event>::multiply_durations(double factor) {
   for (auto& event : events_) {
     debug_msg(
         "Old duration: " +
-        std::to_string(
-            std::chrono::duration_cast<std::chrono::milliseconds>(event.duration)
-                .count()) +
+        std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
+                           event.duration)
+                           .count()) +
         " ms");
     // Convert to floating-point duration, multiply, then round and convert back
     T_event tmp = event;
@@ -269,9 +269,9 @@ void Sequencer<T_event>::multiply_durations(double factor) {
     event.update(tmp);
     debug_msg(
         "New duration: " +
-        std::to_string(
-            std::chrono::duration_cast<std::chrono::milliseconds>(event.duration)
-                .count()) +
+        std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
+                           event.duration)
+                           .count()) +
         " ms");
   }
 }
@@ -513,7 +513,10 @@ Sequencer<T_event>::once(const std::stop_token st,
       debug_msg("once(): stop requested, breaking loop");
       break;
     }
-    pool_.submit(std::forward<T_event>(buffer));
+
+    if (buffer.enabled) {
+      pool_.submit(std::forward<T_event>(buffer));
+    }
 
     // Inform other threads until when scheduler will be idle (or at least not
     // critically engaged) Other threads will load t_next_ with
