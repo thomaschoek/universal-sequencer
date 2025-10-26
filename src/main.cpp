@@ -82,48 +82,101 @@ int main(int argc, char** argv) {
         std::make_unique<Sequencer>(Sequencer{handlers[i], sequences[i]}));
   }
 
-  std::cout << "[MAIN] Sequencer created\n" << std::flush;
-  std::cout << "[MAIN] Starting sequencer with repeat=true\n" << std::flush;
-  auto start_time = Sequencer::Clock::now() + std::chrono::milliseconds(50);
+  std::cout << "[MAIN] Sequencers initialized\n" << std::flush;
+  std::cout << "[MAIN] Starting sequencers with repeat=true\n" << std::flush;
+  auto t_point = Sequencer::Clock::now() + std::chrono::milliseconds(50);
 
-  std::cout << "[MAIN] About to call start()\n" << std::flush;
   for (const auto& seqr : (seqrs)) {
-    seqr->start(start_time, true);
+    seqr->start(t_point, true);
   }
-  std::cout << "[MAIN] start() returned\n" << std::flush;
 
   std::cout << "[MAIN] Playing for 10 seconds...\n";
   std::this_thread::sleep_for(std::chrono::seconds(10));
 
-  std::cout << "[MAIN] Pausing sequencer\n";
+  std::cout << "[MAIN] Pausing sequencers\n";
+  t_point = Sequencer::Clock::now() + std::chrono::milliseconds(50);
   for (const auto& seqr : (seqrs)) {
-    seqr->pause();
+    seqr->pause(t_point);
   }
 
   std::cout << "[MAIN] Waiting 2 seconds...\n";
   std::this_thread::sleep_for(std::chrono::seconds(2));
 
-  std::cout << "[MAIN] Changing sequencer tempo\n";
-  seqrs[0]->adjust_tempo(std::chrono::milliseconds(50)); // Slower
-  seqrs[1]->adjust_tempo(std::chrono::milliseconds(50)); // Slower
-  seqrs[2]->adjust_tempo(std::chrono::milliseconds(50)); // Slower
-  seqrs[3]->adjust_tempo(std::chrono::milliseconds(50)); // Slower
-
-  std::cout << "[MAIN] Restarting sequencer\n";
-  auto restart_time = Sequencer::Clock::now() + std::chrono::milliseconds(50);
+  std::cout << "[MAIN] Changing sequencer tempos\n";
   for (const auto& seqr : seqrs) {
-    seqr->start(restart_time, true);
+    seqr->multiply_tempo(4); // Slower
+    seqr->for_each([](Premade_samples& evt) {
+      // Recompute samples for new duration
+      evt.samples_ = evt.generate_sine_wave(evt);
+    });
+  }
+
+  std::cout << "[MAIN] Restarting sequencers\n";
+  t_point = Sequencer::Clock::now() + std::chrono::milliseconds(50);
+  for (const auto& seqr : seqrs) {
+    seqr->start(t_point, true);
   }
 
   std::cout << "[MAIN] Playing for 5 more seconds...\n";
   std::this_thread::sleep_for(std::chrono::seconds(5));
 
-  std::cout << "[MAIN] Stopping sequencer\n";
+  std::cout << "[MAIN] Pausing sequencers\n";
+  t_point = Sequencer::Clock::now() + std::chrono::milliseconds(50);
   for (const auto& seqr : seqrs) {
-    seqr->stop();
+    seqr->pause(t_point);
   }
 
-  std::cout << "[MAIN] Stopping player thread\n";
+  std::cout << "[MAIN] Adjusting tempos again\n";
+  for (const auto& seqr : seqrs) {
+    seqr->adjust_tempo(std::chrono::milliseconds{-100}); // Faster
+    seqr->for_each([](Premade_samples& evt) {
+      // Recompute samples for new duration
+      evt.samples_ = evt.generate_sine_wave(evt);
+    });
+  }
+
+  std::cout << "[MAIN] Restarting sequencers\n";
+  t_point = Sequencer::Clock::now() + std::chrono::milliseconds(50);
+  for (const auto& seqr : seqrs) {
+    seqr->start(t_point, true);
+  }
+
+  std::cout << "[MAIN] Playing for 3 moar seconds...\n";
+  std::this_thread::sleep_for(std::chrono::seconds(4));
+
+  std::cout << "[MAIN] Adjusting tempo again...\n";
+  for (const auto& seqr : seqrs) {
+    seqr->adjust_tempo(std::chrono::milliseconds{-50}); // Even faster
+    seqr->for_each([](Premade_samples& evt) {
+      // Recompute samples for new duration
+      evt.samples_ = evt.generate_sine_wave(evt);
+    });
+  }
+
+  std::cout << "[MAIN] Restarting sequencers\n";
+  t_point = Sequencer::Clock::now() + std::chrono::milliseconds(50);
+  for (const auto& seqr : seqrs) {
+    seqr->start(t_point, true);
+  }
+
+  std::this_thread::sleep_for(std::chrono::seconds(4));
+
+  std::cout << "[MAIN] Adjusting tempo again...\n";
+  for (const auto& seqr : seqrs) {
+    seqr->multiply_tempo(0.5); // Even faster
+    seqr->for_each([](Premade_samples& evt) {
+      // Recompute samples for new duration
+      evt.samples_ = evt.generate_sine_wave(evt);
+    });
+  }
+
+  std::this_thread::sleep_for(std::chrono::seconds(4));
+
+  std::cout << "[MAIN] Stopping sequencers\n";
+  t_point = Sequencer::Clock::now() + std::chrono::milliseconds(50);
+  for (const auto& seqr : seqrs) {
+    seqr->stop(t_point);
+  }
 
   std::cout << "[MAIN] Done!\n";
 }
