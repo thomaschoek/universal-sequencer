@@ -2,6 +2,7 @@
 #define MICRO_COMPOSER_GUI_H
 
 #include "controller/poly_sequencer_controller.h"
+#include "sequencable/concepts.h"
 #include <gtk/gtk.h>
 #include <map>
 #include <memory>
@@ -11,10 +12,10 @@ namespace Micro_composer {
 
 namespace gui {
 
-template <typename T_event_params> class Gui {
-public:
-  using Controller = controller::Poly_sequencer_controller<T_event_params>;
+template <sequencable::Mut_seq_event Event_t> struct Gui {
+  using Controller = controller::Poly_sequencer_controller<Event_t>;
   using Controller_state = Controller::State;
+  using Sequencer = Controller::Sequencer_t;
 
   explicit Gui(std::shared_ptr<Controller> controller);
   ~Gui();
@@ -38,9 +39,6 @@ private:
   GtkWidget* menu_bar_{nullptr};
   GtkWidget* scrolled_window_{nullptr};
   GtkWidget* grid_{nullptr}; // Main grid containing all cells
-
-  // Last rendered state for comparison
-  Controller_state last_state_;
 
   // Expansion state tracking
   std::map<std::size_t, bool> expanded_seqs_; // seq_idx -> is_expanded

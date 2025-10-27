@@ -71,9 +71,9 @@ void User_interface<T_event_params>::notify() {
   auto current_state = controller_->get_state();
 
   // Only update GUI if state has actually changed
-  if (current_state != last_display_state_) {
+  if (current_state != last_controller_state_) {
     gui_->render(current_state);
-    last_display_state_ = current_state;
+    last_controller_state_ = current_state;
   }
 }
 

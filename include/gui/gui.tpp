@@ -10,20 +10,20 @@ namespace Micro_composer {
 
 namespace gui {
 
-template <typename T_event_params>
-Gui<T_event_params>::Gui(std::shared_ptr<Controller> controller)
+template <sequencable::Mut_seq_event Event_t>
+Gui<Event_t>::Gui(std::shared_ptr<Controller> controller)
     : controller_(controller) {
   // GTK will be initialized in init()
   // Initialize first sequence as expanded
   expanded_seqs_[0] = true;
 }
 
-template <typename T_event_params> Gui<T_event_params>::~Gui() {
+template <sequencable::Mut_seq_event Event_t> Gui<Event_t>::~Gui() {
   // GTK cleanup handled by gtk_main_quit if needed
 }
 
-template <typename T_event_params>
-void Gui<T_event_params>::init(int argc, char** argv) {
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::init(int argc, char** argv) {
   // Initialize GTK
   gtk_init(&argc, &argv);
 
@@ -94,13 +94,14 @@ void Gui<T_event_params>::init(int argc, char** argv) {
   std::cout << "[INFO] GUI initialized" << std::endl;
 }
 
-template <typename T_event_params> void Gui<T_event_params>::show() {
+template <sequencable::Mut_seq_event Event_t> void Gui<Event_t>::show() {
   if (window_) {
     gtk_widget_show_all(window_);
   }
 }
 
-template <typename T_event_params> void Gui<T_event_params>::create_menu_bar() {
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::create_menu_bar() {
   menu_bar_ = gtk_menu_bar_new();
 
   // File menu
@@ -253,8 +254,8 @@ template <typename T_event_params> void Gui<T_event_params>::create_menu_bar() {
   gtk_box_pack_start(GTK_BOX(main_box_), menu_bar_, FALSE, FALSE, 0);
 }
 
-template <typename T_event_params>
-void Gui<T_event_params>::render(const Controller_state& state) {
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::render(const Controller_state& state) {
   // Skip rendering if state hasn't changed
   if (state == last_state_) {
     return;
@@ -301,8 +302,8 @@ void Gui<T_event_params>::render(const Controller_state& state) {
   last_state_ = state;
 }
 
-template <typename T_event_params>
-void Gui<T_event_params>::rebuild_grid(const Controller_state& state) {
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::rebuild_grid(const Controller_state& state) {
   std::cout << "[DEBUG] Rebuilding entire grid..." << std::endl;
 
   // Clear existing grid contents
@@ -348,10 +349,10 @@ void Gui<T_event_params>::rebuild_grid(const Controller_state& state) {
   gtk_widget_show_all(grid_);
 }
 
-template <typename T_event_params>
-void Gui<T_event_params>::create_sequence_header(std::size_t seq_idx,
-                                                 const Controller& controller,
-                                                 int row) {
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::create_sequence_header(std::size_t seq_idx,
+                                          const Controller& controller,
+                                          int row) {
   // Expand/collapse button (column 0)
   bool is_expanded = expanded_seqs_[seq_idx];
   GtkWidget* expand_btn = gtk_button_new_with_label(is_expanded ? "▼" : "▶");
@@ -381,11 +382,10 @@ void Gui<T_event_params>::create_sequence_header(std::size_t seq_idx,
   seq_headers_[seq_idx] = {expand_btn, play_icon, name_label};
 }
 
-template <typename T_event_params>
-void Gui<T_event_params>::create_parameter_row(std::size_t seq_idx,
-                                               std::size_t param_idx,
-                                               const Controller& controller,
-                                               int row) {
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::create_parameter_row(std::size_t seq_idx,
+                                        std::size_t param_idx,
+                                        const Controller& controller, int row) {
   // Parameter label (columns 0-2, merged)
   std::ostringstream param_label_ss;
   param_label_ss << "  Param " << param_idx;
@@ -433,10 +433,9 @@ void Gui<T_event_params>::create_parameter_row(std::size_t seq_idx,
   }
 }
 
-template <typename T_event_params>
-void Gui<T_event_params>::create_duration_row(std::size_t seq_idx,
-                                              const Controller& controller,
-                                              int row) {
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::create_duration_row(std::size_t seq_idx,
+                                       const Controller& controller, int row) {
   // Duration label (columns 0-2, merged)
   GtkWidget* duration_label = gtk_label_new("  Duration");
   gtk_widget_set_halign(duration_label, GTK_ALIGN_START);
@@ -493,8 +492,8 @@ void Gui<T_event_params>::create_duration_row(std::size_t seq_idx,
   }
 }
 
-template <typename T_event_params>
-void Gui<T_event_params>::update_cell_values(const Controller_state& state) {
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::update_cell_values(const Controller_state& state) {
   for (std::size_t seq_idx = 0; seq_idx < state.sequencers.size(); ++seq_idx) {
     const auto& seq = state.sequencers[seq_idx];
 
@@ -518,9 +517,8 @@ void Gui<T_event_params>::update_cell_values(const Controller_state& state) {
   }
 }
 
-template <typename T_event_params>
-void Gui<T_event_params>::update_playhead_highlighting(
-    const Controller_state& state) {
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::update_playhead_highlighting(const Controller_state& state) {
   // Clear old playhead highlighting
   for (auto& [key, cell] : cell_widgets_) {
     GtkStyleContext* context = gtk_widget_get_style_context(cell.entry);
@@ -553,8 +551,8 @@ void Gui<T_event_params>::update_playhead_highlighting(
   }
 }
 
-template <typename T_event_params>
-void Gui<T_event_params>::update_selection_highlighting(
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::update_selection_highlighting(
     const Controller_state& state) {
   // Clear old selection highlighting
   for (auto& [key, cell] : cell_widgets_) {
@@ -574,8 +572,8 @@ void Gui<T_event_params>::update_selection_highlighting(
   }
 }
 
-template <typename T_event_params>
-void Gui<T_event_params>::update_play_icons(const Controller_state& state) {
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::update_play_icons(const Controller_state& state) {
   for (std::size_t seq_idx = 0; seq_idx < state.sequencers.size(); ++seq_idx) {
     const auto& seq = state.sequencers[seq_idx];
     auto it = seq_headers_.find(seq_idx);
@@ -589,17 +587,16 @@ void Gui<T_event_params>::update_play_icons(const Controller_state& state) {
   }
 }
 
-template <typename T_event_params>
-std::string Gui<T_event_params>::make_cell_key(std::size_t seq,
-                                               std::size_t step,
-                                               std::size_t param) const {
+template <sequencable::Mut_seq_event Event_t>
+std::string Gui<Event_t>::make_cell_key(std::size_t seq, std::size_t step,
+                                        std::size_t param) const {
   std::ostringstream ss;
   ss << seq << "_" << step << "_" << param;
   return ss.str();
 }
 
-template <typename T_event_params>
-void Gui<T_event_params>::clear_highlighting() {
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::clear_highlighting() {
   for (auto& [key, cell] : cell_widgets_) {
     GtkStyleContext* context = gtk_widget_get_style_context(cell.entry);
     gtk_style_context_remove_class(context, "playhead");
@@ -607,8 +604,8 @@ void Gui<T_event_params>::clear_highlighting() {
   }
 }
 
-template <typename T_event_params>
-void Gui<T_event_params>::scroll_to_selection(const Controller_state& state) {
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::scroll_to_selection(const Controller_state& state) {
   if (!state.selected_seq || !state.selected_event ||
       !state.selected_param_idx) {
     return;
@@ -649,9 +646,8 @@ void Gui<T_event_params>::scroll_to_selection(const Controller_state& state) {
 }
 
 // Helper to commit cell edit
-template <typename T_event_params>
-void Gui<T_event_params>::commit_cell_edit(Gui<T_event_params>* gui,
-                                           GtkEntry* entry) {
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::commit_cell_edit(Gui<Event_t>* gui, GtkEntry* entry) {
   const char* key =
       static_cast<const char*>(g_object_get_data(G_OBJECT(entry), "cell_key"));
 
@@ -690,12 +686,12 @@ void Gui<T_event_params>::commit_cell_edit(Gui<T_event_params>* gui,
                     << std::endl;
         }
       } else {
-        // Parameter cell - parse as T_event_params
-        T_event_params new_value;
+        // Parameter cell - parse as Event_t
+        Event_t new_value;
 
         // Handle empty string as 0
         if (new_value_str == nullptr || std::string(new_value_str).empty()) {
-          new_value = T_event_params{0};
+          new_value = Event_t{0};
         } else {
           std::istringstream iss(new_value_str);
           if (!(iss >> new_value)) {
@@ -724,25 +720,24 @@ void Gui<T_event_params>::commit_cell_edit(Gui<T_event_params>* gui,
 }
 
 // Static event handlers
-template <typename T_event_params>
-void Gui<T_event_params>::on_cell_edited(GtkEntry* entry, gpointer user_data) {
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::on_cell_edited(GtkEntry* entry, gpointer user_data) {
   Gui* gui = static_cast<Gui*>(user_data);
   commit_cell_edit(gui, entry);
 }
 
-template <typename T_event_params>
-gboolean Gui<T_event_params>::on_cell_focus_out(GtkWidget* widget,
-                                                GdkEventFocus* event,
-                                                gpointer user_data) {
+template <sequencable::Mut_seq_event Event_t>
+gboolean Gui<Event_t>::on_cell_focus_out(GtkWidget* widget,
+                                         GdkEventFocus* event,
+                                         gpointer user_data) {
   Gui* gui = static_cast<Gui*>(user_data);
   GtkEntry* entry = GTK_ENTRY(widget);
   commit_cell_edit(gui, entry);
   return FALSE; // Allow default handling
 }
 
-template <typename T_event_params>
-void Gui<T_event_params>::on_expand_clicked(GtkButton* button,
-                                            gpointer user_data) {
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::on_expand_clicked(GtkButton* button, gpointer user_data) {
   Gui* gui = static_cast<Gui*>(user_data);
   std::size_t seq_idx =
       GPOINTER_TO_SIZE(g_object_get_data(G_OBJECT(button), "seq_idx"));
@@ -760,10 +755,9 @@ void Gui<T_event_params>::on_expand_clicked(GtkButton* button,
   gui->last_state_ = state;
 }
 
-template <typename T_event_params>
-gboolean Gui<T_event_params>::on_cell_key_press(GtkWidget* widget,
-                                                GdkEventKey* event,
-                                                gpointer user_data) {
+template <sequencable::Mut_seq_event Event_t>
+gboolean Gui<Event_t>::on_cell_key_press(GtkWidget* widget, GdkEventKey* event,
+                                         gpointer user_data) {
   Gui* gui = static_cast<Gui*>(user_data);
   const char* key =
       static_cast<const char*>(g_object_get_data(G_OBJECT(widget), "cell_key"));
@@ -975,8 +969,8 @@ gboolean Gui<T_event_params>::on_cell_key_press(GtkWidget* widget,
 
 // Step operations
 
-template <typename T_event_params>
-void Gui<T_event_params>::toggle_selected_step() {
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::toggle_selected_step() {
   auto state = controller_->get_state();
   if (state.selected_seq && state.selected_event) {
     try {
@@ -989,8 +983,8 @@ void Gui<T_event_params>::toggle_selected_step() {
   }
 }
 
-template <typename T_event_params>
-void Gui<T_event_params>::add_step_to_selected() {
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::add_step_to_selected() {
   auto state = controller_->get_state();
   if (state.selected_seq) {
     try {
@@ -1003,8 +997,8 @@ void Gui<T_event_params>::add_step_to_selected() {
   }
 }
 
-template <typename T_event_params>
-void Gui<T_event_params>::insert_step_before_selected() {
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::insert_step_before_selected() {
   auto state = controller_->get_state();
   if (state.selected_seq && state.selected_event) {
     try {
@@ -1017,8 +1011,8 @@ void Gui<T_event_params>::insert_step_before_selected() {
   }
 }
 
-template <typename T_event_params>
-void Gui<T_event_params>::remove_selected_step() {
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::remove_selected_step() {
   auto state = controller_->get_state();
   if (state.selected_seq && state.selected_event) {
     try {
@@ -1033,8 +1027,8 @@ void Gui<T_event_params>::remove_selected_step() {
 
 // Sequence operations
 
-template <typename T_event_params>
-void Gui<T_event_params>::add_new_sequence() {
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::add_new_sequence() {
   try {
     // Create a sequence with 8 steps and 3 parameters by default
     controller_->add_sequence(8, 3);
@@ -1060,8 +1054,8 @@ void Gui<T_event_params>::add_new_sequence() {
   }
 }
 
-template <typename T_event_params>
-void Gui<T_event_params>::remove_selected_sequence() {
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::remove_selected_sequence() {
   auto state = controller_->get_state();
   if (state.selected_seq) {
     try {
@@ -1078,8 +1072,8 @@ void Gui<T_event_params>::remove_selected_sequence() {
   }
 }
 
-template <typename T_event_params>
-void Gui<T_event_params>::duplicate_selected_sequence() {
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::duplicate_selected_sequence() {
   auto state = controller_->get_state();
   if (state.selected_seq) {
     try {
@@ -1098,8 +1092,8 @@ void Gui<T_event_params>::duplicate_selected_sequence() {
 
 // Expand/collapse operations
 
-template <typename T_event_params>
-void Gui<T_event_params>::expand_all_sequences() {
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::expand_all_sequences() {
   for (std::size_t i = 0; i < controller_->size(); ++i) {
     expanded_seqs_[i] = true;
   }
@@ -1109,8 +1103,8 @@ void Gui<T_event_params>::expand_all_sequences() {
   std::cout << "[INFO] Expanded all sequences" << std::endl;
 }
 
-template <typename T_event_params>
-void Gui<T_event_params>::collapse_all_sequences() {
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::collapse_all_sequences() {
   for (std::size_t i = 0; i < controller_->size(); ++i) {
     expanded_seqs_[i] = false;
   }
@@ -1120,8 +1114,8 @@ void Gui<T_event_params>::collapse_all_sequences() {
   std::cout << "[INFO] Collapsed all sequences" << std::endl;
 }
 
-template <typename T_event_params>
-void Gui<T_event_params>::toggle_selected_sequence_expand() {
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::toggle_selected_sequence_expand() {
   auto state = controller_->get_state();
   if (state.selected_seq) {
     std::size_t seq_idx = *state.selected_seq;
@@ -1138,8 +1132,8 @@ void Gui<T_event_params>::toggle_selected_sequence_expand() {
 
 // File operations
 
-template <typename T_event_params>
-void Gui<T_event_params>::load_from_json(const std::string& filename) {
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::load_from_json(const std::string& filename) {
   try {
     controller_->load_from_json(filename);
 
@@ -1185,8 +1179,8 @@ void Gui<T_event_params>::load_from_json(const std::string& filename) {
   }
 }
 
-template <typename T_event_params>
-void Gui<T_event_params>::save_to_json(const std::string& filename) {
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::save_to_json(const std::string& filename) {
   // Get current display state
   auto state = controller_->get_state();
 
@@ -1269,7 +1263,7 @@ void Gui<T_event_params>::save_to_json(const std::string& filename) {
   }
 }
 
-template <typename T_event_params> void Gui<T_event_params>::edit_bpm() {
+template <sequencable::Mut_seq_event Event_t> void Gui<Event_t>::edit_bpm() {
   // Create dialog with entry field for BPM
   GtkWidget* dialog = gtk_dialog_new_with_buttons(
       "Edit BPM", GTK_WINDOW(window_), GTK_DIALOG_MODAL, "_OK", GTK_RESPONSE_OK,
@@ -1314,8 +1308,8 @@ template <typename T_event_params> void Gui<T_event_params>::edit_bpm() {
   gtk_widget_destroy(dialog);
 }
 
-template <typename T_event_params>
-void Gui<T_event_params>::show_help_dialog() {
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::show_help_dialog() {
   GtkWidget* dialog = gtk_message_dialog_new(
       GTK_WINDOW(window_), GTK_DIALOG_MODAL, GTK_MESSAGE_INFO, GTK_BUTTONS_OK,
       "Keyboard Shortcuts");
@@ -1365,10 +1359,10 @@ void Gui<T_event_params>::show_help_dialog() {
   gtk_widget_destroy(dialog);
 }
 
-template <typename T_event_params>
-gboolean Gui<T_event_params>::on_window_key_press(GtkWidget* widget,
-                                                  GdkEventKey* event,
-                                                  gpointer user_data) {
+template <sequencable::Mut_seq_event Event_t>
+gboolean Gui<Event_t>::on_window_key_press(GtkWidget* widget,
+                                           GdkEventKey* event,
+                                           gpointer user_data) {
   Gui* gui = static_cast<Gui*>(user_data);
 
   // Check for F1 help

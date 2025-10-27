@@ -14,6 +14,7 @@ namespace user_interface {
 template <sequencable::Mut_seq_event T_event_params> class User_interface {
 public:
   using Controller = controller::Poly_sequencer_controller<T_event_params>;
+  using Controller_state = Controller::State;
 
   // Constructor
   explicit User_interface(std::shared_ptr<Controller> controller);
@@ -37,7 +38,7 @@ private:
   std::shared_ptr<Controller> controller_;
   std::unique_ptr<gui::Gui<T_event_params>> gui_;
 
-  Controller::State last_display_state_;
+  Controller_state last_controller_state_;
 
   // Timer ID for periodic updates (GTK timer)
   unsigned int timer_id_{0};

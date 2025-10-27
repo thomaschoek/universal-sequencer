@@ -50,7 +50,7 @@ TEST_CASE("Poly_sequencer_controller selection management",
   SECTION("Initial state - no selection") {
     Controller ctrl{handlers, sequences};
     REQUIRE(!ctrl.selected_seq().has_value());
-    REQUIRE(!ctrl.selected_pos().has_value());
+    REQUIRE(!ctrl.selected_event().has_value());
   }
 
   SECTION("Direct selection") {
@@ -59,12 +59,12 @@ TEST_CASE("Poly_sequencer_controller selection management",
     ctrl.select(0, 1);
     REQUIRE(ctrl.selected_seq().has_value());
     REQUIRE(ctrl.selected_seq().value() == 0);
-    REQUIRE(ctrl.selected_pos().has_value());
-    REQUIRE(ctrl.selected_pos().value() == 1);
+    REQUIRE(ctrl.selected_event().has_value());
+    REQUIRE(ctrl.selected_event().value() == 1);
 
     ctrl.select(1, 0);
     REQUIRE(ctrl.selected_seq().value() == 1);
-    REQUIRE(ctrl.selected_pos().value() == 0);
+    REQUIRE(ctrl.selected_event().value() == 0);
   }
 
   SECTION("Selection out of range throws") {
@@ -81,7 +81,7 @@ TEST_CASE("Poly_sequencer_controller selection management",
 
     ctrl.clear_selection();
     REQUIRE(!ctrl.selected_seq().has_value());
-    REQUIRE(!ctrl.selected_pos().has_value());
+    REQUIRE(!ctrl.selected_event().has_value());
   }
 
   SECTION("Navigate next/prev sequencer") {
@@ -90,12 +90,12 @@ TEST_CASE("Poly_sequencer_controller selection management",
     // Initially no selection, select_next_seq should select first
     ctrl.select_next_seq();
     REQUIRE(ctrl.selected_seq().value() == 0);
-    REQUIRE(ctrl.selected_pos().value() == 0);
+    REQUIRE(ctrl.selected_event().value() == 0);
 
     // Move to next sequencer
     ctrl.select_next_seq();
     REQUIRE(ctrl.selected_seq().value() == 1);
-    REQUIRE(ctrl.selected_pos().value() == 0);
+    REQUIRE(ctrl.selected_event().value() == 0);
 
     // Wrap around to first
     ctrl.select_next_seq();
@@ -116,38 +116,38 @@ TEST_CASE("Poly_sequencer_controller selection management",
 
     // Move to next position
     ctrl.select_next_pos();
-    REQUIRE(ctrl.selected_pos().value() == 1);
+    REQUIRE(ctrl.selected_event().value() == 1);
 
     ctrl.select_next_pos();
-    REQUIRE(ctrl.selected_pos().value() == 2);
+    REQUIRE(ctrl.selected_event().value() == 2);
 
     // Wrap around
     ctrl.select_next_pos();
-    REQUIRE(ctrl.selected_pos().value() == 0);
+    REQUIRE(ctrl.selected_event().value() == 0);
 
     // Go back
     ctrl.select_prev_pos();
-    REQUIRE(ctrl.selected_pos().value() == 2);
+    REQUIRE(ctrl.selected_event().value() == 2);
 
     ctrl.select_prev_pos();
-    REQUIRE(ctrl.selected_pos().value() == 1);
+    REQUIRE(ctrl.selected_event().value() == 1);
 
     ctrl.select_prev_pos();
-    REQUIRE(ctrl.selected_pos().value() == 0);
+    REQUIRE(ctrl.selected_event().value() == 0);
 
     // Wrap to last
     ctrl.select_prev_pos();
-    REQUIRE(ctrl.selected_pos().value() == 2);
+    REQUIRE(ctrl.selected_event().value() == 2);
   }
 
   SECTION("Position navigation without seq selection does nothing") {
     Controller ctrl{handlers, sequences};
     // No selection yet
     ctrl.select_next_pos();
-    REQUIRE(!ctrl.selected_pos().has_value());
+    REQUIRE(!ctrl.selected_event().has_value());
 
     ctrl.select_prev_pos();
-    REQUIRE(!ctrl.selected_pos().has_value());
+    REQUIRE(!ctrl.selected_event().has_value());
   }
 
   SECTION("Empty controller") {
@@ -165,16 +165,16 @@ TEST_CASE("Poly_sequencer_controller selection management",
   SECTION("Changing sequencers resets position to 0") {
     Controller ctrl{handlers, sequences};
     ctrl.select(0, 2);
-    REQUIRE(ctrl.selected_pos().value() == 2);
+    REQUIRE(ctrl.selected_event().value() == 2);
 
     ctrl.select_next_seq();
     REQUIRE(ctrl.selected_seq().value() == 1);
-    REQUIRE(ctrl.selected_pos().value() == 0);
+    REQUIRE(ctrl.selected_event().value() == 0);
 
     ctrl.select(1, 1);
     ctrl.select_prev_seq();
     REQUIRE(ctrl.selected_seq().value() == 0);
-    REQUIRE(ctrl.selected_pos().value() == 0);
+    REQUIRE(ctrl.selected_event().value() == 0);
   }
 }
 
