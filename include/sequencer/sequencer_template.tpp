@@ -189,10 +189,10 @@ void Sequencer<T_event>::update(Size_type pos, Args&&... update_args) {
   range_check(pos);
   await_scheduler();
   // Assume validation exists within the event's update method
-  events_.mutate(pos), [&update_args...](T_event&& evt) {
+  events_.mutate(pos, [&update_args...](T_event&& evt) {
     evt.update(std::forward<Args>(update_args)...);
     return std::forward<T_event>(evt);
-  };
+  });
 }
 
 template <sequencable::Mut_seq_event T_event>
@@ -311,7 +311,7 @@ void Sequencer<T_event>::multiply_durations(double factor) {
   debug_msg("Multiplying durations by factor: " + std::to_string(factor));
   Time_point timeout;
   std::scoped_lock lck{lock_events(timeout)};
-  for (auto& event : events_) {
+  for (auto& event : events_.snapshot()) {
     debug_msg(
         "Old duration: " +
         std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -519,9 +519,9 @@ Sequencer<T_event>::once(const std::stop_token st,
   validate(initial_time);
 
   Size_type events_size;
-  Size_type event_idx = initial_index;
+  Size_type cur_idx = initial_index;
   Time_point t_next = initial_time;
-  T_event buffer;
+  T_event current;
 
   next_.store(initial_index, std::memory_order_release);
 
@@ -530,13 +530,13 @@ Sequencer<T_event>::once(const std::stop_token st,
       std::scoped_lock lck{data_mutex_};
       // debug_msg("oncw(): Acquired data_mutex_");
       //  Inform concurrent threads which event we are about to copy
-      event_idx = next_.load(std::memory_order_acquire);
+      cur_idx = next_.load(std::memory_order_acquire);
       // debug_msg("once(): Loaded next_ = " + std::to_string(event_idx) +
       //" from atomic next_");
       events_size = events_.size();
       // debug_msg("once(): Loaded events_.size() = " +
       // std::to_string(events_size));
-      if (event_idx >= events_size) {
+      if (cur_idx >= events_size) {
         // debug_msg("once(): event_idx " + std::to_string(event_idx)
         // +
         //">= events_size " + std::to_string(events_size) +
@@ -545,15 +545,17 @@ Sequencer<T_event>::once(const std::stop_token st,
       }
 
       {
-        T_event& cur = events_[event_idx];
-        cur.scheduled_time = t_next;
-        buffer = cur;
+        events_.mutate(cur_idx, [t_next](T_event&& evt) {
+          evt.scheduled_time = t_next;
+          return std::forward<T_event>(evt);
+        });
+        current = events_[cur_idx];
       }
-      next_.store(event_idx + 1, std::memory_order_release);
+      next_.store(cur_idx + 1, std::memory_order_release);
     }
     // debug_msg("once(): Released data_mutex_");
 
-    const Duration cur_duration = buffer.duration;
+    const Duration cur_duration = current.duration;
 
     // debug_msg(
     //        "once(): Submitting event to pool with (scheduled_time=" +
@@ -571,8 +573,8 @@ Sequencer<T_event>::once(const std::stop_token st,
       break;
     }
 
-    if (buffer.enabled) {
-      pool_.submit(std::forward<T_event>(buffer));
+    if (current.enabled) {
+      pool_.submit(std::forward<T_event>(current));
     }
 
     // Inform other threads until when scheduler will be idle (or at least not

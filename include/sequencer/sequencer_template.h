@@ -23,7 +23,7 @@ template <sequencable::Mut_seq_event T_event> struct Sequencer {
   using Duration = Common_types::Duration;
   using Container = container::Atomic_vector<T_event>;
   using Mutator = Container::Mutator;
-  using Size_type = Container::size_type;
+  using Size_type = Container::Size_type;
   using Thread_pool = thread_pool::Thread_pool<T_event>;
   using Events_initializer = std::initializer_list<T_event>;
   using Handler = std::function<void(T_event&&)>;

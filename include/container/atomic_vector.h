@@ -11,7 +11,7 @@ namespace Micro_composer {
 
 namespace container {
 
-template <typename T> class Atomic_vector : protected std::vector<T> {
+template <typename T> class Atomic_vector : private std::vector<T> {
 public:
   using Base_vector = std::vector<T>;
   using Size_type = Base_vector::size_type;
