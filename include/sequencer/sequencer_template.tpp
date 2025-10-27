@@ -558,11 +558,11 @@ Sequencer<T_event>::once(const std::stop_token st,
       }
 
       {
-        events_.mutate(cur_idx, [t_next](T_event&& evt) {
+        events_.mutate(cur_idx, [&current, t_next](T_event&& evt) {
           evt.scheduled_time = t_next;
+          current = evt;
           return std::forward<T_event>(evt);
         });
-        current = events_[cur_idx];
       }
       next_.store(cur_idx + 1, std::memory_order_release);
     }
