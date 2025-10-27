@@ -35,7 +35,6 @@ public:
 
   // Thread-safe CRUD operations
   void assign(Size_type, const T&);
-  void assign(Size_type, T&&);
   void assign(Initializer_list);
   void assign(const std::vector<T>&);
 

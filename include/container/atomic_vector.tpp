@@ -110,16 +110,10 @@ template <typename T> void Atomic_vector<T>::insert(Size_type pos, T&& value) {
 }
 
 template <typename T>
-void Atomic_vector<T>::assign(Size_type pos, const T& value) {
+void Atomic_vector<T>::assign(Size_type n, const T& value) {
   std::scoped_lock lck{mutex_};
-  range_check(pos);
-  Base_vector::operator[](pos) = value;
-}
-
-template <typename T> void Atomic_vector<T>::assign(Size_type pos, T&& value) {
-  std::scoped_lock lck{mutex_};
-  range_check(pos);
-  Base_vector::operator[](pos) = std::forward<T>(value);
+  range_check(n);
+  Base_vector::assign(n, value);
 }
 
 template <typename T>
