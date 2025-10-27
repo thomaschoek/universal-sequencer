@@ -6,24 +6,24 @@ namespace Micro_composer {
 namespace controller {
 
 template <sequencable::Mut_seq_event T_event>
-void Poly_sequencer_controller<T_event>::select(Seq_idx seq_idx,
-                                                Pos_idx pos_idx) {
+void Poly_sequencer_controller<T_event>::select(Seq_idx i_seq,
+                                                Event_idx i_event) {
   std::scoped_lock lck{selection_mutex_};
 
-  if (seq_idx >= Base_sequencer::size()) {
+  if (i_seq >= Base_sequencer::size()) {
     throw std::out_of_range(
         "[ERROR] In Poly_sequencer_controller::select: Sequencer index "
         "out of range.");
   }
 
-  if (pos_idx >= Base_sequencer::operator[](seq_idx).size()) {
+  if (i_event >= Base_sequencer::operator[](i_seq).size()) {
     throw std::out_of_range(
         "[ERROR] In Poly_sequencer_controller::select: Position index out of "
         "range.");
   }
 
-  selected_seq_idx_ = seq_idx;
-  selected_pos_idx_ = pos_idx;
+  state_.selected_seq = i_seq;
+  state_.selected_event = i_event;
 }
 
 template <sequencable::Mut_seq_event T_event>
@@ -34,15 +34,15 @@ void Poly_sequencer_controller<T_event>::select_next_seq() {
     return;
   }
 
-  if (!selected_seq_idx_) {
+  if (!state_.selected_seq) {
     // No selection, select first sequencer
-    selected_seq_idx_ = 0;
-    selected_pos_idx_ = 0;
+    state_.selected_seq = 0;
+    state_.selected_event = 0;
   } else {
     // Move to next sequencer, wrap around
-    selected_seq_idx_ = (*selected_seq_idx_ + 1) % Base_sequencer::size();
+    state_.selected_seq = (*state_.selected_seq + 1) % Base_sequencer::size();
     // Reset position to 0 when changing sequencer
-    selected_pos_idx_ = 0;
+    state_.selected_event = 0;
   }
 }
 
@@ -54,19 +54,19 @@ void Poly_sequencer_controller<T_event>::select_prev_seq() {
     return;
   }
 
-  if (!selected_seq_idx_) {
+  if (!state_.selected_seq) {
     // No selection, select last sequencer
-    selected_seq_idx_ = Base_sequencer::size() - 1;
-    selected_pos_idx_ = 0;
+    state_.selected_seq = Base_sequencer::size() - 1;
+    state_.selected_event = 0;
   } else {
     // Move to previous sequencer, wrap around
-    if (*selected_seq_idx_ == 0) {
-      selected_seq_idx_ = Base_sequencer::size() - 1;
+    if (*state_.selected_seq == 0) {
+      state_.selected_seq = Base_sequencer::size() - 1;
     } else {
-      --(*selected_seq_idx_);
+      --(*state_.selected_seq);
     }
     // Reset position to 0 when changing sequencer
-    selected_pos_idx_ = 0;
+    state_.selected_event = 0;
   }
 }
 
@@ -74,20 +74,20 @@ template <sequencable::Mut_seq_event T_event>
 void Poly_sequencer_controller<T_event>::select_next_pos() {
   std::scoped_lock lck{selection_mutex_};
 
-  if (!selected_seq_idx_ || Base_sequencer::empty()) {
+  if (!state_.selected_seq || Base_sequencer::empty()) {
     return;
   }
 
-  auto& seq = Base_sequencer::operator[](*selected_seq_idx_);
+  auto& seq = Base_sequencer::operator[](*state_.selected_seq);
   if (seq.empty()) {
     return;
   }
 
-  if (!selected_pos_idx_) {
-    selected_pos_idx_ = 0;
+  if (!state_.selected_event) {
+    state_.selected_event = 0;
   } else {
     // Move to next position, wrap around
-    selected_pos_idx_ = (*selected_pos_idx_ + 1) % seq.size();
+    state_.selected_event = (*state_.selected_event + 1) % seq.size();
   }
 }
 
@@ -95,23 +95,23 @@ template <sequencable::Mut_seq_event T_event>
 void Poly_sequencer_controller<T_event>::select_prev_pos() {
   std::scoped_lock lck{selection_mutex_};
 
-  if (!selected_seq_idx_ || Base_sequencer::empty()) {
+  if (!state_.selected_seq || Base_sequencer::empty()) {
     return;
   }
 
-  auto& seq = Base_sequencer::operator[](*selected_seq_idx_);
+  auto& seq = Base_sequencer::operator[](*state_.selected_seq);
   if (seq.empty()) {
     return;
   }
 
-  if (!selected_pos_idx_) {
-    selected_pos_idx_ = seq.size() - 1;
+  if (!state_.selected_event) {
+    state_.selected_event = seq.size() - 1;
   } else {
     // Move to previous position, wrap around
-    if (*selected_pos_idx_ == 0) {
-      selected_pos_idx_ = seq.size() - 1;
+    if (*state_.selected_event == 0) {
+      state_.selected_event = seq.size() - 1;
     } else {
-      --(*selected_pos_idx_);
+      --(*state_.selected_event);
     }
   }
 }
@@ -120,21 +120,27 @@ template <sequencable::Mut_seq_event T_event>
 std::optional<typename Poly_sequencer_controller<T_event>::Seq_idx>
 Poly_sequencer_controller<T_event>::selected_seq() const {
   std::scoped_lock lck{selection_mutex_};
-  return selected_seq_idx_;
+  return state_.selected_seq;
 }
 
 template <sequencable::Mut_seq_event T_event>
-std::optional<typename Poly_sequencer_controller<T_event>::Pos_idx>
-Poly_sequencer_controller<T_event>::selected_pos() const {
+std::optional<typename Poly_sequencer_controller<T_event>::Event_idx>
+Poly_sequencer_controller<T_event>::selected_event() const {
   std::scoped_lock lck{selection_mutex_};
-  return selected_pos_idx_;
+  return state_.selected_event;
 }
 
 template <sequencable::Mut_seq_event T_event>
 void Poly_sequencer_controller<T_event>::clear_selection() {
   std::scoped_lock lck{selection_mutex_};
-  selected_seq_idx_.reset();
-  selected_pos_idx_.reset();
+  state_.selected_seq.reset();
+  state_.selected_event.reset();
+}
+
+template <sequencable::Mut_seq_event T_event>
+const typename Poly_sequencer_controller<T_event>::State
+Poly_sequencer_controller<T_event>::get_state() const {
+  return state_;
 }
 
 } // namespace controller
