@@ -37,7 +37,7 @@ private:
   std::shared_ptr<Controller> controller_;
   std::unique_ptr<gui::Gui<T_event_params>> gui_;
 
-  gui::Display_state last_display_state_;
+  Controller::State last_display_state_;
 
   // Timer ID for periodic updates (GTK timer)
   unsigned int timer_id_{0};

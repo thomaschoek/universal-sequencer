@@ -68,7 +68,7 @@ void User_interface<T_event_params>::notify() {
   }
 
   // Get current state from controller (thread-safe atomic read)
-  auto current_state = controller_->get_display_state();
+  auto current_state = controller_->get_state();
 
   // Only update GUI if state has actually changed
   if (current_state != last_display_state_) {

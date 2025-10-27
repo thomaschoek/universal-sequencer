@@ -254,7 +254,7 @@ template <typename T_event_params> void Gui<T_event_params>::create_menu_bar() {
 }
 
 template <typename T_event_params>
-void Gui<T_event_params>::render(const Display_state& state) {
+void Gui<T_event_params>::render(const Controller_state& state) {
   // Skip rendering if state hasn't changed
   if (state == last_state_) {
     return;
@@ -292,8 +292,8 @@ void Gui<T_event_params>::render(const Display_state& state) {
   }
 
   // Scroll to selection if it changed
-  if (state.selected_seq_idx != last_state_.selected_seq_idx ||
-      state.selected_step_idx != last_state_.selected_step_idx ||
+  if (state.selected_seq != last_state_.selected_seq ||
+      state.selected_event != last_state_.selected_event ||
       state.selected_param_idx != last_state_.selected_param_idx) {
     scroll_to_selection(state);
   }
@@ -302,7 +302,7 @@ void Gui<T_event_params>::render(const Display_state& state) {
 }
 
 template <typename T_event_params>
-void Gui<T_event_params>::rebuild_grid(const Display_state& state) {
+void Gui<T_event_params>::rebuild_grid(const Controller_state& state) {
   std::cout << "[DEBUG] Rebuilding entire grid..." << std::endl;
 
   // Clear existing grid contents
@@ -349,8 +349,9 @@ void Gui<T_event_params>::rebuild_grid(const Display_state& state) {
 }
 
 template <typename T_event_params>
-void Gui<T_event_params>::create_sequence_header(
-    std::size_t seq_idx, const Sequencer_display_state& seq_state, int row) {
+void Gui<T_event_params>::create_sequence_header(std::size_t seq_idx,
+                                                 const Controller& controller,
+                                                 int row) {
   // Expand/collapse button (column 0)
   bool is_expanded = expanded_seqs_[seq_idx];
   GtkWidget* expand_btn = gtk_button_new_with_label(is_expanded ? "▼" : "▶");
@@ -361,8 +362,8 @@ void Gui<T_event_params>::create_sequence_header(
 
   // Play/pause/stop icon (column 1)
   const char* icon_text = "⏹"; // Stop
-  if (seq_state.is_running) {
-    icon_text = (seq_state.current_step_idx > 0) ? "▶" : "▶";
+  if (controller.is_running) {
+    icon_text = (controller.current_step_idx > 0) ? "▶" : "▶";
   }
   GtkWidget* play_icon = gtk_label_new(icon_text);
   gtk_widget_set_size_request(play_icon, 30, 30);
@@ -381,9 +382,10 @@ void Gui<T_event_params>::create_sequence_header(
 }
 
 template <typename T_event_params>
-void Gui<T_event_params>::create_parameter_row(
-    std::size_t seq_idx, std::size_t param_idx,
-    const Sequencer_display_state& seq_state, int row) {
+void Gui<T_event_params>::create_parameter_row(std::size_t seq_idx,
+                                               std::size_t param_idx,
+                                               const Controller& controller,
+                                               int row) {
   // Parameter label (columns 0-2, merged)
   std::ostringstream param_label_ss;
   param_label_ss << "  Param " << param_idx;
@@ -393,12 +395,12 @@ void Gui<T_event_params>::create_parameter_row(
   gtk_grid_attach(GTK_GRID(grid_), param_label, 0, row, 3, 1);
 
   // Create cells for each step
-  for (std::size_t step_idx = 0; step_idx < seq_state.num_steps; ++step_idx) {
+  for (std::size_t step_idx = 0; step_idx < controller.num_steps; ++step_idx) {
     // Get parameter value
     std::string value = "";
-    if (step_idx < seq_state.steps.size() &&
-        param_idx < seq_state.steps[step_idx].param_values.size()) {
-      value = seq_state.steps[step_idx].param_values[param_idx];
+    if (step_idx < controller.steps.size() &&
+        param_idx < controller.steps[step_idx].param_values.size()) {
+      value = controller.steps[step_idx].param_values[param_idx];
     }
 
     // Create entry widget
@@ -432,8 +434,9 @@ void Gui<T_event_params>::create_parameter_row(
 }
 
 template <typename T_event_params>
-void Gui<T_event_params>::create_duration_row(
-    std::size_t seq_idx, const Sequencer_display_state& seq_state, int row) {
+void Gui<T_event_params>::create_duration_row(std::size_t seq_idx,
+                                              const Controller& controller,
+                                              int row) {
   // Duration label (columns 0-2, merged)
   GtkWidget* duration_label = gtk_label_new("  Duration");
   gtk_widget_set_halign(duration_label, GTK_ALIGN_START);
@@ -441,13 +444,13 @@ void Gui<T_event_params>::create_duration_row(
   gtk_grid_attach(GTK_GRID(grid_), duration_label, 0, row, 3, 1);
 
   // Create duration cells for each step
-  for (std::size_t step_idx = 0; step_idx < seq_state.num_steps; ++step_idx) {
+  for (std::size_t step_idx = 0; step_idx < controller.num_steps; ++step_idx) {
     // Get duration value
     std::string value = "0.25";
-    if (step_idx < seq_state.steps.size()) {
+    if (step_idx < controller.steps.size()) {
       // Use the number_to_string_no_trailing_zeros helper
       std::ostringstream oss;
-      oss << seq_state.steps[step_idx].duration_seconds;
+      oss << controller.steps[step_idx].duration_seconds;
       value = oss.str();
 
       // Remove trailing zeros
@@ -491,7 +494,7 @@ void Gui<T_event_params>::create_duration_row(
 }
 
 template <typename T_event_params>
-void Gui<T_event_params>::update_cell_values(const Display_state& state) {
+void Gui<T_event_params>::update_cell_values(const Controller_state& state) {
   for (std::size_t seq_idx = 0; seq_idx < state.sequencers.size(); ++seq_idx) {
     const auto& seq = state.sequencers[seq_idx];
 
@@ -517,7 +520,7 @@ void Gui<T_event_params>::update_cell_values(const Display_state& state) {
 
 template <typename T_event_params>
 void Gui<T_event_params>::update_playhead_highlighting(
-    const Display_state& state) {
+    const Controller_state& state) {
   // Clear old playhead highlighting
   for (auto& [key, cell] : cell_widgets_) {
     GtkStyleContext* context = gtk_widget_get_style_context(cell.entry);
@@ -552,7 +555,7 @@ void Gui<T_event_params>::update_playhead_highlighting(
 
 template <typename T_event_params>
 void Gui<T_event_params>::update_selection_highlighting(
-    const Display_state& state) {
+    const Controller_state& state) {
   // Clear old selection highlighting
   for (auto& [key, cell] : cell_widgets_) {
     GtkStyleContext* context = gtk_widget_get_style_context(cell.entry);
@@ -560,11 +563,9 @@ void Gui<T_event_params>::update_selection_highlighting(
   }
 
   // Add new selection highlighting
-  if (state.selected_seq_idx && state.selected_step_idx &&
-      state.selected_param_idx) {
-    std::string key =
-        make_cell_key(*state.selected_seq_idx, *state.selected_step_idx,
-                      *state.selected_param_idx);
+  if (state.selected_seq && state.selected_event && state.selected_param_idx) {
+    std::string key = make_cell_key(*state.selected_seq, *state.selected_event,
+                                    *state.selected_param_idx);
     auto it = cell_widgets_.find(key);
     if (it != cell_widgets_.end()) {
       GtkStyleContext* context = gtk_widget_get_style_context(it->second.entry);
@@ -574,7 +575,7 @@ void Gui<T_event_params>::update_selection_highlighting(
 }
 
 template <typename T_event_params>
-void Gui<T_event_params>::update_play_icons(const Display_state& state) {
+void Gui<T_event_params>::update_play_icons(const Controller_state& state) {
   for (std::size_t seq_idx = 0; seq_idx < state.sequencers.size(); ++seq_idx) {
     const auto& seq = state.sequencers[seq_idx];
     auto it = seq_headers_.find(seq_idx);
@@ -607,15 +608,14 @@ void Gui<T_event_params>::clear_highlighting() {
 }
 
 template <typename T_event_params>
-void Gui<T_event_params>::scroll_to_selection(const Display_state& state) {
-  if (!state.selected_seq_idx || !state.selected_step_idx ||
+void Gui<T_event_params>::scroll_to_selection(const Controller_state& state) {
+  if (!state.selected_seq || !state.selected_event ||
       !state.selected_param_idx) {
     return;
   }
 
-  std::string key =
-      make_cell_key(*state.selected_seq_idx, *state.selected_step_idx,
-                    *state.selected_param_idx);
+  std::string key = make_cell_key(*state.selected_seq, *state.selected_event,
+                                  *state.selected_param_idx);
   auto it = cell_widgets_.find(key);
   if (it != cell_widgets_.end()) {
     // Scroll to make the selected cell visible
@@ -755,7 +755,7 @@ void Gui<T_event_params>::on_expand_clicked(GtkButton* button,
             << std::endl;
 
   // Trigger a full grid rebuild
-  auto state = gui->controller_->get_display_state();
+  auto state = gui->controller_->get_state();
   gui->rebuild_grid(state);
   gui->last_state_ = state;
 }
@@ -860,11 +860,11 @@ gboolean Gui<T_event_params>::on_cell_key_press(GtkWidget* widget,
     }
 
     // Get the new state and find the new cell
-    auto state = gui->controller_->get_display_state();
-    if (state.selected_seq_idx && state.selected_step_idx &&
+    auto state = gui->controller_->get_state();
+    if (state.selected_seq && state.selected_event &&
         state.selected_param_idx) {
       std::string new_key =
-          gui->make_cell_key(*state.selected_seq_idx, *state.selected_step_idx,
+          gui->make_cell_key(*state.selected_seq, *state.selected_event,
                              *state.selected_param_idx);
       auto new_cell_it = gui->cell_widgets_.find(new_key);
       if (new_cell_it != gui->cell_widgets_.end()) {
@@ -902,13 +902,13 @@ gboolean Gui<T_event_params>::on_cell_key_press(GtkWidget* widget,
 
   case GDK_KEY_Escape: {
     // Cancel edit and revert to original value
-    auto state = gui->controller_->get_display_state();
+    auto state = gui->controller_->get_state();
 
     // Get original value from controller
     if (cell.seq_idx < state.sequencers.size()) {
-      const auto& seq_state = state.sequencers[cell.seq_idx];
-      if (cell.step_idx < seq_state.steps.size()) {
-        const auto& step_state = seq_state.steps[cell.step_idx];
+      const auto& controller = state.sequencers[cell.seq_idx];
+      if (cell.step_idx < controller.steps.size()) {
+        const auto& step_state = controller.steps[cell.step_idx];
 
         if (cell.param_idx == SIZE_MAX) {
           // Duration cell - revert to original duration
@@ -948,15 +948,15 @@ gboolean Gui<T_event_params>::on_cell_key_press(GtkWidget* widget,
 
   if (handled) {
     // Update GUI to reflect new selection
-    auto state = gui->controller_->get_display_state();
+    auto state = gui->controller_->get_state();
 
     // For non-Tab navigation, also grab focus on the new cell
     if (event->keyval != GDK_KEY_Tab && event->keyval != GDK_KEY_ISO_Left_Tab) {
-      if (state.selected_seq_idx && state.selected_step_idx &&
+      if (state.selected_seq && state.selected_event &&
           state.selected_param_idx) {
-        std::string new_key = gui->make_cell_key(*state.selected_seq_idx,
-                                                 *state.selected_step_idx,
-                                                 *state.selected_param_idx);
+        std::string new_key =
+            gui->make_cell_key(*state.selected_seq, *state.selected_event,
+                               *state.selected_param_idx);
         auto new_cell_it = gui->cell_widgets_.find(new_key);
         if (new_cell_it != gui->cell_widgets_.end()) {
           gtk_widget_grab_focus(new_cell_it->second.entry);
@@ -977,13 +977,12 @@ gboolean Gui<T_event_params>::on_cell_key_press(GtkWidget* widget,
 
 template <typename T_event_params>
 void Gui<T_event_params>::toggle_selected_step() {
-  auto state = controller_->get_display_state();
-  if (state.selected_seq_idx && state.selected_step_idx) {
+  auto state = controller_->get_state();
+  if (state.selected_seq && state.selected_event) {
     try {
-      controller_->toggle_step(*state.selected_seq_idx,
-                               *state.selected_step_idx);
-      std::cout << "[INFO] Toggled step " << *state.selected_step_idx
-                << " in sequence " << *state.selected_seq_idx << std::endl;
+      controller_->toggle_step(*state.selected_seq, *state.selected_event);
+      std::cout << "[INFO] Toggled step " << *state.selected_event
+                << " in sequence " << *state.selected_seq << std::endl;
     } catch (const std::exception& e) {
       std::cerr << "[ERROR] Failed to toggle step: " << e.what() << std::endl;
     }
@@ -992,11 +991,11 @@ void Gui<T_event_params>::toggle_selected_step() {
 
 template <typename T_event_params>
 void Gui<T_event_params>::add_step_to_selected() {
-  auto state = controller_->get_display_state();
-  if (state.selected_seq_idx) {
+  auto state = controller_->get_state();
+  if (state.selected_seq) {
     try {
-      controller_->add_step(*state.selected_seq_idx);
-      std::cout << "[INFO] Added step to sequence " << *state.selected_seq_idx
+      controller_->add_step(*state.selected_seq);
+      std::cout << "[INFO] Added step to sequence " << *state.selected_seq
                 << std::endl;
     } catch (const std::exception& e) {
       std::cerr << "[ERROR] Failed to add step: " << e.what() << std::endl;
@@ -1006,13 +1005,12 @@ void Gui<T_event_params>::add_step_to_selected() {
 
 template <typename T_event_params>
 void Gui<T_event_params>::insert_step_before_selected() {
-  auto state = controller_->get_display_state();
-  if (state.selected_seq_idx && state.selected_step_idx) {
+  auto state = controller_->get_state();
+  if (state.selected_seq && state.selected_event) {
     try {
-      controller_->insert_step(*state.selected_seq_idx,
-                               *state.selected_step_idx);
-      std::cout << "[INFO] Inserted step at " << *state.selected_step_idx
-                << " in sequence " << *state.selected_seq_idx << std::endl;
+      controller_->insert_step(*state.selected_seq, *state.selected_event);
+      std::cout << "[INFO] Inserted step at " << *state.selected_event
+                << " in sequence " << *state.selected_seq << std::endl;
     } catch (const std::exception& e) {
       std::cerr << "[ERROR] Failed to insert step: " << e.what() << std::endl;
     }
@@ -1021,13 +1019,12 @@ void Gui<T_event_params>::insert_step_before_selected() {
 
 template <typename T_event_params>
 void Gui<T_event_params>::remove_selected_step() {
-  auto state = controller_->get_display_state();
-  if (state.selected_seq_idx && state.selected_step_idx) {
+  auto state = controller_->get_state();
+  if (state.selected_seq && state.selected_event) {
     try {
-      controller_->remove_step(*state.selected_seq_idx,
-                               *state.selected_step_idx);
-      std::cout << "[INFO] Removed step " << *state.selected_step_idx
-                << " from sequence " << *state.selected_seq_idx << std::endl;
+      controller_->remove_step(*state.selected_seq, *state.selected_event);
+      std::cout << "[INFO] Removed step " << *state.selected_event
+                << " from sequence " << *state.selected_seq << std::endl;
     } catch (const std::exception& e) {
       std::cerr << "[ERROR] Failed to remove step: " << e.what() << std::endl;
     }
@@ -1065,15 +1062,15 @@ void Gui<T_event_params>::add_new_sequence() {
 
 template <typename T_event_params>
 void Gui<T_event_params>::remove_selected_sequence() {
-  auto state = controller_->get_display_state();
-  if (state.selected_seq_idx) {
+  auto state = controller_->get_state();
+  if (state.selected_seq) {
     try {
-      controller_->remove_sequence(*state.selected_seq_idx);
-      std::cout << "[INFO] Removed sequence " << *state.selected_seq_idx
+      controller_->remove_sequence(*state.selected_seq);
+      std::cout << "[INFO] Removed sequence " << *state.selected_seq
                 << std::endl;
 
       // Clean up expanded state
-      expanded_seqs_.erase(*state.selected_seq_idx);
+      expanded_seqs_.erase(*state.selected_seq);
     } catch (const std::exception& e) {
       std::cerr << "[ERROR] Failed to remove sequence: " << e.what()
                 << std::endl;
@@ -1083,11 +1080,11 @@ void Gui<T_event_params>::remove_selected_sequence() {
 
 template <typename T_event_params>
 void Gui<T_event_params>::duplicate_selected_sequence() {
-  auto state = controller_->get_display_state();
-  if (state.selected_seq_idx) {
+  auto state = controller_->get_state();
+  if (state.selected_seq) {
     try {
-      controller_->duplicate_sequence(*state.selected_seq_idx);
-      std::cout << "[INFO] Duplicated sequence " << *state.selected_seq_idx
+      controller_->duplicate_sequence(*state.selected_seq);
+      std::cout << "[INFO] Duplicated sequence " << *state.selected_seq
                 << std::endl;
 
       // Expand the duplicate
@@ -1106,7 +1103,7 @@ void Gui<T_event_params>::expand_all_sequences() {
   for (std::size_t i = 0; i < controller_->size(); ++i) {
     expanded_seqs_[i] = true;
   }
-  auto state = controller_->get_display_state();
+  auto state = controller_->get_state();
   rebuild_grid(state);
   last_state_ = state;
   std::cout << "[INFO] Expanded all sequences" << std::endl;
@@ -1117,7 +1114,7 @@ void Gui<T_event_params>::collapse_all_sequences() {
   for (std::size_t i = 0; i < controller_->size(); ++i) {
     expanded_seqs_[i] = false;
   }
-  auto state = controller_->get_display_state();
+  auto state = controller_->get_state();
   rebuild_grid(state);
   last_state_ = state;
   std::cout << "[INFO] Collapsed all sequences" << std::endl;
@@ -1125,12 +1122,12 @@ void Gui<T_event_params>::collapse_all_sequences() {
 
 template <typename T_event_params>
 void Gui<T_event_params>::toggle_selected_sequence_expand() {
-  auto state = controller_->get_display_state();
-  if (state.selected_seq_idx) {
-    std::size_t seq_idx = *state.selected_seq_idx;
+  auto state = controller_->get_state();
+  if (state.selected_seq) {
+    std::size_t seq_idx = *state.selected_seq;
     expanded_seqs_[seq_idx] = !expanded_seqs_[seq_idx];
 
-    auto new_state = controller_->get_display_state();
+    auto new_state = controller_->get_state();
     rebuild_grid(new_state);
     last_state_ = new_state;
 
@@ -1154,7 +1151,7 @@ void Gui<T_event_params>::load_from_json(const std::string& filename) {
     }
 
     // Rebuild GUI
-    auto state = controller_->get_display_state();
+    auto state = controller_->get_state();
     rebuild_grid(state);
     last_state_ = state;
 
@@ -1191,7 +1188,7 @@ void Gui<T_event_params>::load_from_json(const std::string& filename) {
 template <typename T_event_params>
 void Gui<T_event_params>::save_to_json(const std::string& filename) {
   // Get current display state
-  auto state = controller_->get_display_state();
+  auto state = controller_->get_state();
 
   // Build JSON manually (avoiding external dependencies)
   std::ostringstream json;
@@ -1301,7 +1298,7 @@ template <typename T_event_params> void Gui<T_event_params>::edit_bpm() {
         controller_->set_all_durations_from_bpm(bpm);
 
         // Refresh display
-        auto state = controller_->get_display_state();
+        auto state = controller_->get_state();
         rebuild_grid(state);
         last_state_ = state;
 
@@ -1405,9 +1402,9 @@ gboolean Gui<T_event_params>::on_window_key_press(GtkWidget* widget,
 
     if (ctrl_pressed) {
       // Ctrl+Space: Toggle selected sequence only
-      auto state = gui->controller_->get_display_state();
-      if (state.selected_seq_idx) {
-        std::size_t seq_idx = *state.selected_seq_idx;
+      auto state = gui->controller_->get_state();
+      if (state.selected_seq) {
+        std::size_t seq_idx = *state.selected_seq;
 
         if (gui->controller_->is_running(seq_idx)) {
           std::cout << "[INFO] Stopping sequence " << seq_idx << std::endl;

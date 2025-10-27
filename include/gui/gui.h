@@ -2,7 +2,6 @@
 #define MICRO_COMPOSER_GUI_H
 
 #include "controller/poly_sequencer_controller.h"
-#include "gui/display_state.h"
 #include <gtk/gtk.h>
 #include <map>
 #include <memory>
@@ -15,12 +14,13 @@ namespace gui {
 template <typename T_event_params> class Gui {
 public:
   using Controller = controller::Poly_sequencer_controller<T_event_params>;
+  using Controller_state = Controller::State;
 
   explicit Gui(std::shared_ptr<Controller> controller);
   ~Gui();
 
   // Render the current state to the display
-  void render(const Display_state& state);
+  void render(const Controller_state& state);
 
   // Initialize GTK and create window
   void init(int argc, char** argv);
@@ -40,7 +40,7 @@ private:
   GtkWidget* grid_{nullptr}; // Main grid containing all cells
 
   // Last rendered state for comparison
-  Display_state last_state_;
+  Controller_state last_state_;
 
   // Expansion state tracking
   std::map<std::size_t, bool> expanded_seqs_; // seq_idx -> is_expanded
@@ -63,26 +63,25 @@ private:
 
   // Helper methods for building UI
   void create_menu_bar();
-  void rebuild_grid(const Display_state& state);
-  void create_sequence_header(std::size_t seq_idx,
-                              const Sequencer_display_state& seq_state,
+  void rebuild_grid(const Controller_state& state);
+  void create_sequence_header(std::size_t seq_idx, const Controller& controller,
                               int row);
   void create_parameter_row(std::size_t seq_idx, std::size_t param_idx,
-                            const Sequencer_display_state& seq_state, int row);
-  void create_duration_row(std::size_t seq_idx,
-                           const Sequencer_display_state& seq_state, int row);
+                            const Controller& controller, int row);
+  void create_duration_row(std::size_t seq_idx, const Controller& controller,
+                           int row);
 
   // Helper methods for rendering updates
-  void update_cell_values(const Display_state& state);
-  void update_playhead_highlighting(const Display_state& state);
-  void update_selection_highlighting(const Display_state& state);
-  void update_play_icons(const Display_state& state);
+  void update_cell_values(const Controller_state& state);
+  void update_playhead_highlighting(const Controller_state& state);
+  void update_selection_highlighting(const Controller_state& state);
+  void update_play_icons(const Controller_state& state);
 
   // Helper methods for cell management
   std::string make_cell_key(std::size_t seq, std::size_t step,
                             std::size_t param) const;
   void clear_highlighting();
-  void scroll_to_selection(const Display_state& state);
+  void scroll_to_selection(const Controller_state& state);
   void show_help_dialog();
 
   // Helper to commit cell edits
