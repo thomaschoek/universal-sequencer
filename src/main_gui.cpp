@@ -39,7 +39,11 @@ int main(int argc, char** argv) {
   std::vector<std::vector<Vector_event>> sequences = {seq1, seq2};
 
   // Create controller with sequences
-  auto controller = std::make_shared<Controller>(sequences);
+  // Provide a default handler factory that will be replaced later
+  auto default_factory = []() -> std::function<void(Vector_event&&)> {
+    return [](Vector_event&&) {}; // Empty handler
+  };
+  auto controller = std::make_shared<Controller>(default_factory, sequences);
 
   std::cout << "[INFO] Created controller with " << controller->size()
             << " sequences" << std::endl;
