@@ -251,6 +251,7 @@ void Sequencer<T_event>::enable() {
 template <sequencable::Mut_seq_event T_event>
 void Sequencer<T_event>::enable(Size_type idx) {
   range_check(idx);
+  await_scheduler();
   events_.mutate(idx, [](T_event&& event) {
     event.enabled = true;
     return std::forward<T_event>(event);
@@ -259,6 +260,7 @@ void Sequencer<T_event>::enable(Size_type idx) {
 
 template <sequencable::Mut_seq_event T_event>
 void Sequencer<T_event>::disable() {
+  await_scheduler();
   events_.mutate([](T_event&& event) {
     event.enabled = false;
     return std::forward<T_event>(event);
@@ -268,6 +270,7 @@ void Sequencer<T_event>::disable() {
 template <sequencable::Mut_seq_event T_event>
 void Sequencer<T_event>::disable(Size_type idx) {
   range_check(idx);
+  await_scheduler();
   events_.mutate(idx, [](T_event&& event) {
     event.enabled = false;
     return std::forward<T_event>(event);
@@ -276,6 +279,7 @@ void Sequencer<T_event>::disable(Size_type idx) {
 
 template <sequencable::Mut_seq_event T_event>
 void Sequencer<T_event>::toggle() {
+  await_scheduler();
   events_.mutate([](T_event&& event) {
     event.enabled = !event.enabled;
     return std::forward<T_event>(event);
@@ -284,6 +288,8 @@ void Sequencer<T_event>::toggle() {
 
 template <sequencable::Mut_seq_event T_event>
 void Sequencer<T_event>::toggle(Size_type idx) {
+  range_check(idx);
+  await_scheduler();
   events_.mutate(idx, [](T_event&& event) {
     event.enabled = !event.enabled;
     return std::forward<T_event>(event);
@@ -294,11 +300,15 @@ void Sequencer<T_event>::toggle(Size_type idx) {
 
 template <sequencable::Mut_seq_event T_event>
 void Sequencer<T_event>::adjust_durations(Duration delta) {
-  events_.mutate([delta, this](T_event&& event) {
-    event.duration += delta;
-    validate(event);
-    event.update(event);
-    return std::forward<T_event>(event);
+  const Duration min_duration = min_duration_;
+  events_.mutate([delta, min_duration](T_event&& event) {
+    const Duration new_duration = event.duration + delta;
+    if (new_duration < min_duration) {
+      return std::forward<T_event>(event);
+    } else {
+      event.set_duration(new_duration);
+      return std::forward<T_event>(event);
+    }
   });
 }
 
@@ -309,30 +319,19 @@ void Sequencer<T_event>::multiply_durations(double factor) {
                                 "'; Tempo factor cannot be negative!");
   }
   debug_msg("Multiplying durations by factor: " + std::to_string(factor));
-  Time_point timeout;
-  std::scoped_lock lck{lock_events(timeout)};
-  for (auto& event : events_.snapshot()) {
-    debug_msg(
-        "Old duration: " +
-        std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
-                           event.duration)
-                           .count()) +
-        " ms");
+  await_scheduler();
+  const Duration min_dur = min_duration_;
+  events_.mutate([min_dur, factor](T_event&& event) {
     // Convert to floating-point duration, multiply, then round and convert back
-    T_event tmp = event;
-    tmp.duration = std::chrono::duration_cast<Duration>(
+    const Duration new_duration = std::chrono::duration_cast<Duration>(
         std::chrono::duration_cast<
             std::chrono::duration<double, Duration::period>>(event.duration) *
         factor);
-    validate(tmp);
-    event.update(tmp);
-    debug_msg(
-        "New duration: " +
-        std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
-                           event.duration)
-                           .count()) +
-        " ms");
-  }
+    if (new_duration >= min_dur) {
+      event.set_duration(new_duration);
+    }
+    return std::move(event);
+  });
 }
 
 template <sequencable::Mut_seq_event T_event>
@@ -375,9 +374,11 @@ void Sequencer<T_event>::replace(Size_type start,
 
 template <sequencable::Mut_seq_event T_event>
 void Sequencer<T_event>::assign(Events_initializer events) {
+  for (const auto& event : events) {
+    validate(event);
+  }
   std::scoped_lock lck{data_mutex_};
   pause();
-  events_.clear();
   events_.assign(events);
   if (next_.load(std::memory_order_acquire) >= events.size()) {
     next_.store(0, std::memory_order_release);
@@ -385,6 +386,7 @@ void Sequencer<T_event>::assign(Events_initializer events) {
 }
 template <sequencable::Mut_seq_event T_event>
 void Sequencer<T_event>::assign(const Container& events) {
+  validate(events);
   std::scoped_lock lck{data_mutex_};
   pause();
   events_ = events;
