@@ -88,7 +88,7 @@ template <sequencable::Mut_seq_event T_event> struct Sequencer {
   void replace(Size_type, const T_event&);
   void replace(Size_type start, const std::vector<T_event>&);
   void assign(Events_initializer);
-  void assign(const Container&);
+  void assign(const std::vector<T_event>&);
   void assign(Size_type, const T_event&);
 
   // Delete operations

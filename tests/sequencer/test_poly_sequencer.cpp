@@ -1,5 +1,5 @@
+#include "sequencable/mutable_event.h"
 #include "sequencer/poly_sequencer_template.h"
-#include <atomic>
 #include <catch2/catch_test_macros.hpp>
 #include <chrono>
 #include <condition_variable>
@@ -16,7 +16,7 @@ namespace tests {
 namespace poly_sequencer_tests {
 
 // Test event type that satisfies Mut_seq_event concept
-struct Poly_test_event {
+struct Poly_test_event : public Mutable_event {
   using Clock = std::chrono::steady_clock;
   using Time_point = Clock::time_point;
   using Duration = Clock::duration;

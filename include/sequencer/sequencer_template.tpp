@@ -327,6 +327,16 @@ void Sequencer<T_event>::multiply_durations(double factor) {
         std::chrono::duration_cast<
             std::chrono::duration<double, Duration::period>>(event.duration) *
         factor);
+    debug_msg(
+        "Old duration: " +
+        std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
+                           event.duration)
+                           .count()) +
+        " ms, New duration: " +
+        std::to_string(
+            std::chrono::duration_cast<std::chrono::milliseconds>(new_duration)
+                .count()) +
+        " ms");
     if (new_duration >= min_dur) {
       event.set_duration(new_duration);
     }
@@ -367,8 +377,9 @@ void Sequencer<T_event>::replace(Size_type start,
                             std::to_string(events_.size()));
   }
   await_scheduler();
-  for (Size_type i = 0; i < events.size(); ++i) {
-    events_.store(i, events[i]);
+  Size_type i = start;
+  for (const auto& event : events) {
+    events_.store(i++, event);
   }
 }
 
@@ -385,7 +396,7 @@ void Sequencer<T_event>::assign(Events_initializer events) {
   }
 }
 template <sequencable::Mut_seq_event T_event>
-void Sequencer<T_event>::assign(const Container& events) {
+void Sequencer<T_event>::assign(const std::vector<T_event>& events) {
   validate(events);
   std::scoped_lock lck{data_mutex_};
   pause();

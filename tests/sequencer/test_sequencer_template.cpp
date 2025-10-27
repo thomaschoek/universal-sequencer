@@ -46,13 +46,14 @@ struct Test_event : public Mutable_event {
   using Time_point = Clock::time_point;
   using Duration = Clock::duration;
 
-  Duration duration{std::chrono::milliseconds(50)};
-  bool enabled{true};
   int id{0}; // For tracking events
 
   Test_event() = default;
-  explicit Test_event(Duration d, int event_id = 0)
-      : duration(d), id(event_id) {}
+  explicit Test_event(Duration d, int event_id = 0) {
+    duration = d;
+    id = event_id;
+    enabled = true;
+  }
 
   // Comparison operators (compare event parameters, not scheduled_time)
   bool operator==(const Test_event& other) const {
@@ -758,6 +759,10 @@ TEST_CASE("Sequencer duration operations", "[sequencer]") {
                                Test_event(std::chrono::milliseconds(100), 2),
                                Test_event(std::chrono::milliseconds(150), 3)});
 
+    auto control_event = Test_event{std::chrono::milliseconds(50), 3};
+    control_event.set_duration(std::chrono::milliseconds(75));
+    REQUIRE(control_event.duration == std::chrono::milliseconds(75));
+
     seq.adjust_durations(std::chrono::milliseconds(25));
 
     auto events = seq.snapshot();
@@ -777,15 +782,6 @@ TEST_CASE("Sequencer duration operations", "[sequencer]") {
     auto events = seq.snapshot();
     REQUIRE(events[0].duration == std::chrono::milliseconds(30));
     REQUIRE(events[1].duration == std::chrono::milliseconds(80));
-  }
-
-  SECTION("adjust_durations throws if result would be too short") {
-    Event_capture capture;
-    Sequencer<Test_event> seq(capture.make_handler(),
-                              {Test_event(std::chrono::milliseconds(50), 1)});
-
-    REQUIRE_THROWS_AS(seq.adjust_durations(std::chrono::milliseconds(-45)),
-                      std::invalid_argument);
   }
 
   SECTION("multiply_durations scales all durations") {

@@ -74,6 +74,13 @@ template <typename T> void Atomic_vector<T>::assign(const std::vector<T>& vec) {
   store_size();
 }
 
+template <typename T>
+void Atomic_vector<T>::assign(Size_type n, const T& value) {
+  std::scoped_lock lck{mutex_};
+  Base_vector::assign(n, value);
+  store_size();
+}
+
 template <typename T> void Atomic_vector<T>::push_back(const T& value) {
   std::scoped_lock lck{mutex_};
   Base_vector::push_back(value);
@@ -107,13 +114,6 @@ template <typename T> void Atomic_vector<T>::insert(Size_type pos, T&& value) {
   range_check(pos);
   Base_vector::insert(Base_vector::begin() + pos, std::forward<T>(value));
   store_size();
-}
-
-template <typename T>
-void Atomic_vector<T>::assign(Size_type n, const T& value) {
-  std::scoped_lock lck{mutex_};
-  range_check(n);
-  Base_vector::assign(n, value);
 }
 
 template <typename T>
