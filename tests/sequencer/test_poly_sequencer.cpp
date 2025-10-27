@@ -22,13 +22,13 @@ struct Poly_test_event : public Mutable_event {
   using Duration = Clock::duration;
 
   Time_point scheduled_time{};
-  Duration duration{std::chrono::milliseconds(50)};
   int id{0};
-  bool enabled{true};
 
   Poly_test_event() = default;
-  explicit Poly_test_event(Duration d, int event_id = 0)
-      : duration(d), id(event_id) {}
+  explicit Poly_test_event(Duration d, int event_id = 0) : id(event_id) {
+    duration = d;
+    enabled = true;
+  }
 
   void update(const Poly_test_event& other) {
     duration = other.duration;
