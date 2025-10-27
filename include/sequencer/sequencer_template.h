@@ -10,6 +10,7 @@
 
 #include "common_types.h"
 #include "concurrency/thread_pool.h"
+#include "container/atomic_vector.h"
 #include "sequencable/concepts.h"
 
 namespace Micro_composer {
@@ -20,7 +21,8 @@ template <sequencable::Mut_seq_event T_event> struct Sequencer {
   using Clock = Common_types::Clock;
   using Time_point = Common_types::Time_point;
   using Duration = Common_types::Duration;
-  using Container = std::vector<T_event>;
+  using Container = container::Atomic_vector<T_event>;
+  using Mutator = Container::Mutator;
   using Size_type = Container::size_type;
   using Thread_pool = thread_pool::Thread_pool<T_event>;
   using Events_initializer = std::initializer_list<T_event>;
@@ -50,10 +52,18 @@ template <sequencable::Mut_seq_event T_event> struct Sequencer {
 
   // Thread-safe time signature CRUD operations
   // Read operations
+  struct State {
+    bool is_scheduling;
+    Size_type next;
+    Time_point t_next;
+    Size_type size;
+    Container events;
+  };
+  const State get_state() const;
   bool empty() const noexcept;
   Size_type size() const noexcept;
   Size_type get_pos() const noexcept;
-  std::vector<T_event> data() const noexcept;
+  const std::vector<T_event>& data() const noexcept;
 
   // Setters / Modifiers
   void set_pos(Size_type = 0);
@@ -72,7 +82,8 @@ template <sequencable::Mut_seq_event T_event> struct Sequencer {
   void toggle();
   void toggle(Size_type);
 
-  void for_each(const std::function<void(T_event&)>&);
+  void mutate(const Mutator&);
+  void mutate(Size_type, const Mutator&);
 
   void replace(Size_type, const T_event&);
   void replace(Size_type start, const std::vector<T_event>&);

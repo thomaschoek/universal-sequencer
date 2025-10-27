@@ -68,6 +68,16 @@ template <sequencable::Mut_seq_event T_event> Sequencer<T_event>::~Sequencer() {
   pause(Clock::now());
 }
 
+// State
+template <sequencable::Mut_seq_event T_event>
+const Sequencer<T_event>::State Sequencer<T_event>::get_state() const {
+  return {.is_scheduling = is_scheduling(),
+          .next_event_idx = get_pos(),
+          .next_scheduled_time = t_next(),
+          .size = size(),
+          .events = data()};
+};
+
 // Transport
 
 template <sequencable::Mut_seq_event T_event>
@@ -133,15 +143,11 @@ Sequencer<T_event>::Time_point Sequencer<T_event>::t_next() const {
 
 template <sequencable::Mut_seq_event T_event>
 inline bool Sequencer<T_event>::empty() const noexcept {
-  Time_point timeout;
-  std::scoped_lock lck{lock_events(timeout)};
   return events_.empty();
 }
 
 template <sequencable::Mut_seq_event T_event>
 inline Sequencer<T_event>::Size_type Sequencer<T_event>::size() const noexcept {
-  Time_point timeout;
-  std::scoped_lock lck{lock_events(timeout)};
   return events_.size();
 }
 
@@ -152,10 +158,9 @@ Sequencer<T_event>::Size_type inline Sequencer<T_event>::get_pos()
 }
 
 template <sequencable::Mut_seq_event T_event>
-inline std::vector<T_event> Sequencer<T_event>::data() const noexcept {
-  Time_point timeout;
-  std::scoped_lock lck{lock_events(timeout)};
-  return events_;
+inline const std::vector<T_event>& Sequencer<T_event>::data() const noexcept {
+  await_scheduler();
+  return events_.snapshot();
 }
 
 // Setters / Modifiers
@@ -163,35 +168,37 @@ inline std::vector<T_event> Sequencer<T_event>::data() const noexcept {
 template <sequencable::Mut_seq_event T_event>
 void Sequencer<T_event>::set_pos(Size_type pos) {
   range_check(pos);
-  Time_point timeout;
-  std::scoped_lock lck{lock_events(timeout)};
+  await_scheduler();
   next_.store(pos, std::memory_order_release);
 }
 
 template <sequencable::Mut_seq_event T_event>
-void Sequencer<T_event>::update(Size_type pos, const T_event& event) {
-  validate(event);
+void Sequencer<T_event>::update(Size_type pos, const T_event& other) {
+  validate(other);
   range_check(pos);
-  Time_point timeout;
-  std::scoped_lock lck{lock_events(timeout)};
-  events_[pos].update(event);
+  await_scheduler();
+  events_.mutate(pos, [&other](T_event&& evt) {
+    evt.update(other);
+    return std::forward<T_event>(evt);
+  });
 }
 
 template <sequencable::Mut_seq_event T_event>
 template <typename... Args>
 void Sequencer<T_event>::update(Size_type pos, Args&&... update_args) {
   range_check(pos);
-  Time_point timeout;
-  std::scoped_lock lck{lock_events(timeout)};
+  await_scheduler();
   // Assume validation exists within the event's update method
-  events_[pos].update(std::forward<Args>(update_args)...);
+  events_.mutate(pos), [&update_args...](T_event&& evt) {
+    evt.update(std::forward<Args>(update_args)...);
+    return std::forward<T_event>(evt);
+  };
 }
 
 template <sequencable::Mut_seq_event T_event>
 void Sequencer<T_event>::push_back(const T_event& event) {
   validate(event);
-  Time_point timeout;
-  std::scoped_lock lck{lock_events(timeout)};
+  await_scheduler();
   events_.push_back(event);
 }
 
@@ -211,9 +218,8 @@ void Sequencer<T_event>::insert(Size_type pos, const T_event& event) {
     std::this_thread::yield();
   }
 
-  Time_point timeout;
-  std::scoped_lock lck{lock_events(timeout)};
-  events_.insert(events_.begin() + pos, event);
+  await_scheduler();
+  events_.insert(pos, event);
 
   if (current > pos) {
     // We need to increment current to account for the inserted event
@@ -235,67 +241,65 @@ void Sequencer<T_event>::insert(Size_type pos, const T_event& event) {
 
 template <sequencable::Mut_seq_event T_event>
 void Sequencer<T_event>::enable() {
-  Time_point timeout;
-  std::scoped_lock lck{lock_events(timeout)};
-  for (auto& event : events_) {
+  await_scheduler();
+  events_.mutate([](T_event&& event) {
     event.enabled = true;
-  }
+    return std::forward<T_event>(event);
+  });
 }
 
 template <sequencable::Mut_seq_event T_event>
 void Sequencer<T_event>::enable(Size_type idx) {
   range_check(idx);
-  Time_point timeout;
-  std::scoped_lock lck{lock_events(timeout)};
-  events_[idx].enabled = true;
+  events_.mutate(idx, [](T_event&& event) {
+    event.enabled = true;
+    return std::forward<T_event>(event);
+  });
 }
 
 template <sequencable::Mut_seq_event T_event>
 void Sequencer<T_event>::disable() {
-  Time_point timeout;
-  std::scoped_lock lck{lock_events(timeout)};
-  for (auto& event : events_) {
+  events_.mutate([](T_event&& event) {
     event.enabled = false;
-  }
+    return std::forward<T_event>(event);
+  });
 }
 
 template <sequencable::Mut_seq_event T_event>
 void Sequencer<T_event>::disable(Size_type idx) {
   range_check(idx);
-  Time_point timeout;
-  std::scoped_lock lck{lock_events(timeout)};
-  events_[idx].enabled = false;
+  events_.mutate(idx, [](T_event&& event) {
+    event.enabled = false;
+    return std::forward<T_event>(event);
+  });
 }
 
 template <sequencable::Mut_seq_event T_event>
 void Sequencer<T_event>::toggle() {
-  Time_point timeout;
-  std::scoped_lock lck{lock_events(timeout)};
-  for (auto& event : events_) {
+  events_.mutate([](T_event&& event) {
     event.enabled = !event.enabled;
-  }
+    return std::forward<T_event>(event);
+  });
 }
 
 template <sequencable::Mut_seq_event T_event>
 void Sequencer<T_event>::toggle(Size_type idx) {
-  range_check(idx);
-  Time_point timeout;
-  std::scoped_lock lck{lock_events(timeout)};
-  events_[idx].enabled = !events_[idx].enabled;
+  events_.mutate(idx, [](T_event&& event) {
+    event.enabled = !event.enabled;
+    return std::forward<T_event>(event);
+  });
 }
 
 // Adjusting sequencer tempo
 
 template <sequencable::Mut_seq_event T_event>
 void Sequencer<T_event>::adjust_durations(Duration delta) {
-  Time_point timeout;
-  std::scoped_lock lck{lock_events(timeout)};
-  for (auto& event : events_) {
-    T_event tmp = event;
-    tmp.duration += delta;
-    validate(tmp);
-    event.update(tmp);
-  }
+  events_.mutate([delta, this](T_event&& event) {
+    event.duration += delta;
+    validate(event);
+    event.update(event);
+    return std::forward<T_event>(event);
+  });
 }
 
 template <sequencable::Mut_seq_event T_event>
@@ -332,22 +336,23 @@ void Sequencer<T_event>::multiply_durations(double factor) {
 }
 
 template <sequencable::Mut_seq_event T_event>
-void Sequencer<T_event>::for_each(const std::function<void(T_event&)>& func) {
-  Time_point timeout;
-  std::scoped_lock lck{lock_events(timeout)};
-  for (auto& event : events_) {
-    func(event);
-    validate(event);
-  }
+void Sequencer<T_event>::mutate(const Mutator& func) {
+  await_scheduler();
+  events_.mutate(func);
+}
+
+template <sequencable::Mut_seq_event T_event>
+void Sequencer<T_event>::mutate(Size_type idx, const Mutator& func) {
+  range_check(idx);
+  await_scheduler();
+  events_.mutate(idx, func);
 }
 
 template <sequencable::Mut_seq_event T_event>
 void Sequencer<T_event>::replace(Size_type idx, const T_event& event) {
   validate(event);
   range_check(idx);
-  Time_point timeout;
-  std::scoped_lock lck{lock_events(timeout)};
-  events_[idx] = event;
+  events_.store(idx, event);
 }
 
 template <sequencable::Mut_seq_event T_event>
@@ -362,10 +367,9 @@ void Sequencer<T_event>::replace(Size_type start,
                             " > sequencer size " +
                             std::to_string(events_.size()));
   }
-  Time_point timeout;
-  std::scoped_lock lck{lock_events(timeout)};
+  await_scheduler();
   for (Size_type i = 0; i < events.size(); ++i) {
-    events_[start + i] = events[i];
+    events_.store(i, events[i]);
   }
 }
 
@@ -405,8 +409,7 @@ void Sequencer<T_event>::assign(Size_type n, const T_event& event) {
 
 template <sequencable::Mut_seq_event T_event>
 void Sequencer<T_event>::pop_back() {
-  Time_point timeout;
-  std::scoped_lock lck{lock_events(timeout)};
+  await_scheduler();
   events_.pop_back();
 }
 
@@ -421,9 +424,8 @@ void Sequencer<T_event>::erase(Size_type idx) {
     }
     std::this_thread::yield();
   }
-  Time_point timeout;
-  std::scoped_lock lck{lock_events(timeout)};
-  events_.erase(events_.begin() + idx);
+  await_scheduler();
+  events_.erase(idx);
   // If current > idx decrement current to account for the removed event
   if (current > idx) {
     // unsigned Size_type idx >= 0; so current > idx implies current > 0
@@ -432,8 +434,8 @@ void Sequencer<T_event>::erase(Size_type idx) {
 }
 
 template <sequencable::Mut_seq_event T_event> void Sequencer<T_event>::clear() {
-  stop();
   std::scoped_lock lck{data_mutex_};
+  stop();
   events_.clear();
 }
 
