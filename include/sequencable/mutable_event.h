@@ -14,6 +14,9 @@ struct Mutable_event : public Event {
 
   Mutable_event(Duration dur, Time_point time) : Event{dur, time} {}
 
+  void set_duration(Duration dur) { duration = dur; }
+  void set_scheduled_time(Time_point time) { scheduled_time = time; }
+
   void update(const Mutable_event& other) {
     duration = other.duration;
     scheduled_time = other.scheduled_time;

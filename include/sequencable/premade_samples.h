@@ -44,6 +44,11 @@ struct Premade_samples : public Oscillation_event {
     generate_samples();
   }
 
+  void set_duration(Duration dur) {
+    duration = dur;
+    generate_samples();
+  }
+
   void update(size_t note_number = 39, double amp = 0.5, double ph = 0.0,
               double sample_rate = default_sample_rate) {
     frequency = freqs_[note_number];

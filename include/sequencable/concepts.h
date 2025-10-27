@@ -33,10 +33,12 @@ template <typename T>
 concept Mut_seq_event = Seq_event<T> && requires(T t, const T& other) {
   // Require two update methods:
   // 1. update(const T&) - copy/assignment-style update
+  { t.set_duration(Duration{}) } -> std::same_as<void>;
+  { t.set_scheduled_time(Time_point{}) } -> std::same_as<void>;
   { t.update(other) } -> std::same_as<void>;
-  // 2. update(...) with arbitrary parameters - checked implicitly by overload
-  // existence We just verify that 'update' is a member (at least one overload
-  // must exist)
+  // 2. update(...) with arbitrary parameters - checked implicitly by
+  // overload existence We just verify that 'update' is a member (at least
+  // one overload must exist)
 };
 
 } // namespace sequencable
