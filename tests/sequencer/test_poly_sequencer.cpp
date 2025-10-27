@@ -1,6 +1,6 @@
 #include "sequencer/poly_sequencer_template.h"
-#include <catch2/catch_test_macros.hpp>
 #include <atomic>
+#include <catch2/catch_test_macros.hpp>
 #include <chrono>
 #include <condition_variable>
 #include <mutex>
@@ -24,6 +24,7 @@ struct Poly_test_event {
   Time_point scheduled_time{};
   Duration duration{std::chrono::milliseconds(50)};
   int id{0};
+  bool enabled{true};
 
   Poly_test_event() = default;
   explicit Poly_test_event(Duration d, int event_id = 0)
@@ -291,7 +292,7 @@ TEST_CASE("Poly_sequencer update operations", "[poly_sequencer]") {
     Poly_test_event new_event(std::chrono::milliseconds(100), 99);
     poly.update(0, 1, new_event);
 
-    auto data = poly[0].data();
+    auto data = poly[0].snapshot();
     REQUIRE(data[1].id == 99);
     REQUIRE(data[1].duration == std::chrono::milliseconds(100));
   }
@@ -299,7 +300,7 @@ TEST_CASE("Poly_sequencer update operations", "[poly_sequencer]") {
   SECTION("update with variadic args") {
     poly.update(0, 1, std::chrono::milliseconds(100), 77);
 
-    auto data = poly[0].data();
+    auto data = poly[0].snapshot();
     REQUIRE(data[1].id == 77);
     REQUIRE(data[1].duration == std::chrono::milliseconds(100));
   }
@@ -326,12 +327,12 @@ TEST_CASE("Poly_sequencer duration operations", "[poly_sequencer]") {
   SECTION("adjust_durations on single sequencer") {
     poly.adjust_durations(0, std::chrono::milliseconds(25));
 
-    auto data = poly[0].data();
+    auto data = poly[0].snapshot();
     REQUIRE(data[0].duration == std::chrono::milliseconds(75));
     REQUIRE(data[1].duration == std::chrono::milliseconds(125));
 
     // Second sequencer unchanged
-    auto data2 = poly[1].data();
+    auto data2 = poly[1].snapshot();
     REQUIRE(data2[0].duration == std::chrono::milliseconds(75));
     REQUIRE(data2[1].duration == std::chrono::milliseconds(125));
   }
@@ -339,11 +340,11 @@ TEST_CASE("Poly_sequencer duration operations", "[poly_sequencer]") {
   SECTION("adjust_durations_all affects all sequencers") {
     poly.adjust_durations_all(std::chrono::milliseconds(25));
 
-    auto data0 = poly[0].data();
+    auto data0 = poly[0].snapshot();
     REQUIRE(data0[0].duration == std::chrono::milliseconds(75));
     REQUIRE(data0[1].duration == std::chrono::milliseconds(125));
 
-    auto data1 = poly[1].data();
+    auto data1 = poly[1].snapshot();
     REQUIRE(data1[0].duration == std::chrono::milliseconds(100));
     REQUIRE(data1[1].duration == std::chrono::milliseconds(150));
   }
@@ -351,23 +352,23 @@ TEST_CASE("Poly_sequencer duration operations", "[poly_sequencer]") {
   SECTION("multiply_durations on single sequencer") {
     poly.multiply_durations(0, 2.0);
 
-    auto data = poly[0].data();
+    auto data = poly[0].snapshot();
     REQUIRE(data[0].duration == std::chrono::milliseconds(100));
     REQUIRE(data[1].duration == std::chrono::milliseconds(200));
 
     // Second sequencer unchanged
-    auto data2 = poly[1].data();
+    auto data2 = poly[1].snapshot();
     REQUIRE(data2[0].duration == std::chrono::milliseconds(75));
   }
 
   SECTION("multiply_durations_all affects all sequencers") {
     poly.multiply_durations_all(0.5);
 
-    auto data0 = poly[0].data();
+    auto data0 = poly[0].snapshot();
     REQUIRE(data0[0].duration == std::chrono::milliseconds(25));
     REQUIRE(data0[1].duration == std::chrono::milliseconds(50));
 
-    auto data1 = poly[1].data();
+    auto data1 = poly[1].snapshot();
     REQUIRE(data1[0].duration == std::chrono::nanoseconds(37500000)); // 37.5ms
     REQUIRE(data1[1].duration == std::chrono::nanoseconds(62500000)); // 62.5ms
   }
@@ -398,12 +399,12 @@ TEST_CASE("Poly_sequencer for_each operations", "[poly_sequencer]") {
   SECTION("for_each on single sequencer") {
     poly.for_each(0, [](Poly_test_event& evt) { evt.id += 10; });
 
-    auto data0 = poly[0].data();
+    auto data0 = poly[0].snapshot();
     REQUIRE(data0[0].id == 11);
     REQUIRE(data0[1].id == 12);
 
     // Second sequencer unchanged
-    auto data1 = poly[1].data();
+    auto data1 = poly[1].snapshot();
     REQUIRE(data1[0].id == 3);
     REQUIRE(data1[1].id == 4);
   }
@@ -411,11 +412,11 @@ TEST_CASE("Poly_sequencer for_each operations", "[poly_sequencer]") {
   SECTION("for_each_all affects all sequencers") {
     poly.for_each_all([](Poly_test_event& evt) { evt.id += 100; });
 
-    auto data0 = poly[0].data();
+    auto data0 = poly[0].snapshot();
     REQUIRE(data0[0].id == 101);
     REQUIRE(data0[1].id == 102);
 
-    auto data1 = poly[1].data();
+    auto data1 = poly[1].snapshot();
     REQUIRE(data1[0].id == 103);
     REQUIRE(data1[1].id == 104);
   }
@@ -443,7 +444,7 @@ TEST_CASE("Poly_sequencer replace operations", "[poly_sequencer]") {
     Poly_test_event new_event(std::chrono::milliseconds(100), 99);
     poly.replace(0, 1, new_event);
 
-    auto data = poly[0].data();
+    auto data = poly[0].snapshot();
     REQUIRE(data[0].id == 1);
     REQUIRE(data[1].id == 99);
     REQUIRE(data[1].duration == std::chrono::milliseconds(100));
@@ -457,7 +458,7 @@ TEST_CASE("Poly_sequencer replace operations", "[poly_sequencer]") {
 
     poly.replace(0, 1, replacements);
 
-    auto data = poly[0].data();
+    auto data = poly[0].snapshot();
     REQUIRE(data[0].id == 1);
     REQUIRE(data[1].id == 88);
     REQUIRE(data[2].id == 99);

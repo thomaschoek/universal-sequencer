@@ -156,7 +156,7 @@ TEST_CASE("Sequencer data operations", "[sequencer]") {
   SECTION("assign replaces events at position") {
     seq.assign(3, Test_event(std::chrono::milliseconds(100)));
     REQUIRE(seq.size() == 3);
-    auto data = seq.data();
+    auto data = seq.snapshot();
     REQUIRE(data.size() == 3);
     REQUIRE(data[0].duration == std::chrono::milliseconds(100));
   }
@@ -189,7 +189,7 @@ TEST_CASE("Sequencer data operations", "[sequencer]") {
   SECTION("data returns copy of events") {
     seq.push_back(Test_event(std::chrono::milliseconds(100), 1));
     seq.push_back(Test_event(std::chrono::milliseconds(200), 2));
-    auto data = seq.data();
+    auto data = seq.snapshot();
     REQUIRE(data.size() == 2);
     REQUIRE(data[0].duration == std::chrono::milliseconds(100));
     REQUIRE(data[0].id == 1);
@@ -202,7 +202,7 @@ TEST_CASE("Sequencer data operations", "[sequencer]") {
     seq.push_back(Test_event(std::chrono::milliseconds(200), 3));
     seq.insert(1, Test_event(std::chrono::milliseconds(150), 2));
     REQUIRE(seq.size() == 3);
-    auto data = seq.data();
+    auto data = seq.snapshot();
     REQUIRE(data[1].id == 2);
     REQUIRE(data[1].duration == std::chrono::milliseconds(150));
   }
@@ -213,7 +213,7 @@ TEST_CASE("Sequencer data operations", "[sequencer]") {
     seq.push_back(Test_event(std::chrono::milliseconds(300), 3));
     seq.erase(1);
     REQUIRE(seq.size() == 2);
-    auto data = seq.data();
+    auto data = seq.snapshot();
     REQUIRE(data[0].id == 1);
     REQUIRE(data[1].id == 3);
   }
@@ -444,7 +444,7 @@ TEST_CASE("Sequencer thread safety", "[sequencer][concurrency]") {
     for (int i = 0; i < 5; ++i) {
       readers.emplace_back([&]() {
         while (!done.load()) {
-          auto data = seq.data();
+          auto data = seq.snapshot();
           REQUIRE(data.size() == 3);
           std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
@@ -579,7 +579,7 @@ TEST_CASE("Sequencer move constructor", "[sequencer]") {
     Sequencer<Test_event> seq2(std::move(seq1));
 
     REQUIRE(seq2.size() == 2);
-    auto data = seq2.data();
+    auto data = seq2.snapshot();
     REQUIRE(data[0].id == 1);
     REQUIRE(data[1].id == 2);
   }
@@ -715,7 +715,7 @@ TEST_CASE("Sequencer update operations", "[sequencer]") {
     Test_event new_event(std::chrono::milliseconds(100), 99);
     seq.update(1, new_event);
 
-    auto events = seq.data();
+    auto events = seq.snapshot();
     REQUIRE(events.size() == 3);
     REQUIRE(events[0].id == 1);
     REQUIRE(events[1].id == 99);
@@ -732,7 +732,7 @@ TEST_CASE("Sequencer update operations", "[sequencer]") {
 
     seq.update(1, std::chrono::milliseconds(100), 77);
 
-    auto events = seq.data();
+    auto events = seq.snapshot();
     REQUIRE(events.size() == 3);
     REQUIRE(events[0].id == 1);
     REQUIRE(events[1].id == 77);
@@ -760,7 +760,7 @@ TEST_CASE("Sequencer duration operations", "[sequencer]") {
 
     seq.adjust_durations(std::chrono::milliseconds(25));
 
-    auto events = seq.data();
+    auto events = seq.snapshot();
     REQUIRE(events[0].duration == std::chrono::milliseconds(75));
     REQUIRE(events[1].duration == std::chrono::milliseconds(125));
     REQUIRE(events[2].duration == std::chrono::milliseconds(175));
@@ -774,7 +774,7 @@ TEST_CASE("Sequencer duration operations", "[sequencer]") {
 
     seq.adjust_durations(std::chrono::milliseconds(-20));
 
-    auto events = seq.data();
+    auto events = seq.snapshot();
     REQUIRE(events[0].duration == std::chrono::milliseconds(30));
     REQUIRE(events[1].duration == std::chrono::milliseconds(80));
   }
@@ -797,7 +797,7 @@ TEST_CASE("Sequencer duration operations", "[sequencer]") {
 
     seq.multiply_durations(2.0);
 
-    auto events = seq.data();
+    auto events = seq.snapshot();
     REQUIRE(events[0].duration == std::chrono::milliseconds(200));
     REQUIRE(events[1].duration == std::chrono::milliseconds(400));
     REQUIRE(events[2].duration == std::chrono::milliseconds(600));
@@ -811,7 +811,7 @@ TEST_CASE("Sequencer duration operations", "[sequencer]") {
 
     seq.multiply_durations(0.5);
 
-    auto events = seq.data();
+    auto events = seq.snapshot();
     REQUIRE(events[0].duration == std::chrono::milliseconds(50));
     REQUIRE(events[1].duration == std::chrono::milliseconds(100));
   }
@@ -833,9 +833,12 @@ TEST_CASE("Sequencer for_each operation", "[sequencer]") {
                                Test_event(std::chrono::milliseconds(50), 2),
                                Test_event(std::chrono::milliseconds(50), 3)});
 
-    seq.for_each([](Test_event& evt) { evt.id += 10; });
+    seq.mutate([](Test_event&& evt) {
+      evt.id += 10;
+      return std::move(evt);
+    });
 
-    auto events = seq.data();
+    auto events = seq.snapshot();
     REQUIRE(events[0].id == 11);
     REQUIRE(events[1].id == 12);
     REQUIRE(events[2].id == 13);
@@ -847,10 +850,12 @@ TEST_CASE("Sequencer for_each operation", "[sequencer]") {
                               {Test_event(std::chrono::milliseconds(50), 1),
                                Test_event(std::chrono::milliseconds(100), 2)});
 
-    seq.for_each(
-        [](Test_event& evt) { evt.duration = std::chrono::milliseconds(200); });
+    seq.mutate([](Test_event&& evt) {
+      evt.duration = std::chrono::milliseconds(200);
+      return std::move(evt);
+    });
 
-    auto events = seq.data();
+    auto events = seq.snapshot();
     REQUIRE(events[0].duration == std::chrono::milliseconds(200));
     REQUIRE(events[1].duration == std::chrono::milliseconds(200));
   }
@@ -867,7 +872,7 @@ TEST_CASE("Sequencer replace operations", "[sequencer]") {
     Test_event replacement(std::chrono::milliseconds(100), 99);
     seq.replace(1, replacement);
 
-    auto events = seq.data();
+    auto events = seq.snapshot();
     REQUIRE(events.size() == 3);
     REQUIRE(events[0].id == 1);
     REQUIRE(events[1].id == 99);
@@ -898,7 +903,7 @@ TEST_CASE("Sequencer replace operations", "[sequencer]") {
 
     seq.replace(1, replacements);
 
-    auto events = seq.data();
+    auto events = seq.snapshot();
     REQUIRE(events.size() == 4);
     REQUIRE(events[0].id == 1);
     REQUIRE(events[1].id == 88);
