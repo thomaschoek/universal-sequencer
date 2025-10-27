@@ -349,7 +349,10 @@ void Poly_sequencer<T_event>::for_each(
   if (idx >= Base_vector::size()) {
     throw std::out_of_range("Poly_sequencer::for_each: Index out of range.");
   }
-  Base_vector::operator[](idx).for_each(func);
+  Base_vector::operator[](idx).mutate([&func](T_event&& evt) {
+    func(evt);
+    return std::move(evt);
+  });
 }
 
 template <sequencable::Mut_seq_event T_event>
@@ -358,7 +361,10 @@ void Poly_sequencer<T_event>::for_each_all(
   std::scoped_lock lck{transport_mutex_};
   auto count = Base_vector::size();
   for (Seq_idx i = 0; i < count; ++i) {
-    Base_vector::operator[](i).for_each(func);
+    Base_vector::operator[](i).mutate([&func](T_event&& evt) {
+      func(evt);
+      return std::move(evt);
+    });
   }
 }
 

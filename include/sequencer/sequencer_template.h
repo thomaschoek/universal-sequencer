@@ -63,7 +63,7 @@ template <sequencable::Mut_seq_event T_event> struct Sequencer {
   bool empty() const noexcept;
   Size_type size() const noexcept;
   Size_type get_pos() const noexcept;
-  const std::vector<T_event>& data() const noexcept;
+  std::vector<T_event> snapshot() const noexcept;
 
   // Setters / Modifiers
   void set_pos(Size_type = 0);

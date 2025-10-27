@@ -211,7 +211,7 @@ template <typename T>
 inline typename Atomic_vector<T>::Base_vector
 Atomic_vector<T>::snapshot() const noexcept {
   std::scoped_lock lck{mutex_};
-  return Base_vector::data();
+  return Base_vector(*static_cast<const Base_vector*>(this));
 }
 
 // Private

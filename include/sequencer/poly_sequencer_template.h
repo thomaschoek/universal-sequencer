@@ -1,7 +1,6 @@
 #ifndef MICRO_COMPOSER_POLY_SEQUENCER_H
 #define MICRO_COMPOSER_POLY_SEQUENCER_H
 
-#include "container/atomic_vector.h"
 #include "sequencer/sequencer_template.h"
 #include <mutex>
 #include <vector>
@@ -11,11 +10,11 @@ namespace Micro_composer {
 namespace sequencer {
 
 template <sequencable::Mut_seq_event Event_t>
-class Poly_sequencer : public container::Atomic_vector<Sequencer<Event_t>> {
+class Poly_sequencer : public std::vector<Sequencer<Event_t>> {
 public:
   using Sequencer_t = Sequencer<Event_t>;
-  using Base_vector = container::Atomic_vector<Sequencer_t>;
-  using Seq_idx = Base_vector::Size_type;
+  using Base_vector = std::vector<Sequencer<Event_t>>;
+  using Seq_idx = Base_vector::size_type;
   using Event_idx = Sequencer_t::Size_type;
   using Handler = Sequencer_t::Handler;
   using Handler_factory = std::function<Handler()>;

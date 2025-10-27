@@ -75,7 +75,7 @@ const Sequencer<T_event>::State Sequencer<T_event>::get_state() const {
           .next_event_idx = get_pos(),
           .next_scheduled_time = t_next(),
           .size = size(),
-          .events = data()};
+          .events = snapshot()};
 };
 
 // Transport
@@ -158,7 +158,7 @@ Sequencer<T_event>::Size_type inline Sequencer<T_event>::get_pos()
 }
 
 template <sequencable::Mut_seq_event T_event>
-inline const std::vector<T_event>& Sequencer<T_event>::data() const noexcept {
+inline std::vector<T_event> Sequencer<T_event>::snapshot() const noexcept {
   await_scheduler();
   return events_.snapshot();
 }
@@ -378,7 +378,7 @@ void Sequencer<T_event>::assign(Events_initializer events) {
   std::scoped_lock lck{data_mutex_};
   pause();
   events_.clear();
-  events_ = events;
+  events_.assign(events);
   if (next_.load(std::memory_order_acquire) >= events.size()) {
     next_.store(0, std::memory_order_release);
   }
