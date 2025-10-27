@@ -16,8 +16,7 @@ public:
   using Base_vector = std::vector<T>;
   using Size_type = Base_vector::size_type;
   using Initializer_list = std::initializer_list<T>;
-  using Iterator = Base_vector::iterator;
-  using Const_iterator = Base_vector::const_iterator;
+  using Mutator = std::function<T(T&&)>;
 
   // Constructors
   Atomic_vector() = default;
@@ -47,7 +46,10 @@ public:
   void insert(Size_type, const T&);
   void insert(Size_type, T&&);
 
-  template <typename... Args> void update(Size_type, Args...);
+  // Atomic updates on individual elements
+  void mutate(Size_type, const Mutator&);
+  void mutate(const Mutator&);
+  void store(Size_type, const T&);
 
   void pop_back();
   void erase(Size_type);
@@ -59,28 +61,19 @@ public:
   Size_type capacity() const noexcept;
   bool empty() const noexcept;
 
-  Iterator begin() noexcept;
-  Iterator end() noexcept;
-  Const_iterator cbegin() const noexcept;
-  Const_iterator cend() const noexcept;
   T front();
   T back();
   T at(Size_type);
 
-  // WARNING: References returned are only safe while no other thread
-  // modifies the vector structure (add/remove elements)
-  T& operator[](Size_type);
-  const T& operator[](Size_type) const;
+  T operator[](Size_type);
 
-  const Base_vector& data() const noexcept;
+  Base_vector snapshot() const noexcept;
+
+  void range_check(Size_type) const;
 
 private:
-  void update_dimensions() noexcept;
+  void store_size() noexcept;
   mutable std::mutex mutex_;
-  mutable std::atomic<Iterator> begin_;
-  mutable std::atomic<Iterator> end_;
-  mutable std::atomic<Const_iterator> cbegin_;
-  mutable std::atomic<Const_iterator> cend_;
   mutable std::atomic<Size_type> size_{0};
 };
 
