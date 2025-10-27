@@ -231,6 +231,61 @@ void Sequencer<T_event>::insert(Size_type pos, const T_event& event) {
   }
 }
 
+// Toggling events on/off
+
+template <sequencable::Mut_seq_event T_event>
+void Sequencer<T_event>::enable() {
+  Time_point timeout;
+  std::scoped_lock lck{lock_events(timeout)};
+  for (auto& event : events_) {
+    event.enabled = true;
+  }
+}
+
+template <sequencable::Mut_seq_event T_event>
+void Sequencer<T_event>::enable(Size_type idx) {
+  range_check(idx);
+  Time_point timeout;
+  std::scoped_lock lck{lock_events(timeout)};
+  events_[idx].enabled = true;
+}
+
+template <sequencable::Mut_seq_event T_event>
+void Sequencer<T_event>::disable() {
+  Time_point timeout;
+  std::scoped_lock lck{lock_events(timeout)};
+  for (auto& event : events_) {
+    event.enabled = false;
+  }
+}
+
+template <sequencable::Mut_seq_event T_event>
+void Sequencer<T_event>::disable(Size_type idx) {
+  range_check(idx);
+  Time_point timeout;
+  std::scoped_lock lck{lock_events(timeout)};
+  events_[idx].enabled = false;
+}
+
+template <sequencable::Mut_seq_event T_event>
+void Sequencer<T_event>::toggle() {
+  Time_point timeout;
+  std::scoped_lock lck{lock_events(timeout)};
+  for (auto& event : events_) {
+    event.enabled = !event.enabled;
+  }
+}
+
+template <sequencable::Mut_seq_event T_event>
+void Sequencer<T_event>::toggle(Size_type idx) {
+  range_check(idx);
+  Time_point timeout;
+  std::scoped_lock lck{lock_events(timeout)};
+  events_[idx].enabled = !events_[idx].enabled;
+}
+
+// Adjusting sequencer tempo
+
 template <sequencable::Mut_seq_event T_event>
 void Sequencer<T_event>::adjust_durations(Duration delta) {
   Time_point timeout;

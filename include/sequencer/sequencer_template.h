@@ -65,6 +65,12 @@ template <sequencable::Mut_seq_event T_event> struct Sequencer {
 
   void adjust_durations(Duration delta);
   void multiply_durations(double factor);
+  void enable();
+  void enable(Size_type);
+  void disable();
+  void disable(Size_type);
+  void toggle();
+  void toggle(Size_type);
 
   void for_each(const std::function<void(T_event&)>&);
 

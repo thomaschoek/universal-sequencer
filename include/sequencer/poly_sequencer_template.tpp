@@ -220,6 +220,90 @@ void Poly_sequencer<T_event>::update(Seq_idx seq,
   Base_vector::operator[](seq).update(pos, std::forward<Args>(args)...);
 }
 
+// Toggling events on/off
+template <sequencable::Mut_seq_event T_event>
+void Poly_sequencer<T_event>::enable() {
+  std::scoped_lock lck{transport_mutex_};
+  auto count = Base_vector::size();
+  for (Seq_idx i = 0; i < count; ++i) {
+    Base_vector::operator[](i).enable();
+  }
+}
+
+template <sequencable::Mut_seq_event T_event>
+void Poly_sequencer<T_event>::enable(Seq_idx idx) {
+  std::scoped_lock lck{transport_mutex_};
+  if (idx >= Base_vector::size()) {
+    throw std::out_of_range("Poly_sequencer::enable: Index out of range.");
+  }
+  Base_vector::operator[](idx).enable();
+}
+
+template <sequencable::Mut_seq_event T_event>
+void Poly_sequencer<T_event>::enable(Seq_idx i_seq, Event_idx i_event) {
+  std::scoped_lock lck{transport_mutex_};
+  if (i_seq >= Base_vector::size()) {
+    throw std::out_of_range("Poly_sequencer::enable: Index out of range.");
+  }
+  Base_vector::operator[](i_seq).enable(i_event);
+}
+
+template <sequencable::Mut_seq_event T_event>
+void Poly_sequencer<T_event>::disable() {
+  std::scoped_lock lck{transport_mutex_};
+  auto count = Base_vector::size();
+  for (Seq_idx i = 0; i < count; ++i) {
+    Base_vector::operator[](i).disable();
+  }
+}
+
+template <sequencable::Mut_seq_event T_event>
+void Poly_sequencer<T_event>::disable(Seq_idx idx) {
+  std::scoped_lock lck{transport_mutex_};
+  if (idx >= Base_vector::size()) {
+    throw std::out_of_range("Poly_sequencer::disable: Index out of range.");
+  }
+  Base_vector::operator[](idx).disable();
+}
+
+template <sequencable::Mut_seq_event T_event>
+void Poly_sequencer<T_event>::disable(Seq_idx i_seq, Event_idx i_event) {
+  std::scoped_lock lck{transport_mutex_};
+  if (i_seq >= Base_vector::size()) {
+    throw std::out_of_range("Poly_sequencer::disable: Index out of range.");
+  }
+  Base_vector::operator[](i_seq).disable(i_event);
+}
+
+template <sequencable::Mut_seq_event T_event>
+void Poly_sequencer<T_event>::toggle() {
+  std::scoped_lock lck{transport_mutex_};
+  auto count = Base_vector::size();
+  for (Seq_idx i = 0; i < count; ++i) {
+    Base_vector::operator[](i).toggle();
+  }
+}
+
+template <sequencable::Mut_seq_event T_event>
+void Poly_sequencer<T_event>::toggle(Seq_idx idx) {
+  std::scoped_lock lck{transport_mutex_};
+  if (idx >= Base_vector::size()) {
+    throw std::out_of_range("Poly_sequencer::toggle: Index out of range.");
+  }
+  Base_vector::operator[](idx).toggle();
+}
+
+template <sequencable::Mut_seq_event T_event>
+void Poly_sequencer<T_event>::toggle(Seq_idx i_seq, Event_idx i_event) {
+  std::scoped_lock lck{transport_mutex_};
+  if (i_seq >= Base_vector::size()) {
+    throw std::out_of_range("Poly_sequencer::toggle: Index out of range.");
+  }
+  Base_vector::operator[](i_seq).toggle(i_event);
+}
+
+// Adjusting sequencer tempo
+
 template <sequencable::Mut_seq_event T_event>
 void Poly_sequencer<T_event>::adjust_durations(Seq_idx idx, Duration delta) {
   std::scoped_lock lck{transport_mutex_};

@@ -72,8 +72,12 @@ int main(int argc, char** argv) {
   auto t_point = Sequencer::Clock::now() + std::chrono::milliseconds(50);
 
   poly_seq.start_all(t_point, true);
+  std::cout << "[MAIN] Playing for 2 seconds with all events disabled\n"
+            << std::flush;
+  std::this_thread::sleep_for(std::chrono::seconds(2));
+  poly_seq.enable();
 
-  std::cout << "[MAIN] Playing for 10 seconds...\n";
+  std::cout << "[MAIN] Playing for 10 seconds with all events enabled...\n";
   std::this_thread::sleep_for(std::chrono::seconds(10));
 
   std::cout << "[MAIN] Pausing sequencers\n";

@@ -16,6 +16,7 @@ public:
   using Sequencer_t = Sequencer<Event_t>;
   using Base_vector = container::Atomic_vector<Sequencer_t>;
   using Seq_idx = Base_vector::Size_type;
+  using Event_idx = Sequencer_t::Size_type;
   using Handler = Sequencer_t::Handler;
   using Handler_factory = std::function<Handler()>;
   using Clock = Sequencer_t::Clock;
@@ -68,6 +69,16 @@ public:
               const Event_t& event);
   template <typename... Args>
   void update(Seq_idx seq, typename Sequencer_t::Size_type pos, Args&&... args);
+
+  void enable();
+  void enable(Seq_idx);
+  void enable(Seq_idx, Event_idx);
+  void disable();
+  void disable(Seq_idx);
+  void disable(Seq_idx, Event_idx);
+  void toggle();
+  void toggle(Seq_idx);
+  void toggle(Seq_idx, Event_idx);
 
   void adjust_durations(Seq_idx, Duration delta);
   void adjust_durations_all(Duration delta);
