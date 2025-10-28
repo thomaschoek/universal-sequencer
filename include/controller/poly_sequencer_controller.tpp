@@ -181,7 +181,7 @@ Poly_sequencer_controller<T_event>::get_state() const {
 
 template <sequencable::Mut_seq_event T_event>
 void Poly_sequencer_controller<T_event>::update(Seq_idx seq, Event_idx pos,
-                                                const Event_t& event) {
+                                                const T_event& event) {
   Base_sequencer::update(seq, pos, event);
   std::scoped_lock lck{state_mutex_};
   if (seq < state_.events.size() && pos < state_.events[seq].size()) {
@@ -322,7 +322,7 @@ void Poly_sequencer_controller<T_event>::multiply_durations_all(double factor) {
 
 template <sequencable::Mut_seq_event T_event>
 void Poly_sequencer_controller<T_event>::for_each(
-    Seq_idx seq, const std::function<void(Event_t&)>& func) {
+    Seq_idx seq, const std::function<void(T_event&)>& func) {
   Base_sequencer::for_each(seq, func);
   std::scoped_lock lck{state_mutex_};
   if (seq < state_.events.size()) {
@@ -332,7 +332,7 @@ void Poly_sequencer_controller<T_event>::for_each(
 
 template <sequencable::Mut_seq_event T_event>
 void Poly_sequencer_controller<T_event>::for_each_all(
-    const std::function<void(Event_t&)>& func) {
+    const std::function<void(T_event&)>& func) {
   Base_sequencer::for_each_all(func);
   std::scoped_lock lck{state_mutex_};
   for (Seq_idx i = 0; i < Base_sequencer::size(); ++i) {
@@ -342,7 +342,7 @@ void Poly_sequencer_controller<T_event>::for_each_all(
 
 template <sequencable::Mut_seq_event T_event>
 void Poly_sequencer_controller<T_event>::replace(Seq_idx seq, Event_idx pos,
-                                                 const Event_t& event) {
+                                                 const T_event& event) {
   Base_sequencer::replace(seq, pos, event);
   std::scoped_lock lck{state_mutex_};
   if (seq < state_.events.size() && pos < state_.events[seq].size()) {
@@ -352,7 +352,7 @@ void Poly_sequencer_controller<T_event>::replace(Seq_idx seq, Event_idx pos,
 
 template <sequencable::Mut_seq_event T_event>
 void Poly_sequencer_controller<T_event>::replace(
-    Seq_idx seq, Event_idx start, const std::vector<Event_t>& events) {
+    Seq_idx seq, Event_idx start, const std::vector<T_event>& events) {
   Base_sequencer::replace(seq, start, events);
   std::scoped_lock lck{state_mutex_};
   if (seq < state_.events.size()) {
