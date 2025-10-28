@@ -311,6 +311,32 @@ void Gui<Event_t>::build_sequencer_widgets() {
   }
 }
 
+// Show error message (auto-clears after 5 seconds)
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::show_error(const std::string& message) {
+  // Cancel existing timeout if any
+  if (error_timeout_id_ != 0) {
+    g_source_remove(error_timeout_id_);
+    error_timeout_id_ = 0;
+  }
+
+  // Set error message and show
+  gtk_label_set_text(GTK_LABEL(error_label_), message.c_str());
+  gtk_widget_show(error_label_);
+
+  // Set timeout to clear after 5 seconds
+  error_timeout_id_ = g_timeout_add(5000, clear_error_timeout, this);
+}
+
+// Timeout callback to clear error message
+template <sequencable::Mut_seq_event Event_t>
+gboolean Gui<Event_t>::clear_error_timeout(gpointer user_data) {
+  auto* gui = static_cast<Gui*>(user_data);
+  gtk_widget_hide(gui->error_label_);
+  gui->error_timeout_id_ = 0;
+  return FALSE; // Don't repeat
+}
+
 // GTK key press callback
 template <sequencable::Mut_seq_event Event_t>
 gboolean Gui<Event_t>::on_key_press(GtkWidget* widget, GdkEventKey* event,
