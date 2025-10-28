@@ -43,6 +43,7 @@ public:
     std::vector<Event_idx> positions;
     std::vector<Event_idx> sizes;
     std::vector<bool> scheduling;
+    std::vector<Time_point> t_next;
     std::vector<std::vector<Event_t>> events;
   };
 
@@ -51,6 +52,7 @@ public:
 private:
   State state_;
   mutable std::mutex selection_mutex_;
+  mutable std::mutex state_mutex_;
 };
 
 } // namespace controller

@@ -140,7 +140,19 @@ void Poly_sequencer_controller<T_event>::clear_selection() {
 template <sequencable::Mut_seq_event T_event>
 const typename Poly_sequencer_controller<T_event>::State
 Poly_sequencer_controller<T_event>::get_state() const {
-  return state_;
+  std::scoped_lock lck{state_mutex_};
+  State result = state_;
+
+  // Query dynamic runtime state from each sequencer
+  Seq_idx seq_index = 0;
+  for (const auto& seq : *this) {
+    result.positions[seq_index] = seq.get_pos();
+    result.scheduling[seq_index] = seq.is_scheduling();
+    result.t_next[seq_index] = seq.t_next();
+    ++seq_index;
+  }
+
+  return result;
 }
 
 } // namespace controller
