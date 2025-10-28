@@ -1,7 +1,6 @@
 #include "controller/poly_sequencer_controller.h"
 #include "gui/gui.h"
 #include "sequencable/premade_samples.h"
-#include "synth/audio_output.h"
 #include <iostream>
 #include <vector>
 
@@ -10,14 +9,14 @@ int main(int argc, char** argv) {
   using namespace Micro_composer::controller;
   using namespace Micro_composer::gui;
   using namespace Micro_composer::sequencable;
-  using namespace Micro_composer::synth;
 
   try {
-    // Create audio output handler
-    Audio_output audio_out;
-    auto handler_factory = [&audio_out]() {
-      return [&audio_out](Premade_samples&& event) {
-        audio_out.play_samples(event.samples_);
+    // Create simple event handler (silent for now)
+    auto handler_factory = []() {
+      return [](Premade_samples&& event) {
+        // Simple no-op handler for testing
+        // In a real application, this would send audio to output
+        (void)event; // Suppress unused parameter warning
       };
     };
 
