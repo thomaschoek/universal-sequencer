@@ -128,35 +128,37 @@ void Gui<Event_t>::init_widgets() {
   build_sequencer_widgets();
 }
 
-// Build the grid of entry widgets
+// Build column headers showing event indices
 template <sequencable::Mut_seq_event Event_t>
-void Gui<Event_t>::build_grid() {
+void Gui<Event_t>::build_column_headers() {
   const auto& state = state_.controller_state;
 
-  // Clear existing grid
-  cell_entries_.clear();
-
-  // Build grid for each sequencer
-  for (Seq_idx seq_idx = 0; seq_idx < state.sizes.size(); ++seq_idx) {
-    std::vector<GtkWidget*> row;
-    for (Event_idx evt_idx = 0; evt_idx < state.sizes[seq_idx]; ++evt_idx) {
-      GtkWidget* entry = gtk_entry_new();
-      gtk_entry_set_width_chars(GTK_ENTRY(entry), 10);
-
-      // Set initial text based on event data
-      if (seq_idx < state.events.size() &&
-          evt_idx < state.events[seq_idx].size()) {
-        const auto& event = state.events[seq_idx][evt_idx];
-        // Format event as string (you'll need to customize this based on
-        // Event_t)
-        gtk_entry_set_text(GTK_ENTRY(entry),
-                           std::to_string(evt_idx).c_str());
-      }
-
-      gtk_grid_attach(GTK_GRID(grid_), entry, evt_idx, seq_idx, 1, 1);
-      row.push_back(entry);
+  // Find the longest sequence
+  size_t max_events = 0;
+  for (const auto& size : state.sizes) {
+    if (size > max_events) {
+      max_events = size;
     }
-    cell_entries_.push_back(row);
+  }
+
+  if (max_events == 0) {
+    return; // No events to display
+  }
+
+  // Create horizontal box for headers
+  column_header_ = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
+  gtk_widget_set_name(column_header_, "column-headers");
+
+  // Add label for row labels column
+  GtkWidget* corner_label = gtk_label_new("Param");
+  gtk_widget_set_size_request(corner_label, 80, -1);
+  gtk_box_pack_start(GTK_BOX(column_header_), corner_label, FALSE, FALSE, 0);
+
+  // Add event index labels
+  for (size_t i = 0; i < max_events; ++i) {
+    GtkWidget* label = gtk_label_new(std::to_string(i).c_str());
+    gtk_widget_set_size_request(label, 70, -1);
+    gtk_box_pack_start(GTK_BOX(column_header_), label, FALSE, FALSE, 0);
   }
 }
 
