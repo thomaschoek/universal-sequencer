@@ -1,3 +1,4 @@
+#include "audio/simple_audio_output.h"
 #include "controller/poly_sequencer_controller.h"
 #include "gui/gui.h"
 #include "sequencable/premade_samples.h"
@@ -6,17 +7,19 @@
 
 int main(int argc, char** argv) {
   using namespace Micro_composer;
+  using namespace Micro_composer::audio;
   using namespace Micro_composer::controller;
   using namespace Micro_composer::gui;
   using namespace Micro_composer::sequencable;
 
   try {
-    // Create simple event handler (silent for now)
-    auto handler_factory = []() {
-      return [](Premade_samples&& event) {
-        // Simple no-op handler for testing
-        // In a real application, this would send audio to output
-        (void)event; // Suppress unused parameter warning
+    // Create audio output
+    Simple_audio_output audio_out;
+
+    // Create event handler that plays audio
+    auto handler_factory = [&audio_out]() {
+      return [&audio_out](Premade_samples&& event) {
+        audio_out.play_samples(event.samples_);
       };
     };
 
@@ -77,13 +80,19 @@ int main(int argc, char** argv) {
 
     // Create and run GUI
     Gui<Premade_samples> gui(controller, 50); // 50 FPS
-    std::cout << "Starting MicroComposer GUI..." << std::endl;
-    std::cout << "Controls:" << std::endl;
-    std::cout << "  h/j/k/l - Navigate grid (vim-style)" << std::endl;
-    std::cout << "  Space   - Toggle play/pause for selected sequencer"
+
+    // Print instructions to stderr (stdout is used for audio data)
+    std::cerr << "Starting MicroComposer GUI..." << std::endl;
+    std::cerr << "Audio: Pipe to aplay for sound: ./MicroComposer | aplay -f "
+                 "S16_LE -r 44100 -c 1"
               << std::endl;
-    std::cout << "  i       - Enter edit mode" << std::endl;
-    std::cout << "  Esc     - Return to normal mode" << std::endl;
+    std::cerr << "Controls:" << std::endl;
+    std::cerr << "  h/j/k/l - Navigate grid (vim-style)" << std::endl;
+    std::cerr << "  Space   - Toggle play/pause for selected sequencer"
+              << std::endl;
+    std::cerr << "  i       - Enter edit mode" << std::endl;
+    std::cerr << "  Esc     - Return to normal mode" << std::endl;
+    std::cerr << "Window title shows current mode (NORMAL/EDIT)" << std::endl;
 
     gui.run();
 
