@@ -620,24 +620,27 @@ void Gui<Event_t>::update_playheads() {
 template <sequencable::Mut_seq_event Event_t>
 void Gui<Event_t>::update_playhead_visual(Seq_idx seq_idx, Event_idx old_pos,
                                           Event_idx new_pos) {
-  if (seq_idx >= cell_entries_.size()) {
+  if (seq_idx >= sequencer_widgets_.size()) {
     return;
   }
 
-  const auto& row = cell_entries_[seq_idx];
+  const auto& widget = sequencer_widgets_[seq_idx];
 
-  // Remove playhead class from old cell
-  if (old_pos < row.size()) {
-    GtkWidget* old_cell = row[old_pos];
-    GtkStyleContext* context = gtk_widget_get_style_context(old_cell);
-    gtk_style_context_remove_class(context, "playhead");
-  }
+  // Update playhead class for all parameter rows
+  for (const auto& param_row : widget.cells) {
+    // Remove playhead class from old cell
+    if (old_pos < param_row.size()) {
+      GtkWidget* old_cell = param_row[old_pos];
+      GtkStyleContext* context = gtk_widget_get_style_context(old_cell);
+      gtk_style_context_remove_class(context, "playhead");
+    }
 
-  // Add playhead class to new cell
-  if (new_pos < row.size()) {
-    GtkWidget* new_cell = row[new_pos];
-    GtkStyleContext* context = gtk_widget_get_style_context(new_cell);
-    gtk_style_context_add_class(context, "playhead");
+    // Add playhead class to new cell
+    if (new_pos < param_row.size()) {
+      GtkWidget* new_cell = param_row[new_pos];
+      GtkStyleContext* context = gtk_widget_get_style_context(new_cell);
+      gtk_style_context_add_class(context, "playhead");
+    }
   }
 }
 
