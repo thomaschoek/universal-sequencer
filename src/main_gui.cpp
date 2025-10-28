@@ -1,25 +1,36 @@
-#include "audio/simple_audio_output.h"
 #include "controller/poly_sequencer_controller.h"
 #include "gui/gui.h"
 #include "sequencable/premade_samples.h"
+#include "synth/synth.h"
+#include <atomic>
 #include <iostream>
 #include <vector>
 
 int main(int argc, char** argv) {
   using namespace Micro_composer;
-  using namespace Micro_composer::audio;
   using namespace Micro_composer::controller;
   using namespace Micro_composer::gui;
   using namespace Micro_composer::sequencable;
+  using namespace Micro_composer::synth;
 
   try {
-    // Create audio output
-    Simple_audio_output audio_out;
+    // Set up audio output - create a pool of synthesizers
+    constexpr std::size_t SYNTH_VOICES = 4;
+    std::vector<std::unique_ptr<RealTimeAudioOutput>> synth_outputs;
+    std::vector<std::unique_ptr<Synthesizer>> synths;
 
-    // Create event handler that plays audio
-    auto handler_factory = [&audio_out]() {
-      return [&audio_out](Premade_samples&& event) {
-        audio_out.play_samples(event.samples_);
+    for (std::size_t i = 0; i < SYNTH_VOICES; ++i) {
+      synth_outputs.emplace_back(std::make_unique<RealTimeAudioOutput>());
+      synths.emplace_back(std::make_unique<Synthesizer>(*synth_outputs.back()));
+    }
+
+    // Create handler factory that uses the synth pool
+    auto handler_factory = [&synths]() {
+      static std::atomic<size_t> voice_counter{0};
+      return [&synths](Premade_samples&& event) {
+        // Round-robin voice allocation
+        size_t voice = voice_counter.fetch_add(1, std::memory_order_relaxed) % synths.size();
+        synths[voice]->write(event.samples_);
       };
     };
 
@@ -81,18 +92,16 @@ int main(int argc, char** argv) {
     // Create and run GUI
     Gui<Premade_samples> gui(controller, 50); // 50 FPS
 
-    // Print instructions to stderr (stdout is used for audio data)
-    std::cerr << "Starting MicroComposer GUI..." << std::endl;
-    std::cerr << "Audio: Pipe to aplay for sound: ./MicroComposer | aplay -f "
-                 "S16_LE -r 44100 -c 1"
+    // Print instructions
+    std::cout << "Starting MicroComposer GUI..." << std::endl;
+    std::cout << "Audio output initialized" << std::endl;
+    std::cout << "Controls:" << std::endl;
+    std::cout << "  h/j/k/l - Navigate grid (vim-style)" << std::endl;
+    std::cout << "  Space   - Toggle play/pause for selected sequencer"
               << std::endl;
-    std::cerr << "Controls:" << std::endl;
-    std::cerr << "  h/j/k/l - Navigate grid (vim-style)" << std::endl;
-    std::cerr << "  Space   - Toggle play/pause for selected sequencer"
-              << std::endl;
-    std::cerr << "  i       - Enter edit mode" << std::endl;
-    std::cerr << "  Esc     - Return to normal mode" << std::endl;
-    std::cerr << "Window title shows current mode (NORMAL/EDIT)" << std::endl;
+    std::cout << "  i       - Enter edit mode" << std::endl;
+    std::cout << "  Esc     - Return to normal mode" << std::endl;
+    std::cout << "Window title shows current mode (NORMAL/EDIT)" << std::endl;
 
     gui.run();
 
