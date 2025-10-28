@@ -5,12 +5,17 @@
 #include <chrono>
 #include <iostream>
 
+#include "controller/poly_sequencer_controller.h"
+#include "gui/gui.h"
+
 int main(int argc, char** argv) {
 
   using namespace Micro_composer;
   using namespace Micro_composer::sequencer;
   using namespace Micro_composer::sequencable;
   using namespace Micro_composer::synth;
+  using namespace Micro_composer::controller;
+  using namespace Micro_composer::gui;
 
   using Sequencer = Sequencer<Premade_samples>;
   using Poly_seq = Poly_sequencer<Premade_samples>;
@@ -65,7 +70,7 @@ int main(int argc, char** argv) {
 
   std::cout << "[MAIN] About to create poly sequencer\n" << std::flush;
 
-  Poly_seq poly_seq(handlers, std::move(sequences));
+  Poly_seq poly_seq(handlers, sequences);
 
   std::cout << "[MAIN] Poly sequencer initialized\n" << std::flush;
   std::cout << "[MAIN] Starting sequencers with repeat=true\n" << std::flush;
@@ -77,8 +82,8 @@ int main(int argc, char** argv) {
   std::this_thread::sleep_for(std::chrono::seconds(2));
   poly_seq.enable();
 
-  std::cout << "[MAIN] Playing for 10 seconds with all events enabled...\n";
-  std::this_thread::sleep_for(std::chrono::seconds(10));
+  std::cout << "[MAIN] Playing for 5 seconds with all events enabled...\n";
+  std::this_thread::sleep_for(std::chrono::seconds(5));
 
   std::cout << "[MAIN] Pausing sequencers\n";
   t_point = Sequencer::Clock::now() + std::chrono::milliseconds(50);
@@ -128,6 +133,34 @@ int main(int argc, char** argv) {
   std::cout << "[MAIN] Stopping sequencers\n";
   t_point = Sequencer::Clock::now() + std::chrono::milliseconds(50);
   poly_seq.stop_all(t_point);
+
+  std::cout << "[MAIN] Initializing GUI\n";
+
+  auto handler_factory = [&synths]() {
+    static size_t voice_counter{0};
+    return [&synths](Premade_samples&& event) {
+      // Round-robin voice allocation
+      size_t voice = voice_counter++ % synths.size();
+      synths[voice]->write(event.samples_);
+    };
+  };
+
+  Poly_sequencer_controller<Premade_samples> ctrl{handler_factory, sequences};
+
+  Gui<Premade_samples> gui(ctrl, 50); // 50 FPS
+                                      // Print instructions
+  std::cout << "Starting MicroComposer GUI..." << std::endl;
+  std::cout << "Audio output initialized" << std::endl;
+  std::cout << "Controls:" << std::endl;
+  std::cout << "  h/j/k/l - Navigate grid (vim-style)" << std::endl;
+  std::cout << "  Space   - Toggle play/pause for selected sequencer"
+            << std::endl;
+  std::cout << "  i       - Enter edit mode" << std::endl;
+  std::cout << "  Esc     - Return to normal mode" << std::endl;
+  std::cout << "Window title shows current mode (NORMAL/EDIT)" << std::endl;
+
+  // Run GUI (blocking call)
+  gui.run();
 
   std::cout << "[MAIN] Done!\n";
 }

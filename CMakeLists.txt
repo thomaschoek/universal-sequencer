@@ -24,6 +24,11 @@ add_executable(MicroComposerCLI
     src/synth/synth_output.cpp
 )
 
+# Link GTK3 and glib
+target_link_libraries(MicroComposerCLI ${GTK3_LIBRARIES})
+target_link_directories(MicroComposerCLI PRIVATE ${GTK3_LIBRARY_DIRS})
+target_compile_options(MicroComposerCLI PRIVATE ${GTK3_CFLAGS_OTHER})
+
 # Add GUI executable
 add_executable(MicroComposer
     src/main_gui.cpp
