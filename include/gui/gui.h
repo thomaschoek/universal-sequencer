@@ -51,6 +51,17 @@ public:
   // Run the GUI event loop
   void run();
 
+  // GUI wrappers for controller actions (update GUI state and mark dirty)
+  void gui_select(Seq_idx seq_idx, Event_idx event_idx);
+  void gui_select_next_seq();
+  void gui_select_prev_seq();
+  void gui_select_next_pos();
+  void gui_select_prev_pos();
+  void gui_start(Seq_idx seq_idx);
+  void gui_pause(Seq_idx seq_idx);
+  void gui_stop(Seq_idx seq_idx);
+  void gui_toggle_play(Seq_idx seq_idx);
+
 private:
   // Controller actions (mapped to keyboard events)
   using Controller_action = std::function<void()>;

@@ -17,35 +17,18 @@ Gui<Event_t>::Gui(Controller& controller, unsigned int fps)
 
   // Initialize keyboard mappings
   // Normal mode mappings
-  normal_mode_actions_[GDK_KEY_h] = [this]() {
-    controller_.select_prev_pos();
-    state_.state_dirty = true;
-  };
+  normal_mode_actions_[GDK_KEY_h] = [this]() { gui_select_prev_pos(); };
 
-  normal_mode_actions_[GDK_KEY_j] = [this]() {
-    controller_.select_next_seq();
-    state_.state_dirty = true;
-  };
+  normal_mode_actions_[GDK_KEY_j] = [this]() { gui_select_next_seq(); };
 
-  normal_mode_actions_[GDK_KEY_k] = [this]() {
-    controller_.select_prev_seq();
-    state_.state_dirty = true;
-  };
+  normal_mode_actions_[GDK_KEY_k] = [this]() { gui_select_prev_seq(); };
 
-  normal_mode_actions_[GDK_KEY_l] = [this]() {
-    controller_.select_next_pos();
-    state_.state_dirty = true;
-  };
+  normal_mode_actions_[GDK_KEY_l] = [this]() { gui_select_next_pos(); };
 
   normal_mode_actions_[GDK_KEY_space] = [this]() {
     auto sel_seq = controller_.selected_seq();
     if (sel_seq) {
-      if (controller_.is_scheduling(*sel_seq)) {
-        controller_.pause(*sel_seq);
-      } else {
-        controller_.start(*sel_seq);
-      }
-      state_.state_dirty = true;
+      gui_toggle_play(*sel_seq);
     }
   };
 
@@ -296,6 +279,74 @@ void Gui<Event_t>::render_grid() {
       GtkStyleContext* context = gtk_widget_get_style_context(selected_cell);
       gtk_style_context_add_class(context, "selected");
     }
+  }
+}
+
+// GUI wrapper functions for controller actions
+
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::gui_select(Seq_idx seq_idx, Event_idx event_idx) {
+  controller_.select(seq_idx, event_idx);
+  state_.state_dirty = true;
+}
+
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::gui_select_next_seq() {
+  controller_.select_next_seq();
+  state_.state_dirty = true;
+}
+
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::gui_select_prev_seq() {
+  controller_.select_prev_seq();
+  state_.state_dirty = true;
+}
+
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::gui_select_next_pos() {
+  controller_.select_next_pos();
+  state_.state_dirty = true;
+}
+
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::gui_select_prev_pos() {
+  controller_.select_prev_pos();
+  state_.state_dirty = true;
+}
+
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::gui_start(Seq_idx seq_idx) {
+  controller_.start(seq_idx);
+  state_.state_dirty = true;
+}
+
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::gui_pause(Seq_idx seq_idx) {
+  controller_.pause(seq_idx);
+  state_.state_dirty = true;
+}
+
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::gui_stop(Seq_idx seq_idx) {
+  controller_.stop(seq_idx);
+
+  // Update playhead visual to position 0
+  if (seq_idx < state_.sequencer_gui_states.size()) {
+    auto& gui_state = state_.sequencer_gui_states[seq_idx];
+    update_playhead_visual(seq_idx, gui_state.last_rendered_playhead, 0);
+    gui_state.last_rendered_playhead = 0;
+    gui_state.playhead_visible = true;
+  }
+
+  state_.state_dirty = true;
+}
+
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::gui_toggle_play(Seq_idx seq_idx) {
+  if (controller_.is_scheduling(seq_idx)) {
+    gui_pause(seq_idx);
+  } else {
+    gui_start(seq_idx);
   }
 }
 
