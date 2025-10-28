@@ -1,21 +1,65 @@
 /* MicroComposer GUI Stylesheet */
 
+/* Error label styling */
+#error-label {
+  background-color: #FFCDD2;
+  color: #C62828;
+  padding: 8px;
+  font-weight: bold;
+  border-radius: 4px;
+}
+
+/* Column headers */
+#column-headers {
+  background-color: #E0E0E0;
+  padding: 5px;
+  font-weight: bold;
+}
+
+#column-headers label {
+  font-size: 10px;
+  text-align: center;
+}
+
+/* Sequencer frame styling */
+#sequencer-frame {
+  border: 2px solid #757575;
+  border-radius: 6px;
+  padding: 5px;
+  margin: 5px;
+  background-color: #FAFAFA;
+}
+
+/* Sequencer header styling */
+#sequencer-header {
+  font-weight: bold;
+  font-size: 12px;
+  padding: 4px;
+  background-color: #E0E0E0;
+  border-radius: 3px;
+  margin-bottom: 5px;
+}
+
 /* Base entry styling */
 entry {
   min-width: 70px;
   padding: 4px;
-  /*text-align: left;*/
+  font-size: 10px;
 }
 
-/* Prevent grid from shifting during updates */
-/*//#sequencer-grid {
-//  column-homogeneous: false;
-//  row-homogeneous: false;
-//}*/
+/* Grid styling */
+#sequencer-grid {
+  padding: 5px;
+}
 
 #sequencer-grid entry {
-  /* Fixed size to prevent jitter */
   min-width: 70px;
+}
+
+#sequencer-grid label {
+  font-size: 10px;
+  font-weight: bold;
+  padding-right: 5px;
 }
 
 /* Playhead highlighting - GTK3 entry widgets need text node styling */
@@ -40,9 +84,6 @@ entry.playhead text,
 entry.selected,
 .selected {
   border: 2px solid #2196F3;
-  /*background: #E3F2FD;
-  background-color: #E3F2FD;
-  background-image: none;*/
 }
 
 #sequencer-grid entry.selected text,
