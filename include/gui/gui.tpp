@@ -661,19 +661,25 @@ void Gui<Event_t>::render_grid() {
     Event_idx sel_evt = *state.selected_event;
 
     // Remove all selection classes first
-    for (auto& row : cell_entries_) {
-      for (auto* cell : row) {
-        GtkStyleContext* context = gtk_widget_get_style_context(cell);
-        gtk_style_context_remove_class(context, "selected");
+    for (auto& seq_widget : sequencer_widgets_) {
+      for (auto& param_row : seq_widget.cells) {
+        for (auto* cell : param_row) {
+          GtkStyleContext* context = gtk_widget_get_style_context(cell);
+          gtk_style_context_remove_class(context, "selected");
+        }
       }
     }
 
-    // Add selection class to selected cell
-    if (sel_seq < cell_entries_.size() &&
-        sel_evt < cell_entries_[sel_seq].size()) {
-      GtkWidget* selected_cell = cell_entries_[sel_seq][sel_evt];
-      GtkStyleContext* context = gtk_widget_get_style_context(selected_cell);
-      gtk_style_context_add_class(context, "selected");
+    // Add selection class to all parameter cells for the selected event
+    if (sel_seq < sequencer_widgets_.size()) {
+      const auto& widget = sequencer_widgets_[sel_seq];
+      for (const auto& param_row : widget.cells) {
+        if (sel_evt < param_row.size()) {
+          GtkWidget* cell = param_row[sel_evt];
+          GtkStyleContext* context = gtk_widget_get_style_context(cell);
+          gtk_style_context_add_class(context, "selected");
+        }
+      }
     }
   }
 }
