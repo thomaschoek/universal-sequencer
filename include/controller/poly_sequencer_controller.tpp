@@ -177,5 +177,188 @@ Poly_sequencer_controller<T_event>::get_state() const {
   return result;
 }
 
+// Event modification method wrappers
+
+template <sequencable::Mut_seq_event T_event>
+void Poly_sequencer_controller<T_event>::update(Seq_idx seq, Event_idx pos,
+                                                const Event_t& event) {
+  Base_sequencer::update(seq, pos, event);
+  std::scoped_lock lck{state_mutex_};
+  if (seq < state_.events.size() && pos < state_.events[seq].size()) {
+    state_.events[seq][pos] = event;
+  }
+}
+
+template <sequencable::Mut_seq_event T_event>
+template <typename... Args>
+void Poly_sequencer_controller<T_event>::update(Seq_idx seq, Event_idx pos,
+                                                Args&&... args) {
+  Base_sequencer::update(seq, pos, std::forward<Args>(args)...);
+  std::scoped_lock lck{state_mutex_};
+  if (seq < state_.events.size() && pos < state_.events[seq].size()) {
+    state_.events[seq][pos] = Base_sequencer::operator[](seq).snapshot()[pos];
+  }
+}
+
+template <sequencable::Mut_seq_event T_event>
+void Poly_sequencer_controller<T_event>::enable() {
+  Base_sequencer::enable();
+  std::scoped_lock lck{state_mutex_};
+  for (Seq_idx i = 0; i < Base_sequencer::size(); ++i) {
+    state_.events[i] = Base_sequencer::operator[](i).snapshot();
+  }
+}
+
+template <sequencable::Mut_seq_event T_event>
+void Poly_sequencer_controller<T_event>::enable(Seq_idx seq) {
+  Base_sequencer::enable(seq);
+  std::scoped_lock lck{state_mutex_};
+  if (seq < state_.events.size()) {
+    state_.events[seq] = Base_sequencer::operator[](seq).snapshot();
+  }
+}
+
+template <sequencable::Mut_seq_event T_event>
+void Poly_sequencer_controller<T_event>::enable(Seq_idx seq, Event_idx pos) {
+  Base_sequencer::enable(seq, pos);
+  std::scoped_lock lck{state_mutex_};
+  if (seq < state_.events.size() && pos < state_.events[seq].size()) {
+    state_.events[seq][pos] = Base_sequencer::operator[](seq).snapshot()[pos];
+  }
+}
+
+template <sequencable::Mut_seq_event T_event>
+void Poly_sequencer_controller<T_event>::disable() {
+  Base_sequencer::disable();
+  std::scoped_lock lck{state_mutex_};
+  for (Seq_idx i = 0; i < Base_sequencer::size(); ++i) {
+    state_.events[i] = Base_sequencer::operator[](i).snapshot();
+  }
+}
+
+template <sequencable::Mut_seq_event T_event>
+void Poly_sequencer_controller<T_event>::disable(Seq_idx seq) {
+  Base_sequencer::disable(seq);
+  std::scoped_lock lck{state_mutex_};
+  if (seq < state_.events.size()) {
+    state_.events[seq] = Base_sequencer::operator[](seq).snapshot();
+  }
+}
+
+template <sequencable::Mut_seq_event T_event>
+void Poly_sequencer_controller<T_event>::disable(Seq_idx seq, Event_idx pos) {
+  Base_sequencer::disable(seq, pos);
+  std::scoped_lock lck{state_mutex_};
+  if (seq < state_.events.size() && pos < state_.events[seq].size()) {
+    state_.events[seq][pos] = Base_sequencer::operator[](seq).snapshot()[pos];
+  }
+}
+
+template <sequencable::Mut_seq_event T_event>
+void Poly_sequencer_controller<T_event>::toggle() {
+  Base_sequencer::toggle();
+  std::scoped_lock lck{state_mutex_};
+  for (Seq_idx i = 0; i < Base_sequencer::size(); ++i) {
+    state_.events[i] = Base_sequencer::operator[](i).snapshot();
+  }
+}
+
+template <sequencable::Mut_seq_event T_event>
+void Poly_sequencer_controller<T_event>::toggle(Seq_idx seq) {
+  Base_sequencer::toggle(seq);
+  std::scoped_lock lck{state_mutex_};
+  if (seq < state_.events.size()) {
+    state_.events[seq] = Base_sequencer::operator[](seq).snapshot();
+  }
+}
+
+template <sequencable::Mut_seq_event T_event>
+void Poly_sequencer_controller<T_event>::toggle(Seq_idx seq, Event_idx pos) {
+  Base_sequencer::toggle(seq, pos);
+  std::scoped_lock lck{state_mutex_};
+  if (seq < state_.events.size() && pos < state_.events[seq].size()) {
+    state_.events[seq][pos] = Base_sequencer::operator[](seq).snapshot()[pos];
+  }
+}
+
+template <sequencable::Mut_seq_event T_event>
+void Poly_sequencer_controller<T_event>::adjust_durations(
+    Seq_idx seq, typename Base_sequencer::Duration delta) {
+  Base_sequencer::adjust_durations(seq, delta);
+  std::scoped_lock lck{state_mutex_};
+  if (seq < state_.events.size()) {
+    state_.events[seq] = Base_sequencer::operator[](seq).snapshot();
+  }
+}
+
+template <sequencable::Mut_seq_event T_event>
+void Poly_sequencer_controller<T_event>::adjust_durations_all(
+    typename Base_sequencer::Duration delta) {
+  Base_sequencer::adjust_durations_all(delta);
+  std::scoped_lock lck{state_mutex_};
+  for (Seq_idx i = 0; i < Base_sequencer::size(); ++i) {
+    state_.events[i] = Base_sequencer::operator[](i).snapshot();
+  }
+}
+
+template <sequencable::Mut_seq_event T_event>
+void Poly_sequencer_controller<T_event>::multiply_durations(Seq_idx seq,
+                                                            double factor) {
+  Base_sequencer::multiply_durations(seq, factor);
+  std::scoped_lock lck{state_mutex_};
+  if (seq < state_.events.size()) {
+    state_.events[seq] = Base_sequencer::operator[](seq).snapshot();
+  }
+}
+
+template <sequencable::Mut_seq_event T_event>
+void Poly_sequencer_controller<T_event>::multiply_durations_all(double factor) {
+  Base_sequencer::multiply_durations_all(factor);
+  std::scoped_lock lck{state_mutex_};
+  for (Seq_idx i = 0; i < Base_sequencer::size(); ++i) {
+    state_.events[i] = Base_sequencer::operator[](i).snapshot();
+  }
+}
+
+template <sequencable::Mut_seq_event T_event>
+void Poly_sequencer_controller<T_event>::for_each(
+    Seq_idx seq, const std::function<void(Event_t&)>& func) {
+  Base_sequencer::for_each(seq, func);
+  std::scoped_lock lck{state_mutex_};
+  if (seq < state_.events.size()) {
+    state_.events[seq] = Base_sequencer::operator[](seq).snapshot();
+  }
+}
+
+template <sequencable::Mut_seq_event T_event>
+void Poly_sequencer_controller<T_event>::for_each_all(
+    const std::function<void(Event_t&)>& func) {
+  Base_sequencer::for_each_all(func);
+  std::scoped_lock lck{state_mutex_};
+  for (Seq_idx i = 0; i < Base_sequencer::size(); ++i) {
+    state_.events[i] = Base_sequencer::operator[](i).snapshot();
+  }
+}
+
+template <sequencable::Mut_seq_event T_event>
+void Poly_sequencer_controller<T_event>::replace(Seq_idx seq, Event_idx pos,
+                                                 const Event_t& event) {
+  Base_sequencer::replace(seq, pos, event);
+  std::scoped_lock lck{state_mutex_};
+  if (seq < state_.events.size() && pos < state_.events[seq].size()) {
+    state_.events[seq][pos] = event;
+  }
+}
+
+template <sequencable::Mut_seq_event T_event>
+void Poly_sequencer_controller<T_event>::replace(
+    Seq_idx seq, Event_idx start, const std::vector<Event_t>& events) {
+  Base_sequencer::replace(seq, start, events);
+  std::scoped_lock lck{state_mutex_};
+  if (seq < state_.events.size()) {
+    state_.events[seq] = Base_sequencer::operator[](seq).snapshot();
+  }
+}
+
 } // namespace controller
 } // namespace Micro_composer

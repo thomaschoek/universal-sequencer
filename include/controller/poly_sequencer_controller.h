@@ -50,6 +50,33 @@ public:
   // Clear selection
   void clear_selection();
 
+  // Event modification methods (wrap Base_sequencer methods to update state_)
+  void update(Seq_idx seq, Event_idx pos, const Event_t& event);
+  template <typename... Args>
+  void update(Seq_idx seq, Event_idx pos, Args&&... args);
+
+  void enable();
+  void enable(Seq_idx);
+  void enable(Seq_idx, Event_idx);
+  void disable();
+  void disable(Seq_idx);
+  void disable(Seq_idx, Event_idx);
+  void toggle();
+  void toggle(Seq_idx);
+  void toggle(Seq_idx, Event_idx);
+
+  void adjust_durations(Seq_idx, typename Base_sequencer::Duration delta);
+  void adjust_durations_all(typename Base_sequencer::Duration delta);
+
+  void multiply_durations(Seq_idx, double factor);
+  void multiply_durations_all(double factor);
+
+  void for_each(Seq_idx, const std::function<void(Event_t&)>&);
+  void for_each_all(const std::function<void(Event_t&)>&);
+
+  void replace(Seq_idx, Event_idx pos, const Event_t& event);
+  void replace(Seq_idx, Event_idx start, const std::vector<Event_t>& events);
+
   struct State {
     std::optional<Seq_idx> selected_seq;
     std::optional<Event_idx> selected_event;
