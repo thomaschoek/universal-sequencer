@@ -18,105 +18,14 @@ template <sequencable::Mut_seq_event Event_t> struct Gui {
   using Sequencer = Controller::Sequencer_t;
 
   explicit Gui(std::shared_ptr<Controller> controller);
-  ~Gui();
-
-  // Render the current state to the display
-  void render(const Controller_state& state);
-
-  // Initialize GTK and create window
-  void init(int argc, char** argv);
-
-  // Show the window
-  void show();
 
 private:
-  // Controller reference for editing
-  std::shared_ptr<Controller> controller_;
-
-  // GTK widgets
-  GtkWidget* window_{nullptr};
-  GtkWidget* main_box_{nullptr};
-  GtkWidget* menu_bar_{nullptr};
-  GtkWidget* scrolled_window_{nullptr};
-  GtkWidget* grid_{nullptr}; // Main grid containing all cells
-
-  // Expansion state tracking
-  std::map<std::size_t, bool> expanded_seqs_; // seq_idx -> is_expanded
-
-  // Widget tracking for updates
-  struct CellWidget {
-    GtkWidget* entry;
-    std::size_t seq_idx;
-    std::size_t step_idx;
-    std::size_t param_idx;
-  };
-  std::map<std::string, CellWidget> cell_widgets_; // Key: "seq_step_param"
-
-  struct SeqHeaderWidgets {
-    GtkWidget* expand_button;
-    GtkWidget* play_icon;
-    GtkWidget* name_label;
-  };
-  std::map<std::size_t, SeqHeaderWidgets> seq_headers_;
-
-  // Helper methods for building UI
-  void create_menu_bar();
-  void rebuild_grid(const Controller_state& state);
-  void create_sequence_header(std::size_t seq_idx, const Controller& controller,
-                              int row);
-  void create_parameter_row(std::size_t seq_idx, std::size_t param_idx,
-                            const Controller& controller, int row);
-  void create_duration_row(std::size_t seq_idx, const Controller& controller,
-                           int row);
-
-  // Helper methods for rendering updates
-  void update_cell_values(const Controller_state& state);
-  void update_playhead_highlighting(const Controller_state& state);
-  void update_selection_highlighting(const Controller_state& state);
-  void update_play_icons(const Controller_state& state);
-
-  // Helper methods for cell management
-  std::string make_cell_key(std::size_t seq, std::size_t step,
-                            std::size_t param) const;
-  void clear_highlighting();
-  void scroll_to_selection(const Controller_state& state);
-  void show_help_dialog();
-
-  // Helper to commit cell edits
-  static void commit_cell_edit(Gui* gui, GtkEntry* entry);
-
-  // File operations
-  void save_to_json(const std::string& filename);
-  void load_from_json(const std::string& filename);
-
-  // BPM operations
-  void edit_bpm();
-
-  // Step operations
-  void toggle_selected_step();
-  void add_step_to_selected();
-  void insert_step_before_selected();
-  void remove_selected_step();
-
-  // Sequence operations
-  void add_new_sequence();
-  void remove_selected_sequence();
-  void duplicate_selected_sequence();
-
-  // Expand/collapse operations
-  void expand_all_sequences();
-  void collapse_all_sequences();
-  void toggle_selected_sequence_expand();
-
-  // Event handlers
-  static void on_cell_edited(GtkEntry* entry, gpointer user_data);
-  static gboolean on_cell_focus_out(GtkWidget* widget, GdkEventFocus* event,
-                                    gpointer user_data);
-  static void on_expand_clicked(GtkButton* button, gpointer user_data);
-  static gboolean on_cell_key_press(GtkWidget* widget, GdkEventKey* event,
-                                    gpointer user_data);
-  static gboolean on_window_key_press(GtkWidget* widget, GdkEventKey* event,
-                                      gpointer user_data);
+  void check_for_input();
+  void handle_input(Controller& controller);
+  static void event_loop(Gui& gui, Controller& controller,
+                         unsigned int fps = 50);
+  std::atomic<bool> invalidated_{true};
+  Controller& controller_;
 };
 
 } // namespace gui
