@@ -162,6 +162,155 @@ void Gui<Event_t>::build_column_headers() {
   }
 }
 
+// Get parameter name for a given parameter index
+template <sequencable::Mut_seq_event Event_t>
+std::string Gui<Event_t>::get_param_name(size_t param_idx) const {
+  switch (static_cast<Premade_samples_param>(param_idx)) {
+  case Premade_samples_param::Offset:
+    return "Offset";
+  case Premade_samples_param::Duration:
+    return "Duration";
+  case Premade_samples_param::Frequency:
+    return "Frequency";
+  case Premade_samples_param::Amplitude:
+    return "Amplitude";
+  case Premade_samples_param::Phase:
+    return "Phase";
+  default:
+    return "Unknown";
+  }
+}
+
+// Format parameter value as string for display
+template <sequencable::Mut_seq_event Event_t>
+std::string Gui<Event_t>::format_param_value(const Event_t& event,
+                                              size_t param_idx) const {
+  // This is specific to Premade_samples / Oscillation_event
+  // For a generic implementation, would need template specialization
+  char buffer[32];
+
+  switch (static_cast<Premade_samples_param>(param_idx)) {
+  case Premade_samples_param::Offset:
+    snprintf(buffer, sizeof(buffer), "%ldms",
+             std::chrono::duration_cast<std::chrono::milliseconds>(
+                 event.offset)
+                 .count());
+    return buffer;
+  case Premade_samples_param::Duration:
+    snprintf(buffer, sizeof(buffer), "%ldms",
+             std::chrono::duration_cast<std::chrono::milliseconds>(
+                 event.duration)
+                 .count());
+    return buffer;
+  case Premade_samples_param::Frequency:
+    snprintf(buffer, sizeof(buffer), "%.2f", event.frequency);
+    return buffer;
+  case Premade_samples_param::Amplitude:
+    snprintf(buffer, sizeof(buffer), "%.3f", event.amplitude);
+    return buffer;
+  case Premade_samples_param::Phase:
+    snprintf(buffer, sizeof(buffer), "%.3f", event.phase);
+    return buffer;
+  default:
+    return "";
+  }
+}
+
+// Build sequencer widgets (one per sequencer)
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::build_sequencer_widgets() {
+  const auto& state = state_.controller_state;
+  sequencer_widgets_.clear();
+
+  constexpr size_t num_params =
+      static_cast<size_t>(Premade_samples_param::COUNT);
+
+  // Create a widget for each sequencer
+  for (Seq_idx seq_idx = 0; seq_idx < state.sizes.size(); ++seq_idx) {
+    Sequencer_widget widget;
+    const size_t num_events = state.sizes[seq_idx];
+
+    // Create frame
+    widget.frame = gtk_frame_new(nullptr);
+    gtk_widget_set_name(widget.frame, "sequencer-frame");
+    gtk_frame_set_shadow_type(GTK_FRAME(widget.frame), GTK_SHADOW_ETCHED_IN);
+
+    // Create vertical box
+    widget.vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
+    gtk_container_add(GTK_CONTAINER(widget.frame), widget.vbox);
+
+    // Create header label with sequencer status
+    std::string header_text = "Sequencer " + std::to_string(seq_idx);
+    header_text += " [" + std::to_string(num_events) + " steps]";
+    if (seq_idx < state.scheduling.size() && state.scheduling[seq_idx]) {
+      header_text += " ▶";
+    } else {
+      header_text += " ⏸";
+    }
+    widget.header_label = gtk_label_new(header_text.c_str());
+    gtk_widget_set_name(widget.header_label, "sequencer-header");
+    gtk_box_pack_start(GTK_BOX(widget.vbox), widget.header_label, FALSE, FALSE,
+                       2);
+
+    // Create grid for parameters
+    widget.grid = gtk_grid_new();
+    gtk_widget_set_name(widget.grid, "sequencer-grid");
+    gtk_grid_set_row_spacing(GTK_GRID(widget.grid), 2);
+    gtk_grid_set_column_spacing(GTK_GRID(widget.grid), 2);
+    gtk_box_pack_start(GTK_BOX(widget.vbox), widget.grid, TRUE, TRUE, 0);
+
+    // Build parameter rows
+    widget.cells.resize(num_params);
+    widget.row_labels.resize(num_params);
+
+    for (size_t param_idx = 0; param_idx < num_params; ++param_idx) {
+      // Create row label
+      GtkWidget* label = gtk_label_new(get_param_name(param_idx).c_str());
+      gtk_widget_set_size_request(label, 80, -1);
+      gtk_widget_set_halign(label, GTK_ALIGN_START);
+      gtk_grid_attach(GTK_GRID(widget.grid), label, 0, param_idx, 1, 1);
+      widget.row_labels[param_idx] = label;
+
+      // Create entry widgets for each event
+      for (Event_idx evt_idx = 0; evt_idx < num_events; ++evt_idx) {
+        GtkWidget* entry = gtk_entry_new();
+        gtk_entry_set_width_chars(GTK_ENTRY(entry), 10);
+        gtk_widget_set_size_request(entry, 70, -1);
+
+        // Set initial value
+        if (seq_idx < state.events.size() &&
+            evt_idx < state.events[seq_idx].size()) {
+          const auto& event = state.events[seq_idx][evt_idx];
+          std::string value_str = format_param_value(event, param_idx);
+          gtk_entry_set_text(GTK_ENTRY(entry), value_str.c_str());
+        }
+
+        // Allocate user data for callbacks
+        auto* user_data = new Entry_user_data{this, seq_idx, evt_idx, param_idx};
+
+        // Connect signals
+        g_signal_connect(entry, "focus-out-event",
+                         G_CALLBACK(on_entry_focus_out), user_data);
+        g_signal_connect(entry, "activate", G_CALLBACK(on_entry_activate),
+                         user_data);
+
+        // Store cleanup data
+        g_object_set_data_full(G_OBJECT(entry), "user-data", user_data,
+                               g_free);
+
+        gtk_grid_attach(GTK_GRID(widget.grid), entry, evt_idx + 1, param_idx,
+                        1, 1);
+        widget.cells[param_idx].push_back(entry);
+      }
+    }
+
+    // Add to container
+    gtk_box_pack_start(GTK_BOX(sequencers_vbox_), widget.frame, FALSE, FALSE,
+                       5);
+    sequencer_widgets_.push_back(widget);
+  }
+}
+
 // GTK key press callback
 template <sequencable::Mut_seq_event Event_t>
 gboolean Gui<Event_t>::on_key_press(GtkWidget* widget, GdkEventKey* event,
