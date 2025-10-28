@@ -771,14 +771,19 @@ void Gui<Event_t>::focus_selected_cell() {
   Event_idx sel_evt = *state.selected_event;
 
   // Check bounds
-  if (sel_seq >= cell_entries_.size() ||
-      sel_evt >= cell_entries_[sel_seq].size()) {
+  if (sel_seq >= sequencer_widgets_.size()) {
     return;
   }
 
-  // Grab focus on the selected entry widget
-  GtkWidget* selected_cell = cell_entries_[sel_seq][sel_evt];
-  gtk_widget_grab_focus(selected_cell);
+  const auto& widget = sequencer_widgets_[sel_seq];
+
+  // Focus the first parameter row (Offset) for the selected event
+  constexpr size_t default_param = 0; // Offset
+  if (default_param < widget.cells.size() &&
+      sel_evt < widget.cells[default_param].size()) {
+    GtkWidget* selected_cell = widget.cells[default_param][sel_evt];
+    gtk_widget_grab_focus(selected_cell);
+  }
 }
 
 } // namespace gui
