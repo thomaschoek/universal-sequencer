@@ -5,6 +5,28 @@ namespace Micro_composer {
 
 namespace controller {
 
+// Initialize state vectors from current sequencers
+template <sequencable::Mut_seq_event T_event>
+void Poly_sequencer_controller<T_event>::init_state() {
+  std::scoped_lock lck{state_mutex_};
+
+  const auto n_seqs = Base_sequencer::size();
+  state_.sizes.resize(n_seqs);
+  state_.events.resize(n_seqs);
+  state_.positions.resize(n_seqs);
+  state_.scheduling.resize(n_seqs);
+  state_.t_next.resize(n_seqs);
+
+  for (Seq_idx i = 0; i < n_seqs; ++i) {
+    const auto& seq = Base_sequencer::operator[](i);
+    state_.sizes[i] = seq.size();
+    state_.events[i] = seq.snapshot();
+    state_.positions[i] = seq.get_pos();
+    state_.scheduling[i] = seq.is_scheduling();
+    state_.t_next[i] = seq.t_next();
+  }
+}
+
 template <sequencable::Mut_seq_event T_event>
 void Poly_sequencer_controller<T_event>::select(Seq_idx i_seq,
                                                 Event_idx i_event) {

@@ -17,11 +17,24 @@ public:
   using Seq_idx = Base_sequencer::Seq_idx;
   using Event_idx = Base_sequencer::Event_idx;
   using Handler = Base_sequencer::Handler;
+  using Handler_factory = Base_sequencer::Handler_factory;
   using Clock = Base_sequencer::Clock;
   using Time_point = Base_sequencer::Time_point;
 
-  // Constructors - inherit from Poly_sequencer
-  using Base_sequencer::Base_sequencer;
+  // Constructors
+  Poly_sequencer_controller() = default;
+
+  explicit Poly_sequencer_controller(const Handler_factory& factory,
+                                    const std::vector<std::vector<Event_t>>& sequences = {})
+      : Base_sequencer(factory, sequences) {
+    init_state();
+  }
+
+  Poly_sequencer_controller(const std::vector<Handler>& handlers,
+                           const std::vector<std::vector<Event_t>>& sequences)
+      : Base_sequencer(handlers, sequences) {
+    init_state();
+  }
 
   // Selection management
   void select(Seq_idx, Event_idx = 0);
@@ -50,6 +63,8 @@ public:
   const State get_state() const;
 
 private:
+  void init_state();
+
   State state_;
   mutable std::mutex selection_mutex_;
   mutable std::mutex state_mutex_;
