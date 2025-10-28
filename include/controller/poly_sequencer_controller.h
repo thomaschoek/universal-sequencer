@@ -74,6 +74,8 @@ public:
   void for_each(Seq_idx, const std::function<void(Event_t&)>&);
   void for_each_all(const std::function<void(Event_t&)>&);
 
+  void mutate(Seq_idx, Event_idx, const typename Base_sequencer::Sequencer_t::Mutator&);
+
   void replace(Seq_idx, Event_idx pos, const Event_t& event);
   void replace(Seq_idx, Event_idx start, const std::vector<Event_t>& events);
 

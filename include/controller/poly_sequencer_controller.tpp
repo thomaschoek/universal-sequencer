@@ -341,6 +341,17 @@ void Poly_sequencer_controller<T_event>::for_each_all(
 }
 
 template <sequencable::Mut_seq_event T_event>
+void Poly_sequencer_controller<T_event>::mutate(
+    Seq_idx seq, Event_idx pos,
+    const typename Base_sequencer::Sequencer_t::Mutator& mutator) {
+  Base_sequencer::mutate(seq, pos, mutator);
+  std::scoped_lock lck{state_mutex_};
+  if (seq < state_.events.size() && pos < state_.events[seq].size()) {
+    state_.events[seq][pos] = Base_sequencer::operator[](seq).snapshot()[pos];
+  }
+}
+
+template <sequencable::Mut_seq_event T_event>
 void Poly_sequencer_controller<T_event>::replace(Seq_idx seq, Event_idx pos,
                                                  const T_event& event) {
   Base_sequencer::replace(seq, pos, event);
