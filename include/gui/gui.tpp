@@ -43,6 +43,7 @@ Gui<Event_t>::Gui(Controller& controller, unsigned int fps)
     state_.mode = Mode::Edit;
     state_.state_dirty = true;
     update_window_title();
+    focus_selected_cell();
   };
 
   // Edit mode mappings
@@ -375,6 +376,30 @@ void Gui<Event_t>::update_window_title() {
   std::string title = "MicroComposer - ";
   title += (state_.mode == Mode::Normal) ? "NORMAL" : "EDIT";
   gtk_window_set_title(GTK_WINDOW(window_), title.c_str());
+}
+
+// Focus the currently selected cell
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::focus_selected_cell() {
+  const auto& state = state_.controller_state;
+
+  // Check if there's a valid selection
+  if (!state.selected_seq || !state.selected_event) {
+    return;
+  }
+
+  Seq_idx sel_seq = *state.selected_seq;
+  Event_idx sel_evt = *state.selected_event;
+
+  // Check bounds
+  if (sel_seq >= cell_entries_.size() ||
+      sel_evt >= cell_entries_[sel_seq].size()) {
+    return;
+  }
+
+  // Grab focus on the selected entry widget
+  GtkWidget* selected_cell = cell_entries_[sel_seq][sel_evt];
+  gtk_widget_grab_focus(selected_cell);
 }
 
 } // namespace gui

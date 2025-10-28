@@ -90,6 +90,7 @@ private:
   void update_playhead_visual(Seq_idx seq_idx, Event_idx old_pos,
                               Event_idx new_pos);
   void update_window_title();
+  void focus_selected_cell();
 
   // Data members
   Controller& controller_;
