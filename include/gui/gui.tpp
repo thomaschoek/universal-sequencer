@@ -458,6 +458,71 @@ gboolean Gui<Event_t>::clear_error_timeout(gpointer user_data) {
   return FALSE; // Don't repeat
 }
 
+// Entry focus-out callback - apply edit when focus leaves
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::on_entry_focus_out(GtkWidget* widget, GdkEventFocus* event,
+                                       gpointer user_data) {
+  (void)event; // Unused
+  auto* data = static_cast<Entry_user_data*>(user_data);
+  auto* gui = data->gui;
+
+  // Get the entered text
+  const char* text = gtk_entry_get_text(GTK_ENTRY(widget));
+  std::string value_str(text);
+
+  // Try to apply the edit
+  bool success = gui->parse_and_apply_edit(data->seq_idx, data->event_idx,
+                                           data->param_idx, value_str);
+
+  if (success) {
+    // Update state and mark dirty
+    gui->state_.state_dirty = true;
+  } else {
+    // Restore original value on failure
+    auto& state = gui->state_.controller_state;
+    if (data->seq_idx < state.events.size() &&
+        data->event_idx < state.events[data->seq_idx].size()) {
+      const auto& event = state.events[data->seq_idx][data->event_idx];
+      std::string original_value =
+          gui->format_param_value(event, data->param_idx);
+      gtk_entry_set_text(GTK_ENTRY(widget), original_value.c_str());
+    }
+  }
+}
+
+// Entry activate callback - apply edit when Enter is pressed
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::on_entry_activate(GtkEntry* entry, gpointer user_data) {
+  auto* data = static_cast<Entry_user_data*>(user_data);
+  auto* gui = data->gui;
+
+  // Get the entered text
+  const char* text = gtk_entry_get_text(entry);
+  std::string value_str(text);
+
+  // Try to apply the edit
+  bool success = gui->parse_and_apply_edit(data->seq_idx, data->event_idx,
+                                           data->param_idx, value_str);
+
+  if (success) {
+    // Update state and mark dirty
+    gui->state_.state_dirty = true;
+
+    // Remove focus from entry to exit edit mode visually
+    gtk_widget_grab_focus(gui->window_);
+  } else {
+    // Restore original value on failure
+    auto& state = gui->state_.controller_state;
+    if (data->seq_idx < state.events.size() &&
+        data->event_idx < state.events[data->seq_idx].size()) {
+      const auto& event = state.events[data->seq_idx][data->event_idx];
+      std::string original_value =
+          gui->format_param_value(event, data->param_idx);
+      gtk_entry_set_text(entry, original_value.c_str());
+    }
+  }
+}
+
 // GTK key press callback
 template <sequencable::Mut_seq_event Event_t>
 gboolean Gui<Event_t>::on_key_press(GtkWidget* widget, GdkEventKey* event,
