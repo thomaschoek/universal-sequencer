@@ -15,6 +15,13 @@ Gui<Event_t>::Gui(Controller& controller, unsigned int fps)
   state_.controller_state = controller_.get_state();
   state_.sequencer_gui_states.resize(state_.controller_state.sizes.size());
 
+  // Select first sequencer and first event by default
+  if (!state_.controller_state.sizes.empty() &&
+      state_.controller_state.sizes[0] > 0) {
+    controller_.select(0, 0);
+    state_.controller_state = controller_.get_state();
+  }
+
   // Initialize keyboard mappings
   // Normal mode mappings
   normal_mode_actions_[GDK_KEY_h] = [this]() { gui_select_prev_pos(); };
@@ -35,17 +42,20 @@ Gui<Event_t>::Gui(Controller& controller, unsigned int fps)
   normal_mode_actions_[GDK_KEY_i] = [this]() {
     state_.mode = Mode::Edit;
     state_.state_dirty = true;
+    update_window_title();
   };
 
   // Edit mode mappings
   edit_mode_actions_[GDK_KEY_Escape] = [this]() {
     state_.mode = Mode::Normal;
     state_.state_dirty = true;
+    update_window_title();
   };
 
   // Initialize GTK
   gtk_init(nullptr, nullptr);
   init_widgets();
+  update_window_title();
 }
 
 // Destructor
@@ -140,12 +150,18 @@ gboolean Gui<Event_t>::on_key_press(GtkWidget* widget, GdkEventKey* event,
   auto* gui = static_cast<Gui*>(user_data);
 
   if (gui->state_.mode == Mode::Normal) {
+    // In normal mode, we handle all keys and consume them
     gui->handle_normal_mode_key(event->keyval);
+    return TRUE; // Consume event, don't propagate to entry widgets
   } else {
-    gui->handle_edit_mode_key(event->keyval);
+    // In edit mode, check if it's the escape key
+    if (event->keyval == GDK_KEY_Escape) {
+      gui->handle_edit_mode_key(event->keyval);
+      return TRUE; // Consume escape key
+    }
+    // Allow other keys to propagate to entry widgets for editing
+    return FALSE;
   }
-
-  return FALSE; // Allow event to propagate
 }
 
 // Handle normal mode keyboard input
@@ -348,6 +364,14 @@ void Gui<Event_t>::gui_toggle_play(Seq_idx seq_idx) {
   } else {
     gui_start(seq_idx);
   }
+}
+
+// Update window title with current mode
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::update_window_title() {
+  std::string title = "MicroComposer - ";
+  title += (state_.mode == Mode::Normal) ? "NORMAL" : "EDIT";
+  gtk_window_set_title(GTK_WINDOW(window_), title.c_str());
 }
 
 } // namespace gui
