@@ -1,5 +1,6 @@
 #include "gui/gui.h"
 #include <gdk/gdkkeysyms.h>
+#include <cstring>
 #include <iostream>
 
 namespace Micro_composer {
@@ -308,6 +309,126 @@ void Gui<Event_t>::build_sequencer_widgets() {
     gtk_box_pack_start(GTK_BOX(sequencers_vbox_), widget.frame, FALSE, FALSE,
                        5);
     sequencer_widgets_.push_back(widget);
+  }
+}
+
+// Parse and apply edit to event parameter
+template <sequencable::Mut_seq_event Event_t>
+bool Gui<Event_t>::parse_and_apply_edit(Seq_idx seq_idx, Event_idx event_idx,
+                                         size_t param_idx,
+                                         const std::string& value_str) {
+  try {
+    auto param = static_cast<Premade_samples_param>(param_idx);
+
+    // Parse value based on parameter type
+    switch (param) {
+    case Premade_samples_param::Offset: {
+      // Parse milliseconds
+      char* end;
+      long ms = std::strtol(value_str.c_str(), &end, 10);
+      if (end == value_str.c_str() || (*end != '\0' && strcmp(end, "ms") != 0)) {
+        show_error("Invalid offset format. Expected: number or number followed by 'ms'");
+        return false;
+      }
+      if (ms < 0) {
+        show_error("Offset cannot be negative");
+        return false;
+      }
+      // Apply via mutate
+      auto duration = std::chrono::milliseconds(ms);
+      controller_.mutate(seq_idx, event_idx,
+                         [duration](Event_t& evt) { evt.offset = duration; });
+      return true;
+    }
+
+    case Premade_samples_param::Duration: {
+      // Parse milliseconds
+      char* end;
+      long ms = std::strtol(value_str.c_str(), &end, 10);
+      if (end == value_str.c_str() || (*end != '\0' && strcmp(end, "ms") != 0)) {
+        show_error("Invalid duration format. Expected: number or number followed by 'ms'");
+        return false;
+      }
+      if (ms <= 0) {
+        show_error("Duration must be positive");
+        return false;
+      }
+      // Apply via mutate
+      auto duration = std::chrono::milliseconds(ms);
+      controller_.mutate(seq_idx, event_idx,
+                         [duration](Event_t& evt) {
+                           evt.duration = duration;
+                           evt.generate_samples();
+                         });
+      return true;
+    }
+
+    case Premade_samples_param::Frequency: {
+      // Parse frequency (Hz)
+      char* end;
+      double freq = std::strtod(value_str.c_str(), &end);
+      if (end == value_str.c_str()) {
+        show_error("Invalid frequency format. Expected: number");
+        return false;
+      }
+      if (freq <= 0.0 || freq > 20000.0) {
+        show_error("Frequency must be between 0 and 20000 Hz");
+        return false;
+      }
+      // Apply via mutate
+      controller_.mutate(seq_idx, event_idx,
+                         [freq](Event_t& evt) {
+                           evt.frequency = freq;
+                           evt.generate_samples();
+                         });
+      return true;
+    }
+
+    case Premade_samples_param::Amplitude: {
+      // Parse amplitude (0.0 to 1.0)
+      char* end;
+      double amp = std::strtod(value_str.c_str(), &end);
+      if (end == value_str.c_str()) {
+        show_error("Invalid amplitude format. Expected: number");
+        return false;
+      }
+      if (amp < 0.0 || amp > 1.0) {
+        show_error("Amplitude must be between 0.0 and 1.0");
+        return false;
+      }
+      // Apply via mutate
+      controller_.mutate(seq_idx, event_idx,
+                         [amp](Event_t& evt) {
+                           evt.amplitude = amp;
+                           evt.generate_samples();
+                         });
+      return true;
+    }
+
+    case Premade_samples_param::Phase: {
+      // Parse phase (radians)
+      char* end;
+      double phase = std::strtod(value_str.c_str(), &end);
+      if (end == value_str.c_str()) {
+        show_error("Invalid phase format. Expected: number");
+        return false;
+      }
+      // Apply via mutate
+      controller_.mutate(seq_idx, event_idx,
+                         [phase](Event_t& evt) {
+                           evt.phase = phase;
+                           evt.generate_samples();
+                         });
+      return true;
+    }
+
+    default:
+      show_error("Unknown parameter");
+      return false;
+    }
+  } catch (const std::exception& e) {
+    show_error(std::string("Error: ") + e.what());
+    return false;
   }
 }
 
