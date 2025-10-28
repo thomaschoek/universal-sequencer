@@ -336,8 +336,10 @@ bool Gui<Event_t>::parse_and_apply_edit(Seq_idx seq_idx, Event_idx event_idx,
       }
       // Apply via mutate
       auto duration = std::chrono::milliseconds(ms);
-      controller_.mutate(seq_idx, event_idx,
-                         [duration](Event_t& evt) { evt.offset = duration; });
+      controller_.mutate(seq_idx, event_idx, [duration](Event_t&& evt) {
+        evt.offset = duration;
+        return std::move(evt);
+      });
       return true;
     }
 
@@ -355,11 +357,11 @@ bool Gui<Event_t>::parse_and_apply_edit(Seq_idx seq_idx, Event_idx event_idx,
       }
       // Apply via mutate
       auto duration = std::chrono::milliseconds(ms);
-      controller_.mutate(seq_idx, event_idx,
-                         [duration](Event_t& evt) {
-                           evt.duration = duration;
-                           evt.generate_samples();
-                         });
+      controller_.mutate(seq_idx, event_idx, [duration](Event_t&& evt) {
+        evt.duration = duration;
+        evt.generate_samples();
+        return std::move(evt);
+      });
       return true;
     }
 
@@ -376,11 +378,11 @@ bool Gui<Event_t>::parse_and_apply_edit(Seq_idx seq_idx, Event_idx event_idx,
         return false;
       }
       // Apply via mutate
-      controller_.mutate(seq_idx, event_idx,
-                         [freq](Event_t& evt) {
-                           evt.frequency = freq;
-                           evt.generate_samples();
-                         });
+      controller_.mutate(seq_idx, event_idx, [freq](Event_t&& evt) {
+        evt.frequency = freq;
+        evt.generate_samples();
+        return std::move(evt);
+      });
       return true;
     }
 
@@ -397,11 +399,11 @@ bool Gui<Event_t>::parse_and_apply_edit(Seq_idx seq_idx, Event_idx event_idx,
         return false;
       }
       // Apply via mutate
-      controller_.mutate(seq_idx, event_idx,
-                         [amp](Event_t& evt) {
-                           evt.amplitude = amp;
-                           evt.generate_samples();
-                         });
+      controller_.mutate(seq_idx, event_idx, [amp](Event_t&& evt) {
+        evt.amplitude = amp;
+        evt.generate_samples();
+        return std::move(evt);
+      });
       return true;
     }
 
@@ -414,11 +416,11 @@ bool Gui<Event_t>::parse_and_apply_edit(Seq_idx seq_idx, Event_idx event_idx,
         return false;
       }
       // Apply via mutate
-      controller_.mutate(seq_idx, event_idx,
-                         [phase](Event_t& evt) {
-                           evt.phase = phase;
-                           evt.generate_samples();
-                         });
+      controller_.mutate(seq_idx, event_idx, [phase](Event_t&& evt) {
+        evt.phase = phase;
+        evt.generate_samples();
+        return std::move(evt);
+      });
       return true;
     }
 
