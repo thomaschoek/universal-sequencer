@@ -52,10 +52,10 @@ Thread_pool<T_event>::Thread_pool(Task event_handler,
 // Destructor
 template <sequencable::Mut_seq_event T_event>
 Thread_pool<T_event>::~Thread_pool() {
-  debug_msg("MAIN THREAD Destructor starting");
+  // debug_msg("MAIN THREAD Destructor starting");
   std::scoped_lock lck{workers_mutex_, events_mutex_};
   stop_workers();
-  debug_msg("RETURNED FROM stop_workers()");
+  // debug_msg("RETURNED FROM stop_workers()");
 }
 
 template <sequencable::Mut_seq_event T_event>
@@ -100,6 +100,8 @@ void Thread_pool<T_event>::submit(T_event&& event) {
   std::scoped_lock lck{workers_mutex_};
   if (workers_idle_.load(std::memory_order_acquire) == 0) {
     workers_.push_back(std::make_unique<std::jthread>(worker()));
+    debug_msg("Launched new thread: there are now " +
+              std::to_string(workers_.size()) + " worker threads.");
   }
   cv_.notify_one();
   std::scoped_lock cv_lck{cv_mutex_};
@@ -122,7 +124,7 @@ void Thread_pool<T_event>::push_event(T_event&& evt) {
 
 template <sequencable::Mut_seq_event T_event>
 inline T_event Thread_pool<T_event>::pop_event() {
-  debug_msg("pop_event()");
+  // debug_msg("pop_event()");
   std::scoped_lock lck{events_mutex_};
   if (events_.empty()) {
     throw std::runtime_error(
@@ -138,16 +140,15 @@ inline T_event Thread_pool<T_event>::pop_event() {
 template <sequencable::Mut_seq_event T_event>
 std::jthread Thread_pool<T_event>::worker() {
   return std::jthread([this](std::stop_token st) {
-    debug_msg("LAUNCHED NEW THREAD");
     thread_local T_event event;
     while (!st.stop_requested()) {
       workers_idle_.fetch_add(1, std::memory_order_acq_rel);
       {
         std::unique_lock lck{cv_mutex_};
         while (new_events_.load(std::memory_order_acquire) == 0) {
-          debug_msg("WAITING on cv_");
+          // debug_msg("WAITING on cv_");
           cv_.wait(lck);
-          debug_msg("NOTIFIED");
+          // debug_msg("NOTIFIED");
           if (st.stop_requested()) {
             workers_idle_.fetch_sub(1, std::memory_order_acq_rel);
             return;
@@ -161,12 +162,12 @@ std::jthread Thread_pool<T_event>::worker() {
           debug_msg(std::string("EXCEPTION in pop_event(): ") + e.what());
           continue;
         }
-        debug_msg("POPPED EVENT with scheduled_time " +
-                  std::to_string(
-                      std::chrono::duration_cast<std::chrono::milliseconds>(
-                          event.scheduled_time.time_since_epoch())
-                          .count()) +
-                  " ms");
+        // debug_msg("POPPED EVENT with scheduled_time " +
+        //                  std::to_string(
+        //                      std::chrono::duration_cast<std::chrono::milliseconds>(
+        //                          event.scheduled_time.time_since_epoch())
+        //                          .count()) +
+        //                  " ms");
       }
       std::this_thread::sleep_until(event.scheduled_time - spin_duration_);
       while (Clock::now() < event.scheduled_time) {
@@ -174,9 +175,9 @@ std::jthread Thread_pool<T_event>::worker() {
           return;
         }
       }
-      debug_msg("CALLING HANDLER");
+      // debug_msg("CALLING HANDLER");
       handler_(std::forward<T_event>(event));
-      debug_msg("RETURNED FROM HANDLER");
+      // debug_msg("RETURNED FROM HANDLER");
     }
   });
 }

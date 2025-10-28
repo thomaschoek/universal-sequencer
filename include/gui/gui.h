@@ -6,11 +6,23 @@
 #include <chrono>
 #include <functional>
 #include <gtk/gtk.h>
+#include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace Micro_composer {
 
 namespace gui {
+
+// Parameter mapping for Premade_samples event type
+enum class Premade_samples_param {
+  Offset = 0,
+  Duration = 1,
+  Frequency = 2,
+  Amplitude = 3,
+  Phase = 4,
+  COUNT = 5 // Number of parameters
+};
 
 template <sequencable::Mut_seq_event Event_t> class Gui {
 public:
@@ -24,6 +36,17 @@ public:
 
   // GUI operation modes (vim-like)
   enum class Mode { Normal, Edit };
+
+  // Sequencer widget structure (holds GTK widgets for one sequencer)
+  struct Sequencer_widget {
+    GtkWidget* frame{nullptr};        // Outer frame with border
+    GtkWidget* header_label{nullptr}; // Status label
+    GtkWidget* vbox{nullptr};         // Vertical box container
+    GtkWidget* grid{nullptr};         // Grid for parameter rows
+    std::vector<GtkWidget*> row_labels; // Labels for parameter names
+    std::vector<std::vector<GtkWidget*>>
+        cells; // [param_idx][event_idx] = entry
+  };
 
   // GUI-specific state
   struct Gui_state {
@@ -91,6 +114,31 @@ private:
                               Event_idx new_pos);
   void update_window_title();
   void focus_selected_cell();
+  void build_column_headers();
+  void build_sequencer_widgets();
+
+  // Parameter formatting and parsing (Premade_samples specific)
+  std::string format_param_value(const Event_t& event, size_t param_idx) const;
+  bool parse_and_apply_edit(Seq_idx seq_idx, Event_idx event_idx,
+                            size_t param_idx, const std::string& value_str);
+  std::string get_param_name(size_t param_idx) const;
+
+  // Error handling
+  void show_error(const std::string& message);
+  static gboolean clear_error_timeout(gpointer user_data);
+
+  // Entry widget callbacks
+  static void on_entry_focus_out(GtkWidget* widget, GdkEventFocus* event,
+                                  gpointer user_data);
+  static void on_entry_activate(GtkEntry* entry, gpointer user_data);
+
+  // User data for entry callbacks
+  struct Entry_user_data {
+    Gui* gui;
+    Seq_idx seq_idx;
+    Event_idx event_idx;
+    size_t param_idx;
+  };
 
   // Data members
   Controller& controller_;
@@ -101,8 +149,15 @@ private:
 
   // GTK widgets
   GtkWidget* window_{nullptr};
-  GtkWidget* grid_{nullptr};
-  std::vector<std::vector<GtkWidget*>> cell_entries_;
+  GtkWidget* main_vbox_{nullptr};        // Main vertical container
+  GtkWidget* column_header_{nullptr};    // Column headers (event indices)
+  GtkWidget* scrolled_window_{nullptr};  // Scrollable area
+  GtkWidget* sequencers_vbox_{nullptr};  // Container for sequencer widgets
+  GtkWidget* error_label_{nullptr};      // Error message display
+  std::vector<Sequencer_widget> sequencer_widgets_;
+
+  // Error message timeout
+  guint error_timeout_id_{0};
 
   // Keyboard event mapping
   std::unordered_map<guint, Controller_action> normal_mode_actions_;

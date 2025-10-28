@@ -84,7 +84,7 @@ void Gui<Event_t>::init_widgets() {
   // Create main window
   window_ = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_window_set_title(GTK_WINDOW(window_), "MicroComposer");
-  gtk_window_set_default_size(GTK_WINDOW(window_), 800, 600);
+  gtk_window_set_default_size(GTK_WINDOW(window_), 1000, 700);
 
   // Connect destroy signal
   g_signal_connect(window_, "destroy", G_CALLBACK(gtk_main_quit), nullptr);
@@ -100,16 +100,32 @@ void Gui<Event_t>::init_widgets() {
       gdk_screen_get_default(), GTK_STYLE_PROVIDER(css_provider),
       GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
 
-  // Create scrolled window
-  GtkWidget* scrolled_window = gtk_scrolled_window_new(nullptr, nullptr);
-  gtk_container_add(GTK_CONTAINER(window_), scrolled_window);
+  // Create main vertical box
+  main_vbox_ = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+  gtk_container_add(GTK_CONTAINER(window_), main_vbox_);
 
-  // Create grid
-  grid_ = gtk_grid_new();
-  gtk_widget_set_name(grid_, "sequencer-grid");
-  gtk_container_add(GTK_CONTAINER(scrolled_window), grid_);
+  // Create error label (initially hidden)
+  error_label_ = gtk_label_new("");
+  gtk_widget_set_name(error_label_, "error-label");
+  gtk_box_pack_start(GTK_BOX(main_vbox_), error_label_, FALSE, FALSE, 0);
+  gtk_widget_set_no_show_all(error_label_, TRUE); // Don't show by default
 
-  build_grid();
+  // Create column headers
+  build_column_headers();
+  if (column_header_) {
+    gtk_box_pack_start(GTK_BOX(main_vbox_), column_header_, FALSE, FALSE, 0);
+  }
+
+  // Create scrolled window for sequencer widgets
+  scrolled_window_ = gtk_scrolled_window_new(nullptr, nullptr);
+  gtk_box_pack_start(GTK_BOX(main_vbox_), scrolled_window_, TRUE, TRUE, 0);
+
+  // Create vertical box to hold sequencer widgets
+  sequencers_vbox_ = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+  gtk_container_add(GTK_CONTAINER(scrolled_window_), sequencers_vbox_);
+
+  // Build sequencer widgets
+  build_sequencer_widgets();
 }
 
 // Build the grid of entry widgets
