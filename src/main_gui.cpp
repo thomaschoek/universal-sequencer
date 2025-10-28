@@ -89,6 +89,9 @@ int main(int argc, char** argv) {
     Poly_sequencer_controller<Premade_samples> controller(handler_factory,
                                                           sequences);
 
+    // Enable all events so they can produce sound
+    controller.enable();
+
     // Create and run GUI
     Gui<Premade_samples> gui(controller, 50); // 50 FPS
 
