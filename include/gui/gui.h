@@ -3,24 +3,97 @@
 
 #include "controller/poly_sequencer_controller.h"
 #include "sequencable/concepts.h"
+#include <chrono>
+#include <functional>
 #include <gtk/gtk.h>
+#include <unordered_map>
 
 namespace Micro_composer {
 
 namespace gui {
 
-template <sequencable::Mut_seq_event Event_t> struct Gui {
-  // Provides a graphical user interface to numerous sequencers controlled by a
-  // Poly_sequencer_controller
+template <sequencable::Mut_seq_event Event_t> class Gui {
+public:
   using Controller = controller::Poly_sequencer_controller<Event_t>;
   using Controller_state = Controller::State;
   using Sequencer = Controller::Sequencer_t;
+  using Seq_idx = Controller::Seq_idx;
+  using Event_idx = Controller::Event_idx;
+  using Clock = std::chrono::steady_clock;
+  using Duration = std::chrono::duration<double>;
+
+  // GUI operation modes (vim-like)
+  enum class Mode { Normal, Edit };
+
+  // GUI-specific state
+  struct Gui_state {
+    // Reference to controller state (controller owns it)
+    Controller_state controller_state;
+
+    // Per-sequencer GUI state
+    struct Per_sequencer_gui_state {
+      Event_idx last_rendered_playhead{0};
+      bool playhead_visible{false};
+    };
+    std::vector<Per_sequencer_gui_state> sequencer_gui_states;
+
+    // Global GUI state
+    Mode mode{Mode::Normal};
+    bool state_dirty{true}; // True on first render
+  };
+
+  // Constructor
+  explicit Gui(Controller& controller, unsigned int fps = 50);
+
+  // Destructor
+  ~Gui();
+
+  // Run the GUI event loop
+  void run();
 
 private:
-  // Maybe the event loop should be static so that it can run on its own thread?
-  // Or maybe not?
-  static void event_loop(Gui& gui, Controller& controller,
-                         unsigned int fps = 50);
+  // Controller actions (mapped to keyboard events)
+  using Controller_action = std::function<void()>;
+
+  // Event loop components
+  void process_input_events();
+  void update_playheads();
+  void render();
+
+  // GTK callbacks
+  static gboolean on_key_press(GtkWidget* widget, GdkEventKey* event,
+                                gpointer user_data);
+  static gboolean on_tick(gpointer user_data);
+
+  // Keyboard event handlers
+  void handle_normal_mode_key(guint keyval);
+  void handle_edit_mode_key(guint keyval);
+
+  // Initialize GTK widgets
+  void init_widgets();
+  void build_grid();
+
+  // Rendering helpers
+  void render_grid();
+  void update_cell(Seq_idx seq_idx, Event_idx event_idx);
+  void update_playhead_visual(Seq_idx seq_idx, Event_idx old_pos,
+                              Event_idx new_pos);
+
+  // Data members
+  Controller& controller_;
+  Gui_state state_;
+  unsigned int fps_;
+  Duration frame_duration_;
+  bool running_{false};
+
+  // GTK widgets
+  GtkWidget* window_{nullptr};
+  GtkWidget* grid_{nullptr};
+  std::vector<std::vector<GtkWidget*>> cell_entries_;
+
+  // Keyboard event mapping
+  std::unordered_map<guint, Controller_action> normal_mode_actions_;
+  std::unordered_map<guint, Controller_action> edit_mode_actions_;
 };
 
 } // namespace gui
