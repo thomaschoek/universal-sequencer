@@ -332,19 +332,22 @@ void Gui<Event_t>::gui_select_prev_pos() {
 
 template <sequencable::Mut_seq_event Event_t>
 void Gui<Event_t>::gui_start(Seq_idx seq_idx) {
-  controller_.start(seq_idx);
+  auto start_time = Controller::Clock::now() + std::chrono::milliseconds(50);
+  controller_.start(seq_idx, start_time, true); // true for repeat
   state_.state_dirty = true;
 }
 
 template <sequencable::Mut_seq_event Event_t>
 void Gui<Event_t>::gui_pause(Seq_idx seq_idx) {
-  controller_.pause(seq_idx);
+  auto pause_time = Controller::Clock::now() + std::chrono::milliseconds(50);
+  controller_.pause(seq_idx, pause_time);
   state_.state_dirty = true;
 }
 
 template <sequencable::Mut_seq_event Event_t>
 void Gui<Event_t>::gui_stop(Seq_idx seq_idx) {
-  controller_.stop(seq_idx);
+  auto stop_time = Controller::Clock::now() + std::chrono::milliseconds(50);
+  controller_.stop(seq_idx, stop_time, 0); // 0 = reset to position 0
 
   // Update playhead visual to position 0
   if (seq_idx < state_.sequencer_gui_states.size()) {
