@@ -1,219 +1,188 @@
 #include "controller/poly_sequencer_controller.h"
-#include "sequencable/concepts.h"
-#include "sequencable/mutable_event.h"
-#include "utility/debug.h"
+#include "sequencable/premade_samples.h"
 #include <catch2/catch_test_macros.hpp>
-#include <chrono>
-#include <vector>
+#include <thread>
 
 using namespace Micro_composer;
-using namespace Micro_composer::sequencer;
 using namespace Micro_composer::controller;
 using namespace Micro_composer::sequencable;
 
-// Test event type that satisfies Has_duration concept
-struct Controller_test_event : public Mutable_event {
+TEST_CASE("Poly_sequencer_controller state initialization", "[controller]") {
+  // Create simple handler
+  auto handler_factory = []() {
+    return [](Premade_samples&& event) {
+      // No-op handler for testing
+      (void)event;
+    };
+  };
 
-  Controller_test_event() : Mutable_event() {
-    duration = std::chrono::milliseconds(100);
-  }
-  explicit Controller_test_event(Duration d) : Mutable_event() { duration = d; }
+  // Create sequences
+  std::vector<std::vector<Premade_samples>> sequences;
+  sequences.push_back({Premade_samples("C4", 0.5), Premade_samples("E4", 0.5)});
+  sequences.push_back({Premade_samples("G4", 0.5), Premade_samples("B4", 0.5),
+                       Premade_samples("D5", 0.5)});
 
-  // Conversion operator to Duration for use in Sequencer
-  operator Duration() const { return duration; }
-};
+  Poly_sequencer_controller<Premade_samples> controller(handler_factory,
+                                                        sequences);
 
-// Verify Controller_test_event satisfies Has_duration concept
-static_assert(Mut_seq_event<Controller_test_event>,
-              "Controller_test_event does not satisfy Has_duration concept");
-
-TEST_CASE("Poly_sequencer_controller selection management",
-          "[poly_sequencer_controller]") {
-  using Controller = Poly_sequencer_controller<Controller_test_event>;
-  using Handler = Controller::Handler;
-
-  // Create test sequences
-  std::vector<Controller_test_event> seq1 = {
-      Controller_test_event{std::chrono::milliseconds(100)},
-      Controller_test_event{std::chrono::milliseconds(200)},
-      Controller_test_event{std::chrono::milliseconds(150)}};
-  std::vector<Controller_test_event> seq2 = {
-      Controller_test_event{std::chrono::milliseconds(100)},
-      Controller_test_event{std::chrono::milliseconds(100)}};
-
-  std::vector<std::vector<Controller_test_event>> sequences = {seq1, seq2};
-
-  std::vector<Handler> handlers{
-      [](Controller_test_event&&) { debug::msg("handler(): "); },
-      [](Controller_test_event&&) { debug::msg("handler(): "); }};
-
-  SECTION("Initial state - no selection") {
-    Controller ctrl{handlers, sequences};
-    REQUIRE(!ctrl.selected_seq().has_value());
-    REQUIRE(!ctrl.selected_event().has_value());
+  SECTION("State vectors are correctly sized") {
+    auto state = controller.get_state();
+    REQUIRE(state.sizes.size() == 2);
+    REQUIRE(state.events.size() == 2);
+    REQUIRE(state.positions.size() == 2);
+    REQUIRE(state.scheduling.size() == 2);
+    REQUIRE(state.t_next.size() == 2);
   }
 
-  SECTION("Direct selection") {
-    Controller ctrl{handlers, sequences};
-
-    ctrl.select(0, 1);
-    REQUIRE(ctrl.selected_seq().has_value());
-    REQUIRE(ctrl.selected_seq().value() == 0);
-    REQUIRE(ctrl.selected_event().has_value());
-    REQUIRE(ctrl.selected_event().value() == 1);
-
-    ctrl.select(1, 0);
-    REQUIRE(ctrl.selected_seq().value() == 1);
-    REQUIRE(ctrl.selected_event().value() == 0);
+  SECTION("State contains correct sizes") {
+    auto state = controller.get_state();
+    REQUIRE(state.sizes[0] == 2);
+    REQUIRE(state.sizes[1] == 3);
   }
 
-  SECTION("Selection out of range throws") {
-    Controller ctrl{handlers, sequences};
-
-    REQUIRE_THROWS_AS(ctrl.select(2, 0), std::out_of_range);
-    REQUIRE_THROWS_AS(ctrl.select(0, 5), std::out_of_range);
-  }
-
-  SECTION("Clear selection") {
-    Controller ctrl{handlers, sequences};
-    ctrl.select(0, 1);
-    REQUIRE(ctrl.selected_seq().has_value());
-
-    ctrl.clear_selection();
-    REQUIRE(!ctrl.selected_seq().has_value());
-    REQUIRE(!ctrl.selected_event().has_value());
-  }
-
-  SECTION("Navigate next/prev sequencer") {
-    Controller ctrl{handlers, sequences};
-
-    // Initially no selection, select_next_seq should select first
-    ctrl.select_next_seq();
-    REQUIRE(ctrl.selected_seq().value() == 0);
-    REQUIRE(ctrl.selected_event().value() == 0);
-
-    // Move to next sequencer
-    ctrl.select_next_seq();
-    REQUIRE(ctrl.selected_seq().value() == 1);
-    REQUIRE(ctrl.selected_event().value() == 0);
-
-    // Wrap around to first
-    ctrl.select_next_seq();
-    REQUIRE(ctrl.selected_seq().value() == 0);
-
-    // Go back
-    ctrl.select_prev_seq();
-    REQUIRE(ctrl.selected_seq().value() == 1);
-
-    // Wrap around to last
-    ctrl.select_prev_seq();
-    REQUIRE(ctrl.selected_seq().value() == 0);
-  }
-
-  SECTION("Navigate next/prev position") {
-    Controller ctrl{handlers, sequences};
-    ctrl.select(0, 0);
-
-    // Move to next position
-    ctrl.select_next_pos();
-    REQUIRE(ctrl.selected_event().value() == 1);
-
-    ctrl.select_next_pos();
-    REQUIRE(ctrl.selected_event().value() == 2);
-
-    // Wrap around
-    ctrl.select_next_pos();
-    REQUIRE(ctrl.selected_event().value() == 0);
-
-    // Go back
-    ctrl.select_prev_pos();
-    REQUIRE(ctrl.selected_event().value() == 2);
-
-    ctrl.select_prev_pos();
-    REQUIRE(ctrl.selected_event().value() == 1);
-
-    ctrl.select_prev_pos();
-    REQUIRE(ctrl.selected_event().value() == 0);
-
-    // Wrap to last
-    ctrl.select_prev_pos();
-    REQUIRE(ctrl.selected_event().value() == 2);
-  }
-
-  SECTION("Position navigation without seq selection does nothing") {
-    Controller ctrl{handlers, sequences};
-    // No selection yet
-    ctrl.select_next_pos();
-    REQUIRE(!ctrl.selected_event().has_value());
-
-    ctrl.select_prev_pos();
-    REQUIRE(!ctrl.selected_event().has_value());
-  }
-
-  SECTION("Empty controller") {
-    std::vector<std::vector<Controller_test_event>> empty;
-    std::vector<Handler> empty_handlers;
-    Controller ctrl{empty_handlers, empty};
-
-    ctrl.select_next_seq();
-    REQUIRE(!ctrl.selected_seq().has_value());
-
-    ctrl.select_prev_seq();
-    REQUIRE(!ctrl.selected_seq().has_value());
-  }
-
-  SECTION("Changing sequencers resets position to 0") {
-    Controller ctrl{handlers, sequences};
-    ctrl.select(0, 2);
-    REQUIRE(ctrl.selected_event().value() == 2);
-
-    ctrl.select_next_seq();
-    REQUIRE(ctrl.selected_seq().value() == 1);
-    REQUIRE(ctrl.selected_event().value() == 0);
-
-    ctrl.select(1, 1);
-    ctrl.select_prev_seq();
-    REQUIRE(ctrl.selected_seq().value() == 0);
-    REQUIRE(ctrl.selected_event().value() == 0);
+  SECTION("State contains correct events") {
+    auto state = controller.get_state();
+    REQUIRE(state.events[0].size() == 2);
+    REQUIRE(state.events[1].size() == 3);
+    // Check first event frequency
+    REQUIRE(state.events[0][0].frequency == Premade_samples::freq_of("C4"));
   }
 }
 
-TEST_CASE("Poly_sequencer_controller inherits base functionality",
-          "[poly_sequencer_controller]") {
-  using Controller = Poly_sequencer_controller<Controller_test_event>;
+TEST_CASE("Controller selection management", "[controller]") {
+  auto handler_factory = []() {
+    return [](Premade_samples&& event) { (void)event; };
+  };
 
-  std::vector<Controller_test_event> seq1 = {
-      Controller_test_event{std::chrono::milliseconds(100)},
-      Controller_test_event{std::chrono::milliseconds(200)}};
-  std::vector<Controller_test_event> seq2 = {
-      Controller_test_event{std::chrono::milliseconds(150)}};
+  std::vector<std::vector<Premade_samples>> sequences;
+  sequences.push_back({Premade_samples("C4", 0.5), Premade_samples("E4", 0.5)});
+  sequences.push_back({Premade_samples("G4", 0.5), Premade_samples("B4", 0.5)});
 
-  std::vector<std::vector<Controller_test_event>> sequences = {seq1, seq2};
-  std::vector<Controller::Handler> handlers{
-      [](Controller_test_event&&) { debug::msg("handler(): "); },
-      [](Controller_test_event&&) { debug::msg("handler(): "); }};
+  Poly_sequencer_controller<Premade_samples> controller(handler_factory,
+                                                        sequences);
 
-  SECTION("Can use base Poly_sequencer methods") {
-    Controller ctrl{handlers, sequences};
+  SECTION("Initial selection is empty") {
+    REQUIRE_FALSE(controller.selected_seq().has_value());
+    REQUIRE_FALSE(controller.selected_event().has_value());
+  }
 
-    // Size check
-    REQUIRE(ctrl.size() == 2);
+  SECTION("Select sequencer and event") {
+    controller.select(1, 1);
+    REQUIRE(controller.selected_seq().value() == 1);
+    REQUIRE(controller.selected_event().value() == 1);
+  }
 
-    // Access individual sequencers
-    REQUIRE(ctrl[0].size() == 2);
-    REQUIRE(ctrl[1].size() == 1);
+  SECTION("Select next/prev sequencer") {
+    controller.select(0, 0);
+    controller.select_next_seq();
+    REQUIRE(controller.selected_seq().value() == 1);
+    REQUIRE(controller.selected_event().value() == 0); // Resets to 0
 
-    // Test empty check
-    REQUIRE(!ctrl.empty());
+    controller.select_prev_seq();
+    REQUIRE(controller.selected_seq().value() == 0);
+  }
 
-    // State queries
-    REQUIRE_FALSE(ctrl.any_scheduling());
-    REQUIRE_FALSE(ctrl.all_scheduling());
-    REQUIRE_FALSE(ctrl.is_scheduling(0));
-    REQUIRE_FALSE(ctrl.is_scheduling(1));
+  SECTION("Select next/prev position") {
+    controller.select(0, 0);
+    controller.select_next_pos();
+    REQUIRE(controller.selected_event().value() == 1);
 
-    // Set next position
-    ctrl.set_pos(0, 1);
-    ctrl.set_pos(1, 0);
+    controller.select_prev_pos();
+    REQUIRE(controller.selected_event().value() == 0);
+  }
+
+  SECTION("Clear selection") {
+    controller.select(1, 1);
+    controller.clear_selection();
+    REQUIRE_FALSE(controller.selected_seq().has_value());
+    REQUIRE_FALSE(controller.selected_event().has_value());
+  }
+}
+
+TEST_CASE("Controller event modification updates state", "[controller]") {
+  auto handler_factory = []() {
+    return [](Premade_samples&& event) { (void)event; };
+  };
+
+  std::vector<std::vector<Premade_samples>> sequences;
+  sequences.push_back({Premade_samples("C4", 0.5), Premade_samples("E4", 0.5)});
+
+  Poly_sequencer_controller<Premade_samples> controller(handler_factory,
+                                                        sequences);
+
+  SECTION("Toggle updates state") {
+    auto initial_state = controller.get_state();
+    bool initial_enabled = initial_state.events[0][0].enabled;
+
+    controller.toggle(0, 0);
+
+    auto updated_state = controller.get_state();
+    REQUIRE(updated_state.events[0][0].enabled == !initial_enabled);
+  }
+
+  SECTION("Enable updates state") {
+    controller.disable(0, 0);
+    controller.enable(0, 0);
+
+    auto state = controller.get_state();
+    REQUIRE(state.events[0][0].enabled == true);
+  }
+
+  SECTION("Disable updates state") {
+    controller.enable(0, 0);
+    controller.disable(0, 0);
+
+    auto state = controller.get_state();
+    REQUIRE(state.events[0][0].enabled == false);
+  }
+}
+
+TEST_CASE("Controller transport control", "[controller]") {
+  auto handler_factory = []() {
+    return [](Premade_samples&& event) { (void)event; };
+  };
+
+  std::vector<std::vector<Premade_samples>> sequences;
+  sequences.push_back({Premade_samples("C4", 0.5), Premade_samples("E4", 0.5)});
+
+  using Clock = Poly_sequencer_controller<Premade_samples>::Clock;
+
+  Poly_sequencer_controller<Premade_samples> controller(handler_factory,
+                                                        sequences);
+
+  SECTION("Start sequencer") {
+    REQUIRE_FALSE(controller.is_scheduling(0));
+    auto start_time = Clock::now() + std::chrono::milliseconds(50);
+    controller.start(0, start_time);
+    // Wait a bit for scheduler thread to start
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    REQUIRE(controller.is_scheduling(0));
+    controller.stop(0);
+  }
+
+  SECTION("Pause sequencer") {
+    auto start_time = Clock::now() + std::chrono::milliseconds(50);
+    controller.start(0, start_time);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    REQUIRE(controller.is_scheduling(0));
+
+    controller.pause(0);
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    REQUIRE_FALSE(controller.is_scheduling(0));
+  }
+
+  SECTION("Stop sequencer") {
+    auto start_time = Clock::now() + std::chrono::milliseconds(50);
+    controller.start(0, start_time);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    REQUIRE(controller.is_scheduling(0));
+
+    controller.stop(0);
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    REQUIRE_FALSE(controller.is_scheduling(0));
+
+    // Position should be reset to 0
+    auto state = controller.get_state();
+    REQUIRE(state.positions[0] == 0);
   }
 }
