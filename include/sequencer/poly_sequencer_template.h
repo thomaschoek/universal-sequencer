@@ -88,6 +88,8 @@ public:
   void for_each(Seq_idx, const std::function<void(Event_t&)>&);
   void for_each_all(const std::function<void(Event_t&)>&);
 
+  void mutate(Seq_idx, Event_idx, const typename Sequencer_t::Mutator&);
+
   void replace(Seq_idx, typename Sequencer_t::Size_type pos,
                const Event_t& event);
   void replace(Seq_idx, typename Sequencer_t::Size_type start,

@@ -369,6 +369,16 @@ void Poly_sequencer<T_event>::for_each_all(
 }
 
 template <sequencable::Mut_seq_event T_event>
+void Poly_sequencer<T_event>::mutate(Seq_idx seq, Event_idx pos,
+                                     const typename Sequencer_t::Mutator& mutator) {
+  std::scoped_lock lck{transport_mutex_};
+  if (seq >= Base_vector::size()) {
+    throw std::out_of_range("Poly_sequencer::mutate: Sequence index out of range.");
+  }
+  Base_vector::operator[](seq).mutate(pos, mutator);
+}
+
+template <sequencable::Mut_seq_event T_event>
 void Poly_sequencer<T_event>::replace(Seq_idx idx,
                                       typename Sequencer_t::Size_type pos,
                                       const T_event& event) {
