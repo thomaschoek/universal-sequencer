@@ -38,8 +38,10 @@ inline void debug_msg(std::string msg, std::ostream& stream = std::cerr) {
 
 template <sequencable::Mut_seq_event T_event>
 Thread_pool<T_event>::Thread_pool(Task event_handler,
-                                  Size_type initial_n_threads)
-    : handler_{event_handler} {
+                                  Size_type initial_n_threads,
+                                  Size_type max_threads)
+    : handler_{event_handler},
+      max_threads_{max_threads == 0 ? std::thread::hardware_concurrency() * 2 : max_threads} {
   if (handler_ == nullptr) {
     throw std::invalid_argument("Thread_pool: event_handler cannot be null");
   }
@@ -59,7 +61,8 @@ Thread_pool<T_event>::~Thread_pool() {
 }
 
 template <sequencable::Mut_seq_event T_event>
-Thread_pool<T_event>::Thread_pool(Thread_pool&& other) noexcept {
+Thread_pool<T_event>::Thread_pool(Thread_pool&& other) noexcept
+    : max_threads_{other.max_threads_} {
   {
     std::scoped_lock lck{other.events_mutex_};
     events_ = std::move(other.events_);
@@ -98,14 +101,18 @@ template <sequencable::Mut_seq_event T_event>
 void Thread_pool<T_event>::submit(T_event&& event) {
   push_event(std::forward<T_event>(event));
   std::scoped_lock lck{workers_mutex_};
-  if (workers_idle_.load(std::memory_order_acquire) == 0) {
+  const Size_type workers_idle = workers_idle_.load(std::memory_order_acquire);
+
+  // Only create new thread if: no idle workers, AND below max limit
+  if (workers_idle == 0 && workers_.size() < max_threads_) {
     workers_.push_back(std::make_unique<std::jthread>(worker()));
     debug_msg("Launched new thread: there are now " +
               std::to_string(workers_.size()) + " worker threads.");
   }
   cv_.notify_one();
+
+  // Remove excess idle workers
   std::scoped_lock cv_lck{cv_mutex_};
-  const Size_type workers_idle = workers_idle_.load(std::memory_order_acquire);
   if (workers_idle > 1 && workers_idle > std::thread::hardware_concurrency()) {
     debug_msg("Too many idle workers (" + std::to_string(workers_idle) +
               "), removing one worker thread");

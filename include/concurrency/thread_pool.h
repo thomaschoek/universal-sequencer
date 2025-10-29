@@ -29,7 +29,8 @@ template <sequencable::Mut_seq_event T_event> struct Thread_pool {
   using Time_point = Common_types::Time_point;
 
   Thread_pool(Task event_handler = std::function<void>{[]() {}},
-              Size_type initial_n_threads = 0);
+              Size_type initial_n_threads = 0,
+              Size_type max_threads = 0);
 
   // Destructor - wake up all waiting workers
   ~Thread_pool();
@@ -64,6 +65,7 @@ private:
   std::mutex cv_mutex_;
 
   std::atomic<Size_type> workers_idle_{0};
+  Size_type max_threads_;
 
   Worker_vector workers_;
   std::mutex workers_mutex_;
