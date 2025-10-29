@@ -80,6 +80,7 @@ thread or on lock-free thread-safety mechanisms used by the scheduler thread. I 
 
 ## Git Workflow
 - Follow git conventional commits syntax and style (see https://conventionalcommits.org for reference)
+- ANYTIME you to make a todo-list to accomplish a task I give you, make SEPARATE git commits for EACH item in the todo-list (but only if the item includes code changes)
 - Do NOT commit too many changes at once
 - Each time you finish writing the code for a new class, type or interface, write unit tests for it, recompile and test until it works, and then make a git commit with the message 'feat: new class Name', replacing 'Name' with the actual name of the class. This commit should include the class declaration, definition and the unit tests for it.
 - make a separate git commit for each set of changes that is as small as possible, such that each committed set of changes starts from a fully functioning codebase and results again in a fully functional codebase

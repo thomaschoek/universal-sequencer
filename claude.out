@@ -158,3 +158,89 @@ thread or on lock-free thread-safety mechanisms used by the scheduler thread. I 
   };
 
   Or if you want to avoid Boost, use std::atomic with indices for a ring buffer.
+
+
+
+
+---------
+
+2025-10-29
+
+ALSA Sequencer Architecture Summary
+
+  You asked about the ALSA sequencer design. Here are the key insights:
+
+  Design Principles
+
+  1. Separation of Concerns
+    - Core only does: scheduling events + dispatching at right time
+    - All MIDI processing happens in clients
+    - Your MicroComposer already follows this! Your Sequencer schedules, handlers process.
+  2. Client-Port Architecture
+    - Each snd_seq_open() creates a client
+    - Clients have multiple ports (connection points)
+    - Ports have capability flags (read/write/subs)
+  3. Subscription Model
+    - Ports connect via subscriptions (like UNIX pipes)
+    - Event destination: SND_SEQ_ADDRESS_SUBSCRIBERS routes to all connected clients
+    - Enables flexible rerouting without restarting apps
+  4. Dual-Queue Timing
+    - Real-time queue: Wallclock (nanoseconds)
+    - Tick queue: Musical time (tempo-based)
+    - Your Sequencer uses real-time (steady_clock) - aligns with ALSA's real-time queue
+  5. Isolated Memory Pools
+    - Each client has separate input/output buffers
+    - Prevents one client from starving others
+    - Your thread-pool approach provides similar isolation
+
+  What They Do Better
+
+  - Subscription routing: Apps connect declaratively, runtime rerouting
+  - Dual timing: Supports tempo changes without recalculating all timestamps
+  - Zero-copy: Events stay in kernel until dispatched
+
+  What You Do Better
+
+  - Lock-free design: Your priority on scheduler thread
+  - Type-safe events: C++ templates vs C unions
+  - Modern concurrency: C++20 features vs kernel synchronization primitives
+
+  Key Takeaway
+
+  ALSA sequencer is a routing + scheduling service. Your MicroComposer is an event scheduling engine. They operate at different abstraction levels:
+
+  - ALSA: System-wide MIDI patchbay
+  - MicroComposer: Application-level sequencer with precise timing
+
+  You can use ALSA's client/port system for I/O while keeping your superior scheduling logic.
+
+  ---
+  Resources for Deep Dive
+
+  1. ALSA Sequencer API: https://alsa-project.org/alsa-doc/alsa-lib/seq.html
+  2. Kernel Design: https://docs.kernel.org/sound/designs/
+  3. Craig Sapp's Tutorials: https://ccrma.stanford.edu/~craig/articles/linuxmidi/
+  4. libremidi Docs: https://celtera.github.io/libremidi/
+
+  ---
+  Questions for You
+
+  Before I proceed with implementation:
+
+  1. Scope: Start with just CLI MIDI output, or implement full GUI support immediately?
+  2. Note-off strategy: Should I auto-generate note-off events when building sequences (Option C), or prefer a different approach?
+  3. Port selection: Hard-code port 0 for testing, or build port discovery/selection UI?
+  4. Dependencies: Okay to add libremidi as git submodule, or prefer CMake FetchContent?
+
+  ---
+  Answers to questions:
+  1. Scope: start with just CLI MIDI output
+  2. Note-off strategy: I propose that the Midi_event generates both the note-on and the note-off events in the Midi_event::to_midi_message(). If you wish, replace this method with Midi_event::to_midi_messages(), so that it returns 2 messages (one for note on and one for note off). So it may return a struct Midi_event::Message like this: ```
+struct Message {
+  libremidi::message note_on;
+  libremidi::message note_off;
+}
+```. Then, the handler for Midi_event will send the note_on message, and then send the note_off message after the duration of the event has passed.
+  SIDE NOTE: maybe we should just put a handler() function on every Event struct, since member functions are stored statically anyway and do not contribute to the size of the Event struct, and this will ensure that every type of event automatically has the right handler, remove the need to pass handlers to sequencers, make it more OOP etc. :)
+  3. Port selection: build port discovery/selection UI.
+  4. Dependencies: I would say just use CMake FetchContent (that seems easier to me), or do you have specific reasons to prefer a git submodule?
