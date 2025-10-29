@@ -53,6 +53,7 @@ void RealTimeAudioOutput::write(const std::vector<double>& samples) {
     fwrite(&sample_16, sizeof(int16_t), 1, pacat_pipe);
   }
   // Don't flush immediately - let OS buffer for better performance
+  // fflush(pacat_pipe);
 }
 
 } // namespace synth
