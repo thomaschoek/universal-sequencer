@@ -12,6 +12,8 @@ struct Mutable_event : public Event {
   // Default constructor required by Seq_event concept
   Mutable_event() = default;
 
+  Mutable_event(Duration dur) : Event{dur} {}
+
   Mutable_event(Duration dur, Time_point time) : Event{dur, time} {}
 
   void set_duration(Duration dur) { duration = dur; }

@@ -11,6 +11,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 # Generate compile_commands.json for clangd
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Fetch libremidi
+include(FetchContent)
+FetchContent_Declare(
+  libremidi
+  GIT_REPOSITORY https://github.com/celtera/libremidi.git
+  GIT_TAG v5.3.1
+)
+FetchContent_MakeAvailable(libremidi)
+
 # Find GTK3
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
@@ -39,6 +48,16 @@ add_executable(MicroComposer
 target_link_libraries(MicroComposer ${GTK3_LIBRARIES})
 target_link_directories(MicroComposer PRIVATE ${GTK3_LIBRARY_DIRS})
 target_compile_options(MicroComposer PRIVATE ${GTK3_CFLAGS_OTHER})
+
+# Add MIDI executable
+add_executable(MicroComposerMIDI
+    src/main_midi.cpp
+    src/midi/midi_output.cpp
+    src/sequencable/midi_event.cpp
+)
+
+# Link libremidi
+target_link_libraries(MicroComposerMIDI libremidi)
 
 # Copy CSS resources to build directory
 configure_file(
