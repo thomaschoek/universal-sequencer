@@ -59,6 +59,21 @@ add_executable(MicroComposerMIDI
 # Link libremidi and required system libraries
 target_link_libraries(MicroComposerMIDI libremidi asound pthread)
 
+# Add MIDI GUI executable
+add_executable(midiguy
+    src/main_midi_gui.cpp
+    src/midi/midi_output.cpp
+    src/sequencable/midi_event.cpp
+)
+
+# Link libremidi and required system libraries
+target_link_libraries(midiguy libremidi asound pthread)
+
+# Link GTK3 and glib
+target_link_libraries(midiguy ${GTK3_LIBRARIES})
+target_link_directories(midiguy PRIVATE ${GTK3_LIBRARY_DIRS})
+target_compile_options(midiguy PRIVATE ${GTK3_CFLAGS_OTHER})
+
 # Copy CSS resources to build directory
 configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/resources/gui_style.css
