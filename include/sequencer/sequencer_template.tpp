@@ -82,7 +82,6 @@ const Sequencer<T_event>::State Sequencer<T_event>::get_state() const {
 
 template <sequencable::Mut_seq_event T_event>
 void Sequencer<T_event>::start(const Time_point start_time, const bool repeat) {
-  validate(start_time);
   if (is_scheduling()) {
     return;
   }
@@ -529,7 +528,6 @@ Sequencer<T_event>::once(const std::stop_token st,
   if (initial_index >= events_.size()) {
     return initial_time;
   }
-  validate(initial_time);
 
   Size_type events_size;
   Size_type cur_idx = initial_index;
