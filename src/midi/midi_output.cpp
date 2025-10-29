@@ -1,7 +1,7 @@
 #include "midi/midi_output.h"
+#include <iostream>
 #include <libremidi/backends/alsa_seq.hpp>
 #include <stdexcept>
-#include <iostream>
 
 namespace Micro_composer {
 
@@ -47,12 +47,16 @@ std::vector<Port_info> Midi_output::list_ports() {
 }
 
 void Midi_output::open_port(int port_index) {
+  std::cout << "[MIDI] Opening port index: " << port_index << std::endl;
   if (is_open()) {
+    std::cout << "[MIDI] Closing currently open port first" << std::endl;
     close_port();
   }
 
   try {
-    libremidi::observer obs{};
+    libremidi::observer_configuration obs_config{.track_any = true};
+    libremidi::alsa_seq::observer_configuration obs_api_config;
+    libremidi::observer obs{obs_config, obs_api_config};
     auto output_ports = obs.get_output_ports();
 
     if (port_index < 0 || port_index >= static_cast<int>(output_ports.size())) {
@@ -108,7 +112,9 @@ void Midi_output::send_message(const libremidi::message& msg) {
   midi_out_->send_message(msg);
 }
 
-std::string Midi_output::current_port_name() const { return current_port_name_; }
+std::string Midi_output::current_port_name() const {
+  return current_port_name_;
+}
 
 } // namespace midi
 
