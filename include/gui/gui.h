@@ -16,12 +16,13 @@ namespace gui {
 
 // Parameter mapping for Premade_samples event type
 enum class Premade_samples_param {
-  Offset = 0,
-  Duration = 1,
-  Frequency = 2,
-  Amplitude = 3,
-  Phase = 4,
-  COUNT = 5 // Number of parameters
+  Enabled = 0,   // Event enabled/disabled (0 or 1)
+  Offset = 1,
+  Duration = 2,
+  Frequency = 3,
+  Amplitude = 4,
+  Phase = 5,
+  COUNT = 6 // Number of parameters
 };
 
 template <sequencable::Mut_seq_event Event_t> class Gui {
@@ -39,10 +40,11 @@ public:
 
   // Sequencer widget structure (holds GTK widgets for one sequencer)
   struct Sequencer_widget {
-    GtkWidget* frame{nullptr};        // Outer frame with border
-    GtkWidget* header_label{nullptr}; // Status label
-    GtkWidget* vbox{nullptr};         // Vertical box container
-    GtkWidget* grid{nullptr};         // Grid for parameter rows
+    GtkWidget* frame{nullptr};          // Outer frame with border
+    GtkWidget* header_label{nullptr};   // Status label
+    GtkWidget* vbox{nullptr};           // Vertical box container
+    GtkWidget* column_header{nullptr};  // Column header with event indices
+    GtkWidget* grid{nullptr};           // Grid for parameter rows
     std::vector<GtkWidget*> row_labels; // Labels for parameter names
     std::vector<std::vector<GtkWidget*>>
         cells; // [param_idx][event_idx] = entry
@@ -118,7 +120,6 @@ private:
                               Event_idx new_pos);
   void update_window_title();
   void focus_selected_cell();
-  void build_column_headers();
   void build_sequencer_widgets();
 
   // Parameter formatting and parsing (Premade_samples specific)
@@ -154,7 +155,6 @@ private:
   // GTK widgets
   GtkWidget* window_{nullptr};
   GtkWidget* main_vbox_{nullptr};        // Main vertical container
-  GtkWidget* column_header_{nullptr};    // Column headers (event indices)
   GtkWidget* scrolled_window_{nullptr};  // Scrollable area
   GtkWidget* sequencers_vbox_{nullptr};  // Container for sequencer widgets
   GtkWidget* error_label_{nullptr};      // Error message display

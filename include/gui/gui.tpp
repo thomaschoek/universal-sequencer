@@ -111,12 +111,6 @@ void Gui<Event_t>::init_widgets() {
   gtk_box_pack_start(GTK_BOX(main_vbox_), error_label_, FALSE, FALSE, 0);
   gtk_widget_set_no_show_all(error_label_, TRUE); // Don't show by default
 
-  // Create column headers
-  build_column_headers();
-  if (column_header_) {
-    gtk_box_pack_start(GTK_BOX(main_vbox_), column_header_, FALSE, FALSE, 0);
-  }
-
   // Create scrolled window for sequencer widgets
   scrolled_window_ = gtk_scrolled_window_new(nullptr, nullptr);
   gtk_box_pack_start(GTK_BOX(main_vbox_), scrolled_window_, TRUE, TRUE, 0);
@@ -129,54 +123,22 @@ void Gui<Event_t>::init_widgets() {
   build_sequencer_widgets();
 }
 
-// Build column headers showing event indices
-template <sequencable::Mut_seq_event Event_t>
-void Gui<Event_t>::build_column_headers() {
-  const auto& state = state_.controller_state;
-
-  // Find the longest sequence
-  size_t max_events = 0;
-  for (const auto& size : state.sizes) {
-    if (size > max_events) {
-      max_events = size;
-    }
-  }
-
-  if (max_events == 0) {
-    return; // No events to display
-  }
-
-  // Create horizontal box for headers
-  column_header_ = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
-  gtk_widget_set_name(column_header_, "column-headers");
-
-  // Add label for row labels column
-  GtkWidget* corner_label = gtk_label_new("Param");
-  gtk_widget_set_size_request(corner_label, 80, -1);
-  gtk_box_pack_start(GTK_BOX(column_header_), corner_label, FALSE, FALSE, 0);
-
-  // Add event index labels
-  for (size_t i = 0; i < max_events; ++i) {
-    GtkWidget* label = gtk_label_new(std::to_string(i).c_str());
-    gtk_widget_set_size_request(label, 70, -1);
-    gtk_box_pack_start(GTK_BOX(column_header_), label, FALSE, FALSE, 0);
-  }
-}
-
 // Get parameter name for a given parameter index
 template <sequencable::Mut_seq_event Event_t>
 std::string Gui<Event_t>::get_param_name(size_t param_idx) const {
   switch (static_cast<Premade_samples_param>(param_idx)) {
+  case Premade_samples_param::Enabled:
+    return "Enabled";
   case Premade_samples_param::Offset:
-    return "Offset";
+    return "Offset (ms)";
   case Premade_samples_param::Duration:
-    return "Duration";
+    return "Duration (ms)";
   case Premade_samples_param::Frequency:
-    return "Frequency";
+    return "Frequency (Hz)";
   case Premade_samples_param::Amplitude:
-    return "Amplitude";
+    return "Amplitude (0-1)";
   case Premade_samples_param::Phase:
-    return "Phase";
+    return "Phase (rad)";
   default:
     return "Unknown";
   }
@@ -191,14 +153,16 @@ std::string Gui<Event_t>::format_param_value(const Event_t& event,
   char buffer[32];
 
   switch (static_cast<Premade_samples_param>(param_idx)) {
+  case Premade_samples_param::Enabled:
+    return event.enabled ? "1" : "0";
   case Premade_samples_param::Offset:
-    snprintf(buffer, sizeof(buffer), "%ldms",
+    snprintf(buffer, sizeof(buffer), "%ld",
              std::chrono::duration_cast<std::chrono::milliseconds>(
                  event.offset)
                  .count());
     return buffer;
   case Premade_samples_param::Duration:
-    snprintf(buffer, sizeof(buffer), "%ldms",
+    snprintf(buffer, sizeof(buffer), "%ld",
              std::chrono::duration_cast<std::chrono::milliseconds>(
                  event.duration)
                  .count());
@@ -252,6 +216,25 @@ void Gui<Event_t>::build_sequencer_widgets() {
     gtk_widget_set_name(widget.header_label, "sequencer-header");
     gtk_box_pack_start(GTK_BOX(widget.vbox), widget.header_label, FALSE, FALSE,
                        2);
+
+    // Create column headers with event indices
+    widget.column_header = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
+    gtk_widget_set_name(widget.column_header, "column-headers");
+
+    // Add spacer for parameter name column (80px to match row labels)
+    GtkWidget* spacer = gtk_label_new("");
+    gtk_widget_set_size_request(spacer, 80, -1);
+    gtk_box_pack_start(GTK_BOX(widget.column_header), spacer, FALSE, FALSE, 0);
+
+    // Add column headers for each event
+    for (Event_idx evt_idx = 0; evt_idx < num_events; ++evt_idx) {
+      std::string col_label = std::to_string(evt_idx);
+      GtkWidget* col_header_label = gtk_label_new(col_label.c_str());
+      gtk_widget_set_size_request(col_header_label, 70, -1); // Match entry width
+      gtk_box_pack_start(GTK_BOX(widget.column_header), col_header_label, FALSE, FALSE, 2);
+    }
+
+    gtk_box_pack_start(GTK_BOX(widget.vbox), widget.column_header, FALSE, FALSE, 2);
 
     // Create grid for parameters
     widget.grid = gtk_grid_new();
@@ -322,12 +305,28 @@ bool Gui<Event_t>::parse_and_apply_edit(Seq_idx seq_idx, Event_idx event_idx,
 
     // Parse value based on parameter type
     switch (param) {
+    case Premade_samples_param::Enabled: {
+      // Parse 0 or 1
+      if (value_str != "0" && value_str != "1") {
+        show_error("Enabled must be 0 or 1");
+        return false;
+      }
+      bool enabled = (value_str == "1");
+      // Apply via controller enable/disable
+      if (enabled) {
+        controller_.enable(seq_idx, event_idx);
+      } else {
+        controller_.disable(seq_idx, event_idx);
+      }
+      return true;
+    }
+
     case Premade_samples_param::Offset: {
-      // Parse milliseconds
+      // Parse milliseconds (just number, no "ms" suffix required)
       char* end;
       long ms = std::strtol(value_str.c_str(), &end, 10);
-      if (end == value_str.c_str() || (*end != '\0' && strcmp(end, "ms") != 0)) {
-        show_error("Invalid offset format. Expected: number or number followed by 'ms'");
+      if (end == value_str.c_str() || *end != '\0') {
+        show_error("Invalid offset format. Expected: number (milliseconds)");
         return false;
       }
       if (ms < 0) {
@@ -344,11 +343,11 @@ bool Gui<Event_t>::parse_and_apply_edit(Seq_idx seq_idx, Event_idx event_idx,
     }
 
     case Premade_samples_param::Duration: {
-      // Parse milliseconds
+      // Parse milliseconds (just number, no "ms" suffix required)
       char* end;
       long ms = std::strtol(value_str.c_str(), &end, 10);
-      if (end == value_str.c_str() || (*end != '\0' && strcmp(end, "ms") != 0)) {
-        show_error("Invalid duration format. Expected: number or number followed by 'ms'");
+      if (end == value_str.c_str() || *end != '\0') {
+        show_error("Invalid duration format. Expected: number (milliseconds)");
         return false;
       }
       if (ms <= 0) {
