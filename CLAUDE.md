@@ -3,7 +3,10 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
-This is a C++ MIDI step sequencer application called micro-composer. The project follows modern C++ standards and best practices. It aims to take full advantage of modern C++ concurrency control features and of a machine's available CPU cores if multiple cores are available. It does not intend to implement audio output, that is the responsibility of a synth app that can receive input from the sequencer implemented in this project.
+This is a C++ event scheduling application (also known as a 'step sequencer' application) called micro-composer. The project follows modern C++ standards and best practices. It aims to take full advantage of modern C++ concurrency control features and of a machine's available CPU cores if multiple cores are available. It aims to be a 'universal sequencer': to be able to schedule as wide a range of event types as possible, so that it may be used in a wide range of disciplines. Examples of intended use cases are audio programming, high-frequency trading, physics experiments and simulations. Optimal timing accuracy is a high priority in this project.
+
+## Initial focus
+To begin with, the main focus is on MIDI sequencing since this is provides a straightforward, fun way for humans to get immediate audible feedback on the timing accuracy of the sequencer. The sequencer is designed to be used as a library that can be integrated into larger applications, as well as a standalone application with a GUI.
 
 ## Lock-free use case
 
@@ -24,7 +27,7 @@ thread or on lock-free thread-safety mechanisms used by the scheduler thread. I 
   - `ctest` - Run tests (when test suite is implemented)
 
 ## C++ Standards and Guidelines
-- Use C++17 or later standard features
+- Use C++20 or later standard features
 - Follow RAII (Resource Acquisition Is Initialization) principles
 - Use smart pointers (std::unique_ptr, std::shared_ptr) instead of raw pointers
 - Prefer const-correctness throughout the codebase
@@ -48,9 +51,10 @@ thread or on lock-free thread-safety mechanisms used by the scheduler thread. I 
 - Use fixed-point arithmetic for tempo/timing calculations where precision matters
 
 ## Code Organization
-- Header files (.hpp) for declarations
+- Header files (.h) for declarations
 - Source files (.cpp) for implementations
-- Separate directories for different subsystems (audio, ui, sequencer, etc.)
+- Template implementations in .tpp files
+- Separate directories for different subsystems (sequencable, sequencer, container, concurrency, utility, etc.)
 - Use forward declarations in headers to minimize compilation dependencies
 - Keep headers minimal and include only what's necessary
 
@@ -72,9 +76,15 @@ thread or on lock-free thread-safety mechanisms used by the scheduler thread. I 
 - Implement proper synchronization for complex shared data
 - Avoid blocking operations in audio threads
 
+## Development Environment
+- Using neovim as the primary code editor
+- Using clangd as the language server for C++ code completion and linting
+- running on Arch Linux with a real-time kernel
+- using pipewire
+
 ## Dependencies
 - Minimize external dependencies
-- When using audio libraries, prefer cross-platform options (JUCE, RtAudio, PortAudio)
+- When using audio libraries, prefer cross-platform options (libremidi, JUCE, RtAudio, PortAudio)
 - Use header-only libraries when possible to simplify builds
 - Vendor critical dependencies or use git submodules for reproducible builds
 
@@ -84,3 +94,16 @@ thread or on lock-free thread-safety mechanisms used by the scheduler thread. I 
 - Do NOT commit too many changes at once
 - Each time you finish writing the code for a new class, type or interface, write unit tests for it, recompile and test until it works, and then make a git commit with the message 'feat: new class Name', replacing 'Name' with the actual name of the class. This commit should include the class declaration, definition and the unit tests for it.
 - make a separate git commit for each set of changes that is as small as possible, such that each committed set of changes starts from a fully functioning codebase and results again in a fully functional codebase
+
+## GUI (Graphical User Interface)
+- code @include/gui/gui.h and @include/gui/gui.tpp
+- using GTK
+- GUI uses a `Poly_sequencer_controller` (@include/controller/poly_sequencer_controller.h) to interact with several sequencers running in parallel
+- Each sequencer is represented in the GUI by a `Sequencer_widget`. This GTK widget displays a grid where column indices map to event indices in the Sequencer's events container, whereas row indices map to different parameters of each event (e.g. enabled, duration, frequency, etc.).
+- Edits to cell values displayed in the GUI are applied to the underlying Sequencer's events container via the `Poly_sequencer::mutate(Seq_idx, Event_idx, Mutator)` function, which is inherited by the `Poly_sequencer_controller` from the `Poly_sequencer` class.
+### Mapping Sequencer Widget Rows to Event Parameters
+- We do not know in advance which parameters (editable data members) the event type passed to the Gui as a template parameter will have. This gives rise to the problem: How to know which row corresponds to which parameter of the event type? Proposed solutions:
+- Use a traits class called `Event_traits<Event>` that the user of the Gui must specialize for their specific event type. This traits class provides static functions that map row indices to event parameters, and vice versa. It also provides functions to get and set parameter values given an event instance and a row index.
+- Use a `Tuple_event` class that wraps a `std::tuple` of parameter values. This class provides methods to get and set parameter values by index, making it easier to map row indices to tuple indices. This `Tuple_event` class then would also need to provide a way to get labels and units for each parameter, for instance via static methods or a separate traits class.
+- Use reflection (if available) to dynamically inspect the event type and determine its parameters. This would require more complex code and may have performance implications, so it is less preferred than other approaches.
+
