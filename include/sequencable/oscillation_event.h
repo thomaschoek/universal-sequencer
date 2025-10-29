@@ -8,7 +8,7 @@ namespace Micro_composer {
 namespace sequencable {
 
 struct Oscillation_event : public Mutable_event {
-  Duration offset;
+  Duration offset{std::chrono::milliseconds(0)};
   Duration duration{std::chrono::milliseconds(500)}; // Default 500 ms
   double frequency{440.0};                           // Frequency in Hz
   double amplitude{0.5};                             // Amplitude (0.0 to 1.0)

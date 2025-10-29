@@ -25,11 +25,11 @@ int main(int argc, char** argv) {
     }
 
     // Create handler factory that uses the synth pool
+    // Each sequencer gets a dedicated voice to prevent overlap
     auto handler_factory = [&synths]() {
-      static std::atomic<size_t> voice_counter{0};
-      return [&synths](Premade_samples&& event) {
-        // Round-robin voice allocation
-        size_t voice = voice_counter.fetch_add(1, std::memory_order_relaxed) % synths.size();
+      static std::atomic<size_t> sequencer_counter{0};
+      size_t voice = sequencer_counter.fetch_add(1, std::memory_order_relaxed) % synths.size();
+      return [&synths, voice](Premade_samples&& event) {
         synths[voice]->write(event.samples_);
       };
     };
