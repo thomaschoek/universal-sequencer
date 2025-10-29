@@ -1,4 +1,5 @@
 #include "gui/gui.h"
+#include "gui/event_parameter_traits.h"
 #include <gdk/gdkkeysyms.h>
 #include <cstring>
 #include <iostream>
@@ -123,72 +124,14 @@ void Gui<Event_t>::init_widgets() {
   build_sequencer_widgets();
 }
 
-// Get parameter name for a given parameter index
-template <sequencable::Mut_seq_event Event_t>
-std::string Gui<Event_t>::get_param_name(size_t param_idx) const {
-  switch (static_cast<Premade_samples_param>(param_idx)) {
-  case Premade_samples_param::Enabled:
-    return "Enabled";
-  case Premade_samples_param::Offset:
-    return "Offset (ms)";
-  case Premade_samples_param::Duration:
-    return "Duration (ms)";
-  case Premade_samples_param::Frequency:
-    return "Frequency (Hz)";
-  case Premade_samples_param::Amplitude:
-    return "Amplitude (0-1)";
-  case Premade_samples_param::Phase:
-    return "Phase (rad)";
-  default:
-    return "Unknown";
-  }
-}
-
-// Format parameter value as string for display
-template <sequencable::Mut_seq_event Event_t>
-std::string Gui<Event_t>::format_param_value(const Event_t& event,
-                                              size_t param_idx) const {
-  // This is specific to Premade_samples / Oscillation_event
-  // For a generic implementation, would need template specialization
-  char buffer[32];
-
-  switch (static_cast<Premade_samples_param>(param_idx)) {
-  case Premade_samples_param::Enabled:
-    return event.enabled ? "1" : "0";
-  case Premade_samples_param::Offset:
-    snprintf(buffer, sizeof(buffer), "%ld",
-             std::chrono::duration_cast<std::chrono::milliseconds>(
-                 event.offset)
-                 .count());
-    return buffer;
-  case Premade_samples_param::Duration:
-    snprintf(buffer, sizeof(buffer), "%ld",
-             std::chrono::duration_cast<std::chrono::milliseconds>(
-                 event.duration)
-                 .count());
-    return buffer;
-  case Premade_samples_param::Frequency:
-    snprintf(buffer, sizeof(buffer), "%.2f", event.frequency);
-    return buffer;
-  case Premade_samples_param::Amplitude:
-    snprintf(buffer, sizeof(buffer), "%.3f", event.amplitude);
-    return buffer;
-  case Premade_samples_param::Phase:
-    snprintf(buffer, sizeof(buffer), "%.3f", event.phase);
-    return buffer;
-  default:
-    return "";
-  }
-}
-
 // Build sequencer widgets (one per sequencer)
 template <sequencable::Mut_seq_event Event_t>
 void Gui<Event_t>::build_sequencer_widgets() {
+  using Traits = Event_parameter_traits<Event_t>;
   const auto& state = state_.controller_state;
   sequencer_widgets_.clear();
 
-  constexpr size_t num_params =
-      static_cast<size_t>(Premade_samples_param::COUNT);
+  constexpr size_t num_params = Traits::parameter_count;
 
   // Create a widget for each sequencer
   for (Seq_idx seq_idx = 0; seq_idx < state.sizes.size(); ++seq_idx) {
@@ -249,7 +192,8 @@ void Gui<Event_t>::build_sequencer_widgets() {
 
     for (size_t param_idx = 0; param_idx < num_params; ++param_idx) {
       // Create row label
-      GtkWidget* label = gtk_label_new(get_param_name(param_idx).c_str());
+      GtkWidget* label =
+          gtk_label_new(Traits::get_parameter_name(param_idx).c_str());
       gtk_widget_set_size_request(label, 80, -1);
       gtk_widget_set_halign(label, GTK_ALIGN_START);
       gtk_grid_attach(GTK_GRID(widget.grid), label, 0, param_idx, 1, 1);
@@ -265,7 +209,7 @@ void Gui<Event_t>::build_sequencer_widgets() {
         if (seq_idx < state.events.size() &&
             evt_idx < state.events[seq_idx].size()) {
           const auto& event = state.events[seq_idx][evt_idx];
-          std::string value_str = format_param_value(event, param_idx);
+          std::string value_str = Traits::get_parameter_value(event, param_idx);
           gtk_entry_set_text(GTK_ENTRY(entry), value_str.c_str());
         }
 
@@ -300,135 +244,17 @@ template <sequencable::Mut_seq_event Event_t>
 bool Gui<Event_t>::parse_and_apply_edit(Seq_idx seq_idx, Event_idx event_idx,
                                          size_t param_idx,
                                          const std::string& value_str) {
+  using Traits = Event_parameter_traits<Event_t>;
+
   try {
-    auto param = static_cast<Premade_samples_param>(param_idx);
-
-    // Parse value based on parameter type
-    switch (param) {
-    case Premade_samples_param::Enabled: {
-      // Parse 0 or 1
-      if (value_str != "0" && value_str != "1") {
-        show_error("Enabled must be 0 or 1");
-        return false;
-      }
-      bool enabled = (value_str == "1");
-      // Apply via controller enable/disable
-      if (enabled) {
-        controller_.enable(seq_idx, event_idx);
-      } else {
-        controller_.disable(seq_idx, event_idx);
-      }
-      return true;
-    }
-
-    case Premade_samples_param::Offset: {
-      // Parse milliseconds (just number, no "ms" suffix required)
-      char* end;
-      long ms = std::strtol(value_str.c_str(), &end, 10);
-      if (end == value_str.c_str() || *end != '\0') {
-        show_error("Invalid offset format. Expected: number (milliseconds)");
-        return false;
-      }
-      if (ms < 0) {
-        show_error("Offset cannot be negative");
-        return false;
-      }
-      // Apply via mutate
-      auto duration = std::chrono::milliseconds(ms);
-      controller_.mutate(seq_idx, event_idx, [duration](Event_t&& evt) {
-        evt.offset = duration;
-        return std::move(evt);
-      });
-      return true;
-    }
-
-    case Premade_samples_param::Duration: {
-      // Parse milliseconds (just number, no "ms" suffix required)
-      char* end;
-      long ms = std::strtol(value_str.c_str(), &end, 10);
-      if (end == value_str.c_str() || *end != '\0') {
-        show_error("Invalid duration format. Expected: number (milliseconds)");
-        return false;
-      }
-      if (ms <= 0) {
-        show_error("Duration must be positive");
-        return false;
-      }
-      // Apply via mutate
-      auto duration = std::chrono::milliseconds(ms);
-      controller_.mutate(seq_idx, event_idx, [duration](Event_t&& evt) {
-        evt.duration = duration;
-        evt.generate_samples();
-        return std::move(evt);
-      });
-      return true;
-    }
-
-    case Premade_samples_param::Frequency: {
-      // Parse frequency (Hz)
-      char* end;
-      double freq = std::strtod(value_str.c_str(), &end);
-      if (end == value_str.c_str()) {
-        show_error("Invalid frequency format. Expected: number");
-        return false;
-      }
-      if (freq <= 0.0 || freq > 20000.0) {
-        show_error("Frequency must be between 0 and 20000 Hz");
-        return false;
-      }
-      // Apply via mutate
-      controller_.mutate(seq_idx, event_idx, [freq](Event_t&& evt) {
-        evt.frequency = freq;
-        evt.generate_samples();
-        return std::move(evt);
-      });
-      return true;
-    }
-
-    case Premade_samples_param::Amplitude: {
-      // Parse amplitude (0.0 to 1.0)
-      char* end;
-      double amp = std::strtod(value_str.c_str(), &end);
-      if (end == value_str.c_str()) {
-        show_error("Invalid amplitude format. Expected: number");
-        return false;
-      }
-      if (amp < 0.0 || amp > 1.0) {
-        show_error("Amplitude must be between 0.0 and 1.0");
-        return false;
-      }
-      // Apply via mutate
-      controller_.mutate(seq_idx, event_idx, [amp](Event_t&& evt) {
-        evt.amplitude = amp;
-        evt.generate_samples();
-        return std::move(evt);
-      });
-      return true;
-    }
-
-    case Premade_samples_param::Phase: {
-      // Parse phase (radians)
-      char* end;
-      double phase = std::strtod(value_str.c_str(), &end);
-      if (end == value_str.c_str()) {
-        show_error("Invalid phase format. Expected: number");
-        return false;
-      }
-      // Apply via mutate
-      controller_.mutate(seq_idx, event_idx, [phase](Event_t&& evt) {
-        evt.phase = phase;
-        evt.generate_samples();
-        return std::move(evt);
-      });
-      return true;
-    }
-
-    default:
-      show_error("Unknown parameter");
-      return false;
-    }
+    // Apply mutation via controller
+    controller_.mutate(seq_idx, event_idx, [param_idx, &value_str](Event_t&& evt) {
+      Traits::set_parameter_value(evt, param_idx, value_str);
+      return std::move(evt);
+    });
+    return true;
   } catch (const std::exception& e) {
-    show_error(std::string("Error: ") + e.what());
+    show_error(e.what());
     return false;
   }
 }
@@ -480,12 +306,13 @@ void Gui<Event_t>::on_entry_focus_out(GtkWidget* widget, GdkEventFocus* event,
     gui->state_.state_dirty = true;
   } else {
     // Restore original value on failure
+    using Traits = Event_parameter_traits<Event_t>;
     auto& state = gui->state_.controller_state;
     if (data->seq_idx < state.events.size() &&
         data->event_idx < state.events[data->seq_idx].size()) {
       const auto& event = state.events[data->seq_idx][data->event_idx];
       std::string original_value =
-          gui->format_param_value(event, data->param_idx);
+          Traits::get_parameter_value(event, data->param_idx);
       gtk_entry_set_text(GTK_ENTRY(widget), original_value.c_str());
     }
   }
@@ -513,12 +340,13 @@ void Gui<Event_t>::on_entry_activate(GtkEntry* entry, gpointer user_data) {
     gtk_widget_grab_focus(gui->window_);
   } else {
     // Restore original value on failure
+    using Traits = Event_parameter_traits<Event_t>;
     auto& state = gui->state_.controller_state;
     if (data->seq_idx < state.events.size() &&
         data->event_idx < state.events[data->seq_idx].size()) {
       const auto& event = state.events[data->seq_idx][data->event_idx];
       std::string original_value =
-          gui->format_param_value(event, data->param_idx);
+          Traits::get_parameter_value(event, data->param_idx);
       gtk_entry_set_text(entry, original_value.c_str());
     }
   }

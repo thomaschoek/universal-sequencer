@@ -14,17 +14,6 @@ namespace Micro_composer {
 
 namespace gui {
 
-// Parameter mapping for Premade_samples event type
-enum class Premade_samples_param {
-  Enabled = 0,   // Event enabled/disabled (0 or 1)
-  Offset = 1,
-  Duration = 2,
-  Frequency = 3,
-  Amplitude = 4,
-  Phase = 5,
-  COUNT = 6 // Number of parameters
-};
-
 template <sequencable::Mut_seq_event Event_t> class Gui {
 public:
   using Controller = controller::Poly_sequencer_controller<Event_t>;
@@ -122,11 +111,9 @@ private:
   void focus_selected_cell();
   void build_sequencer_widgets();
 
-  // Parameter formatting and parsing (Premade_samples specific)
-  std::string format_param_value(const Event_t& event, size_t param_idx) const;
+  // Parameter parsing and application
   bool parse_and_apply_edit(Seq_idx seq_idx, Event_idx event_idx,
                             size_t param_idx, const std::string& value_str);
-  std::string get_param_name(size_t param_idx) const;
 
   // Error handling
   void show_error(const std::string& message);
