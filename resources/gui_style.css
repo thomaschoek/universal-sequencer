@@ -11,7 +11,7 @@
 
 /* Column headers */
 #column-headers {
-  background-color: #E0E0E0;
+  background-color: alpha(currentColor, 0.1);
   padding: 5px;
   font-weight: bold;
 }
@@ -23,11 +23,11 @@
 
 /* Sequencer frame styling */
 #sequencer-frame {
-  border: 2px solid #757575;
+  border: 2px solid alpha(currentColor, 0.3);
   border-radius: 6px;
   padding: 5px;
   margin: 5px;
-  background-color: #FAFAFA;
+  /* Remove explicit background to inherit system theme */
 }
 
 /* Sequencer header styling */
@@ -35,7 +35,7 @@
   font-weight: bold;
   font-size: 12px;
   padding: 4px;
-  background-color: #E0E0E0;
+  background-color: alpha(currentColor, 0.1);
   border-radius: 3px;
   margin-bottom: 5px;
 }
