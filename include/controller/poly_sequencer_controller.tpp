@@ -371,5 +371,60 @@ void Poly_sequencer_controller<T_event>::replace(
   }
 }
 
+// Add/remove events
+template <sequencable::Mut_seq_event T_event>
+void Poly_sequencer_controller<T_event>::push_back_event(Seq_idx seq,
+                                                          const T_event& event) {
+  if (seq >= Base_sequencer::size()) {
+    throw std::out_of_range(
+        "[ERROR] In Poly_sequencer_controller::push_back_event: Sequencer "
+        "index out of range.");
+  }
+
+  // Add event to the sequencer
+  Base_sequencer::operator[](seq).push_back(event);
+
+  // Update state
+  std::scoped_lock lck{state_mutex_};
+  state_.sizes[seq] = Base_sequencer::operator[](seq).size();
+  state_.events[seq] = Base_sequencer::operator[](seq).snapshot();
+}
+
+template <sequencable::Mut_seq_event T_event>
+void Poly_sequencer_controller<T_event>::pop_back_event(Seq_idx seq) {
+  if (seq >= Base_sequencer::size()) {
+    throw std::out_of_range(
+        "[ERROR] In Poly_sequencer_controller::pop_back_event: Sequencer "
+        "index out of range.");
+  }
+
+  auto& sequencer = Base_sequencer::operator[](seq);
+  if (sequencer.empty()) {
+    throw std::runtime_error(
+        "[ERROR] In Poly_sequencer_controller::pop_back_event: Cannot remove "
+        "event from empty sequencer.");
+  }
+
+  // Remove last event from the sequencer
+  sequencer.pop_back();
+
+  // Update state
+  std::scoped_lock lck{state_mutex_};
+  state_.sizes[seq] = sequencer.size();
+  state_.events[seq] = sequencer.snapshot();
+
+  // Adjust selection if needed
+  std::scoped_lock sel_lck{selection_mutex_};
+  if (state_.selected_seq && *state_.selected_seq == seq &&
+      state_.selected_event && *state_.selected_event >= sequencer.size()) {
+    // If selected event is now out of bounds, select the last valid event
+    if (sequencer.size() > 0) {
+      state_.selected_event = sequencer.size() - 1;
+    } else {
+      state_.selected_event.reset();
+    }
+  }
+}
+
 } // namespace controller
 } // namespace Micro_composer

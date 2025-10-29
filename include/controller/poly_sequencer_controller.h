@@ -79,6 +79,10 @@ public:
   void replace(Seq_idx, Event_idx pos, const Event_t& event);
   void replace(Seq_idx, Event_idx start, const std::vector<Event_t>& events);
 
+  // Add/remove events
+  void push_back_event(Seq_idx seq, const Event_t& event);
+  void pop_back_event(Seq_idx seq);
+
   struct State {
     std::optional<Seq_idx> selected_seq;
     std::optional<Event_idx> selected_event;
