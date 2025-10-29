@@ -42,16 +42,19 @@ public:
   // Synchronized transport control
   void start(Seq_idx, Time_point start_time = Clock::now(),
              bool repeat = false);
-  void start_all(Time_point start_time = Clock::now(), bool repeat = false);
+  void start(Time_point start_time = Clock::now(), bool repeat = false);
 
   void pause(Seq_idx, Time_point pause_time = Clock::now());
-  void pause_all(Time_point pause_time = Clock::now());
+  // pause all
+  void pause(Time_point common_pause_time = Clock::now());
 
   void stop(Seq_idx, Time_point stop_time = Clock::now(), size_t stop_pos = 0);
-  void stop_all(Time_point stop_time = Clock::now(), size_t stop_pos = 0);
+  // stop all
+  void stop(Time_point stop_time = Clock::now(), size_t stop_pos = 0);
 
   void set_pos(Seq_idx, size_t pos = 0);
-  void set_pos_all(size_t pos = 0);
+  // set same pos for all
+  void set_common_pos(size_t pos = 0);
 
   bool is_scheduling(Seq_idx) const;
   bool any_scheduling() const;
@@ -80,13 +83,13 @@ public:
   void toggle(Seq_idx, Event_idx);
 
   void adjust_durations(Seq_idx, Duration delta);
-  void adjust_durations_all(Duration delta);
+  void adjust_durations(Duration delta);
 
   void multiply_durations(Seq_idx, double factor);
-  void multiply_durations_all(double factor);
+  void multiply_durations(double factor);
 
   void for_each(Seq_idx, const std::function<void(Event_t&)>&);
-  void for_each_all(const std::function<void(Event_t&)>&);
+  void for_each(const std::function<void(Event_t&)>&);
 
   void mutate(Seq_idx, Event_idx, const typename Sequencer_t::Mutator&);
 

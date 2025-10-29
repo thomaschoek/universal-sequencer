@@ -76,7 +76,7 @@ int main(int argc, char** argv) {
   std::cout << "[MAIN] Starting sequencers with repeat=true\n" << std::flush;
   auto t_point = Sequencer::Clock::now() + std::chrono::milliseconds(50);
 
-  poly_seq.start_all(t_point, true);
+  poly_seq.start(t_point, true);
   std::cout << "[MAIN] Playing for 2 seconds with all events disabled\n"
             << std::flush;
   std::this_thread::sleep_for(std::chrono::seconds(2));
@@ -87,52 +87,52 @@ int main(int argc, char** argv) {
 
   std::cout << "[MAIN] Pausing sequencers\n";
   t_point = Sequencer::Clock::now() + std::chrono::milliseconds(50);
-  poly_seq.pause_all(t_point);
+  poly_seq.pause(t_point);
 
   std::cout << "[MAIN] Waiting 2 seconds...\n";
   std::this_thread::sleep_for(std::chrono::seconds(2));
 
   std::cout << "[MAIN] Changing sequencer tempos\n";
-  poly_seq.multiply_durations_all(4); // Slower
+  poly_seq.multiply_durations(4); // Slower
 
   std::cout << "[MAIN] Restarting sequencers\n";
   t_point = Sequencer::Clock::now() + std::chrono::milliseconds(50);
-  poly_seq.start_all(t_point, true);
+  poly_seq.start(t_point, true);
 
   std::cout << "[MAIN] Playing for 5 more seconds...\n";
   std::this_thread::sleep_for(std::chrono::seconds(5));
 
   std::cout << "[MAIN] Pausing sequencers\n";
   t_point = Sequencer::Clock::now() + std::chrono::milliseconds(50);
-  poly_seq.pause_all(t_point);
+  poly_seq.pause(t_point);
 
   std::cout << "[MAIN] Adjusting tempos again\n";
-  poly_seq.adjust_durations_all(std::chrono::milliseconds{-100}); // Faster
+  poly_seq.adjust_durations(std::chrono::milliseconds{-100}); // Faster
 
   std::cout << "[MAIN] Restarting sequencers\n";
   t_point = Sequencer::Clock::now() + std::chrono::milliseconds(50);
-  poly_seq.start_all(t_point, true);
+  poly_seq.start(t_point, true);
 
   std::cout << "[MAIN] Playing for 3 moar seconds...\n";
   std::this_thread::sleep_for(std::chrono::seconds(4));
 
   std::cout << "[MAIN] Adjusting tempo again...\n";
-  poly_seq.adjust_durations_all(std::chrono::milliseconds{-50}); // Even faster
+  poly_seq.adjust_durations(std::chrono::milliseconds{-50}); // Even faster
 
   std::cout << "[MAIN] Restarting sequencers\n";
   t_point = Sequencer::Clock::now() + std::chrono::milliseconds(50);
-  poly_seq.start_all(t_point, true);
+  poly_seq.start(t_point, true);
 
   std::this_thread::sleep_for(std::chrono::seconds(4));
 
   std::cout << "[MAIN] Adjusting tempo again...\n";
-  poly_seq.multiply_durations_all(0.5); // Even faster
+  poly_seq.multiply_durations(0.5); // Even faster
 
   std::this_thread::sleep_for(std::chrono::seconds(4));
 
   std::cout << "[MAIN] Stopping sequencers\n";
   t_point = Sequencer::Clock::now() + std::chrono::milliseconds(50);
-  poly_seq.stop_all(t_point);
+  poly_seq.stop(t_point);
 
   std::cout << "[MAIN] Initializing GUI\n";
 

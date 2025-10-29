@@ -173,13 +173,13 @@ TEST_CASE("Poly_sequencer transport control", "[poly_sequencer]") {
   SECTION("start_all starts all sequencers") {
     auto start_time = Poly_sequencer<Poly_test_event>::Clock::now() +
                       std::chrono::milliseconds(50);
-    poly.start_all(start_time, false);
+    poly.start(start_time, false);
 
     REQUIRE(poly.all_scheduling());
     REQUIRE(poly.any_scheduling());
 
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
-    poly.pause_all();
+    poly.pause();
   }
 
   SECTION("stop sets position and pauses") {
@@ -217,21 +217,21 @@ TEST_CASE("Poly_sequencer transport control", "[poly_sequencer]") {
   }
 
   SECTION("set_pos_all for all sequencers") {
-    poly.set_pos_all(1);
+    poly.set_common_pos(1);
     REQUIRE(true); // Should not throw
   }
 
   SECTION("pause_all on stopped sequencers is safe") {
     auto pause_time = Poly_sequencer<Poly_test_event>::Clock::now() +
                       std::chrono::milliseconds(50);
-    poly.pause_all(pause_time);
+    poly.pause(pause_time);
     REQUIRE_FALSE(poly.any_scheduling());
   }
 
   SECTION("stop_all on stopped sequencers is safe") {
     auto stop_time = Poly_sequencer<Poly_test_event>::Clock::now() +
                      std::chrono::milliseconds(50);
-    poly.stop_all(stop_time, 0);
+    poly.stop(stop_time, 0);
     REQUIRE_FALSE(poly.any_scheduling());
   }
 }
@@ -338,7 +338,7 @@ TEST_CASE("Poly_sequencer duration operations", "[poly_sequencer]") {
   }
 
   SECTION("adjust_durations_all affects all sequencers") {
-    poly.adjust_durations_all(std::chrono::milliseconds(25));
+    poly.adjust_durations(std::chrono::milliseconds(25));
 
     auto data0 = poly[0].snapshot();
     REQUIRE(data0[0].duration == std::chrono::milliseconds(75));
@@ -362,7 +362,7 @@ TEST_CASE("Poly_sequencer duration operations", "[poly_sequencer]") {
   }
 
   SECTION("multiply_durations_all affects all sequencers") {
-    poly.multiply_durations_all(0.5);
+    poly.multiply_durations(0.5);
 
     auto data0 = poly[0].snapshot();
     REQUIRE(data0[0].duration == std::chrono::milliseconds(25));
@@ -410,7 +410,7 @@ TEST_CASE("Poly_sequencer for_each operations", "[poly_sequencer]") {
   }
 
   SECTION("for_each_all affects all sequencers") {
-    poly.for_each_all([](Poly_test_event& evt) { evt.id += 100; });
+    poly.for_each([](Poly_test_event& evt) { evt.id += 100; });
 
     auto data0 = poly[0].snapshot();
     REQUIRE(data0[0].id == 101);
@@ -484,27 +484,27 @@ TEST_CASE("Poly_sequencer empty container", "[poly_sequencer]") {
   SECTION("pause_all is safe on empty") {
     auto pause_time = Poly_sequencer<Poly_test_event>::Clock::now() +
                       std::chrono::milliseconds(50);
-    poly.pause_all(pause_time);
+    poly.pause(pause_time);
     REQUIRE(poly.empty());
   }
 
   SECTION("set_pos_all is safe on empty") {
-    poly.set_pos_all(0);
+    poly.set_common_pos(0);
     REQUIRE(poly.empty());
   }
 
   SECTION("adjust_durations_all is safe on empty") {
-    poly.adjust_durations_all(std::chrono::milliseconds(25));
+    poly.adjust_durations(std::chrono::milliseconds(25));
     REQUIRE(poly.empty());
   }
 
   SECTION("multiply_durations_all is safe on empty") {
-    poly.multiply_durations_all(2.0);
+    poly.multiply_durations(2.0);
     REQUIRE(poly.empty());
   }
 
   SECTION("for_each_all is safe on empty") {
-    poly.for_each_all([](Poly_test_event& evt) { evt.id = 0; });
+    poly.for_each([](Poly_test_event& evt) { evt.id = 0; });
     REQUIRE(poly.empty());
   }
 }

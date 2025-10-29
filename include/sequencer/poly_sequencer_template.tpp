@@ -60,7 +60,7 @@ void Poly_sequencer<T_event>::start(Seq_idx idx, Time_point start_time,
 }
 
 template <sequencable::Mut_seq_event T_event>
-void Poly_sequencer<T_event>::start_all(Time_point start_time, bool repeat) {
+void Poly_sequencer<T_event>::start(Time_point start_time, bool repeat) {
   std::scoped_lock lck{transport_mutex_};
   auto count = Base_vector::size();
   for (Seq_idx i = 0; i < count; ++i) {
@@ -78,7 +78,7 @@ void Poly_sequencer<T_event>::pause(Seq_idx idx, Time_point pause_time) {
 }
 
 template <sequencable::Mut_seq_event T_event>
-void Poly_sequencer<T_event>::pause_all(Time_point pause_time) {
+void Poly_sequencer<T_event>::pause(Time_point pause_time) {
   std::scoped_lock lck{transport_mutex_};
   auto count = Base_vector::size();
   for (Seq_idx i = 0; i < count; ++i) {
@@ -97,7 +97,7 @@ void Poly_sequencer<T_event>::stop(Seq_idx idx, Time_point stop_time,
 }
 
 template <sequencable::Mut_seq_event T_event>
-void Poly_sequencer<T_event>::stop_all(Time_point stop_time, size_t stop_pos) {
+void Poly_sequencer<T_event>::stop(Time_point stop_time, size_t stop_pos) {
   std::scoped_lock lck{transport_mutex_};
   auto count = Base_vector::size();
   for (Seq_idx i = 0; i < count; ++i) {
@@ -115,7 +115,7 @@ void Poly_sequencer<T_event>::set_pos(Seq_idx idx, size_t pos) {
 }
 
 template <sequencable::Mut_seq_event T_event>
-void Poly_sequencer<T_event>::set_pos_all(size_t pos) {
+void Poly_sequencer<T_event>::set_common_pos(size_t pos) {
   std::scoped_lock lck{transport_mutex_};
   auto count = Base_vector::size();
   for (Seq_idx i = 0; i < count; ++i) {
@@ -315,7 +315,7 @@ void Poly_sequencer<T_event>::adjust_durations(Seq_idx idx, Duration delta) {
 }
 
 template <sequencable::Mut_seq_event T_event>
-void Poly_sequencer<T_event>::adjust_durations_all(Duration delta) {
+void Poly_sequencer<T_event>::adjust_durations(Duration delta) {
   std::scoped_lock lck{transport_mutex_};
   auto count = Base_vector::size();
   for (Seq_idx i = 0; i < count; ++i) {
@@ -334,7 +334,7 @@ void Poly_sequencer<T_event>::multiply_durations(Seq_idx idx, double factor) {
 }
 
 template <sequencable::Mut_seq_event T_event>
-void Poly_sequencer<T_event>::multiply_durations_all(double factor) {
+void Poly_sequencer<T_event>::multiply_durations(double factor) {
   std::scoped_lock lck{transport_mutex_};
   auto count = Base_vector::size();
   for (Seq_idx i = 0; i < count; ++i) {
@@ -356,7 +356,7 @@ void Poly_sequencer<T_event>::for_each(
 }
 
 template <sequencable::Mut_seq_event T_event>
-void Poly_sequencer<T_event>::for_each_all(
+void Poly_sequencer<T_event>::for_each(
     const std::function<void(T_event&)>& func) {
   std::scoped_lock lck{transport_mutex_};
   auto count = Base_vector::size();
@@ -369,11 +369,12 @@ void Poly_sequencer<T_event>::for_each_all(
 }
 
 template <sequencable::Mut_seq_event T_event>
-void Poly_sequencer<T_event>::mutate(Seq_idx seq, Event_idx pos,
-                                     const typename Sequencer_t::Mutator& mutator) {
+void Poly_sequencer<T_event>::mutate(
+    Seq_idx seq, Event_idx pos, const typename Sequencer_t::Mutator& mutator) {
   std::scoped_lock lck{transport_mutex_};
   if (seq >= Base_vector::size()) {
-    throw std::out_of_range("Poly_sequencer::mutate: Sequence index out of range.");
+    throw std::out_of_range(
+        "Poly_sequencer::mutate: Sequence index out of range.");
   }
   Base_vector::operator[](seq).mutate(pos, mutator);
 }
