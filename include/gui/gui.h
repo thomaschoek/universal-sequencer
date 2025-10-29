@@ -60,6 +60,10 @@ public:
     };
     std::vector<Per_sequencer_gui_state> sequencer_gui_states;
 
+    // Track previous selection to avoid unnecessary updates
+    std::optional<Seq_idx> last_selected_seq;
+    std::optional<Event_idx> last_selected_event;
+
     // Global GUI state
     Mode mode{Mode::Normal};
     bool state_dirty{true}; // True on first render

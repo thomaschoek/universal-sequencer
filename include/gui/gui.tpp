@@ -660,22 +660,37 @@ template <sequencable::Mut_seq_event Event_t>
 void Gui<Event_t>::render_grid() {
   const auto& state = state_.controller_state;
 
-  // Update selection visual
-  if (state.selected_seq && state.selected_event) {
-    Seq_idx sel_seq = *state.selected_seq;
-    Event_idx sel_evt = *state.selected_event;
+  // Check if selection changed
+  bool selection_changed =
+      (state.selected_seq != state_.last_selected_seq) ||
+      (state.selected_event != state_.last_selected_event);
 
-    // Remove all selection classes first
-    for (auto& seq_widget : sequencer_widgets_) {
-      for (auto& param_row : seq_widget.cells) {
-        for (auto* cell : param_row) {
+  if (!selection_changed) {
+    return; // Nothing to update
+  }
+
+  // Remove selection from previous selection
+  if (state_.last_selected_seq && state_.last_selected_event) {
+    Seq_idx prev_seq = *state_.last_selected_seq;
+    Event_idx prev_evt = *state_.last_selected_event;
+
+    if (prev_seq < sequencer_widgets_.size()) {
+      const auto& widget = sequencer_widgets_[prev_seq];
+      for (const auto& param_row : widget.cells) {
+        if (prev_evt < param_row.size()) {
+          GtkWidget* cell = param_row[prev_evt];
           GtkStyleContext* context = gtk_widget_get_style_context(cell);
           gtk_style_context_remove_class(context, "selected");
         }
       }
     }
+  }
 
-    // Add selection class to all parameter cells for the selected event
+  // Add selection to new selection
+  if (state.selected_seq && state.selected_event) {
+    Seq_idx sel_seq = *state.selected_seq;
+    Event_idx sel_evt = *state.selected_event;
+
     if (sel_seq < sequencer_widgets_.size()) {
       const auto& widget = sequencer_widgets_[sel_seq];
       for (const auto& param_row : widget.cells) {
@@ -687,6 +702,10 @@ void Gui<Event_t>::render_grid() {
       }
     }
   }
+
+  // Update tracking
+  state_.last_selected_seq = state.selected_seq;
+  state_.last_selected_event = state.selected_event;
 }
 
 // GUI wrapper functions for controller actions
