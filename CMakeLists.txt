@@ -56,8 +56,8 @@ add_executable(MicroComposerMIDI
     src/sequencable/midi_event.cpp
 )
 
-# Link libremidi
-target_link_libraries(MicroComposerMIDI libremidi)
+# Link libremidi and required system libraries
+target_link_libraries(MicroComposerMIDI libremidi asound pthread)
 
 # Copy CSS resources to build directory
 configure_file(

@@ -1,4 +1,5 @@
 #include "midi/midi_output.h"
+#include <libremidi/backends/alsa_seq.hpp>
 #include <stdexcept>
 #include <iostream>
 
@@ -7,8 +8,13 @@ namespace Micro_composer {
 namespace midi {
 
 Midi_output::Midi_output() {
-  // Create MIDI output with default configuration
-  midi_out_ = std::make_unique<libremidi::midi_out>();
+  // Create MIDI output with ALSA sequencer backend
+  // This works with both native ALSA and PipeWire's ALSA compatibility
+  libremidi::output_configuration out_config;
+  libremidi::alsa_seq::output_configuration out_api_config;
+  midi_out_ = std::make_unique<libremidi::midi_out>(out_config, out_api_config);
+
+  std::cout << "[MIDI] Using ALSA sequencer backend" << std::endl;
 }
 
 Midi_output::~Midi_output() { close_port(); }
@@ -16,10 +22,15 @@ Midi_output::~Midi_output() { close_port(); }
 std::vector<Port_info> Midi_output::list_ports() {
   std::vector<Port_info> ports;
 
-  // Create a temporary midi_out to query ports
-  libremidi::observer obs{};
+  // Create observer with ALSA sequencer configuration
+  libremidi::observer_configuration obs_config{.track_any = true};
+  libremidi::alsa_seq::observer_configuration obs_api_config;
+  libremidi::observer obs{obs_config, obs_api_config};
 
   auto output_ports = obs.get_output_ports();
+
+  std::cout << "[MIDI] Found " << output_ports.size() << " output ports"
+            << std::endl;
 
   for (size_t i = 0; i < output_ports.size(); ++i) {
     const auto& port = output_ports[i];
@@ -28,6 +39,8 @@ std::vector<Port_info> Midi_output::list_ports() {
     info.name = port.port_name;
     info.display_name = "[" + std::to_string(i) + "] " + port.port_name;
     ports.push_back(info);
+
+    std::cout << "[MIDI]   [" << i << "] " << port.port_name << std::endl;
   }
 
   return ports;
