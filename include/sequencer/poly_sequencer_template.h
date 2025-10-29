@@ -40,17 +40,20 @@ public:
   Poly_sequencer(std::vector<Sequencer_t>&&);
 
   // Synchronized transport control
-  void start(Seq_idx, Time_point start_time = Clock::now(),
+  void start(Seq_idx, Time_point start_time = earliest_sequencable_time(),
              bool repeat = false);
-  void start(Time_point start_time = Clock::now(), bool repeat = false);
+  void start(Time_point start_time = earliest_sequencable_time(),
+             bool repeat = false);
 
-  void pause(Seq_idx, Time_point pause_time = Clock::now());
+  void pause(Seq_idx, Time_point pause_time = earliest_sequencable_time());
   // pause all
-  void pause(Time_point common_pause_time = Clock::now());
+  void pause(Time_point common_pause_time = earliest_sequencable_time());
 
-  void stop(Seq_idx, Time_point stop_time = Clock::now(), size_t stop_pos = 0);
+  void stop(Seq_idx, Time_point stop_time = earliest_sequencable_time(),
+            size_t stop_pos = 0);
   // stop all
-  void stop(Time_point stop_time = Clock::now(), size_t stop_pos = 0);
+  void stop(Time_point stop_time = earliest_sequencable_time(),
+            size_t stop_pos = 0);
 
   void set_pos(Seq_idx, size_t pos = 0);
   // set same pos for all
@@ -102,6 +105,10 @@ protected:
   mutable std::mutex transport_mutex_;
 
   Handler_factory handler_factory_;
+
+  static Time_point earliest_sequencable_time() {
+    return Clock::now() + Sequencer_t::min_duration_;
+  }
 };
 
 } // namespace sequencer

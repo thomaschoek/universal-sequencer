@@ -96,14 +96,16 @@ template <sequencable::Mut_seq_event T_event> struct Sequencer {
   void erase(Size_type);
   void clear();
 
+  // Constants
+  static constexpr const Duration min_duration_{std::chrono::milliseconds{10}};
+  static constexpr const Duration operation_timeout_{std::chrono::seconds{30}};
+  static constexpr const Duration spin_duration_{std::chrono::milliseconds{5}};
+
 protected:
   static void validate(const std::vector<T_event>&);
   static void validate(const T_event&);
   static void validate(const Time_point&);
   void range_check(Size_type) const;
-  static constexpr const Duration min_duration_{std::chrono::milliseconds{10}};
-  static constexpr const Duration operation_timeout_{std::chrono::seconds{30}};
-  static constexpr const Duration spin_duration_{std::chrono::milliseconds{5}};
 
   // Wait until outside of window where scheduler is loading events_[current_]
   Time_point await_scheduler() const noexcept;
