@@ -11,15 +11,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 # Generate compile_commands.json for clangd
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Fetch libremidi
-include(FetchContent)
-FetchContent_Declare(
-  libremidi
-  GIT_REPOSITORY https://github.com/celtera/libremidi.git
-  GIT_TAG v5.3.1
-)
-FetchContent_MakeAvailable(libremidi)
-
 # Find GTK3
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
@@ -48,6 +39,29 @@ add_executable(MicroComposer
 target_link_libraries(MicroComposer ${GTK3_LIBRARIES})
 target_link_directories(MicroComposer PRIVATE ${GTK3_LIBRARY_DIRS})
 target_compile_options(MicroComposer PRIVATE ${GTK3_CFLAGS_OTHER})
+
+
+# Fetch libremidi
+include(FetchContent)
+
+# Configure libremidi options to disable optional dependencies
+#set(LIBREMIDI_NO_BOOST ON CACHE BOOL "" FORCE)
+#set(LIBREMIDI_NO_WINUWP ON CACHE BOOL "" FORCE)
+
+FetchContent_Declare(
+  readerwriterqueue
+  GIT_REPOSITORY    https://github.com/cameron314/readerwriterqueue
+  GIT_TAG           master
+)
+
+FetchContent_MakeAvailable(readerwriterqueue)
+
+FetchContent_Declare(
+  libremidi
+  GIT_REPOSITORY https://github.com/celtera/libremidi.git
+  GIT_TAG v5.3.1
+)
+FetchContent_MakeAvailable(libremidi)
 
 # Add MIDI executable
 add_executable(MicroComposerMIDI
