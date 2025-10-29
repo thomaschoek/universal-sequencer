@@ -129,6 +129,15 @@ template <sequencable::Mut_seq_event Event_t>
 void Gui<Event_t>::build_sequencer_widgets() {
   using Traits = Event_parameter_traits<Event_t>;
   const auto& state = state_.controller_state;
+
+  // Destroy and remove old widgets from container
+  for (auto& widget : sequencer_widgets_) {
+    if (widget.frame) {
+      // Removing the frame from the container will destroy all child widgets
+      gtk_container_remove(GTK_CONTAINER(sequencers_vbox_), widget.frame);
+      // The g_object_set_data_full cleanup will be called automatically
+    }
+  }
   sequencer_widgets_.clear();
 
   constexpr size_t num_params = Traits::parameter_count;
