@@ -79,6 +79,8 @@ public:
   void gui_pause(Seq_idx seq_idx);
   void gui_stop(Seq_idx seq_idx);
   void gui_toggle_play(Seq_idx seq_idx);
+  void gui_add_event();
+  void gui_remove_event();
 
 private:
   // Controller actions (mapped to keyboard events)

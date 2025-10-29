@@ -358,6 +358,18 @@ gboolean Gui<Event_t>::on_key_press(GtkWidget* widget, GdkEventKey* event,
                                     gpointer user_data) {
   auto* gui = static_cast<Gui*>(user_data);
 
+  // Check for Ctrl+A (add event) in any mode
+  if ((event->state & GDK_CONTROL_MASK) && event->keyval == GDK_KEY_a) {
+    gui->gui_add_event();
+    return TRUE;
+  }
+
+  // Check for Ctrl+D (remove event) in any mode
+  if ((event->state & GDK_CONTROL_MASK) && event->keyval == GDK_KEY_d) {
+    gui->gui_remove_event();
+    return TRUE;
+  }
+
   if (gui->state_.mode == Mode::Normal) {
     // In normal mode, we handle all keys and consume them
     gui->handle_normal_mode_key(event->keyval);
@@ -640,6 +652,63 @@ void Gui<Event_t>::focus_selected_cell() {
       sel_evt < widget.cells[default_param].size()) {
     GtkWidget* selected_cell = widget.cells[default_param][sel_evt];
     gtk_widget_grab_focus(selected_cell);
+  }
+}
+
+// Add event to selected sequencer
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::gui_add_event() {
+  auto sel_seq = controller_.selected_seq();
+  if (!sel_seq) {
+    show_error("No sequencer selected");
+    return;
+  }
+
+  try {
+    // Create a default event
+    Event_t new_event{};
+    new_event.enabled = true;
+    new_event.duration = std::chrono::milliseconds(100);
+
+    // Add event to sequencer
+    controller_.push_back_event(*sel_seq, new_event);
+
+    // Rebuild widgets to reflect the change
+    build_sequencer_widgets();
+
+    // Mark state as dirty to trigger render
+    state_.state_dirty = true;
+
+    // Select the newly added event
+    auto new_size = controller_.get_state().sizes[*sel_seq];
+    if (new_size > 0) {
+      controller_.select(*sel_seq, new_size - 1);
+    }
+  } catch (const std::exception& e) {
+    show_error(std::string("Failed to add event: ") + e.what());
+  }
+}
+
+// Remove last event from selected sequencer
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::gui_remove_event() {
+  auto sel_seq = controller_.selected_seq();
+  if (!sel_seq) {
+    show_error("No sequencer selected");
+    return;
+  }
+
+  try {
+    // Remove last event from sequencer
+    controller_.pop_back_event(*sel_seq);
+
+    // Rebuild widgets to reflect the change
+    build_sequencer_widgets();
+
+    // Mark state as dirty to trigger render
+    state_.state_dirty = true;
+  } catch (const std::exception& e) {
+    show_error(std::string("Failed to remove event: ") + e.what());
   }
 }
 
