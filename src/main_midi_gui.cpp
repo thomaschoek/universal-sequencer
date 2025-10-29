@@ -1,4 +1,5 @@
 #include "controller/poly_sequencer_controller.h"
+#include "gui/event_parameter_traits_midi.h"
 #include "gui/gui.h"
 #include "midi/midi_output.h"
 #include "sequencable/midi_event.h"
