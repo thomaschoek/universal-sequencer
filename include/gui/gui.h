@@ -112,6 +112,7 @@ private:
   void update_window_title();
   void focus_selected_cell();
   void build_sequencer_widgets();
+  void rebuild_sequencer_widget(Seq_idx seq_idx);
 
   // Parameter parsing and application
   bool parse_and_apply_edit(Seq_idx seq_idx, Event_idx event_idx,

@@ -250,6 +250,139 @@ void Gui<Event_t>::build_sequencer_widgets() {
                        5);
     sequencer_widgets_.push_back(widget);
   }
+
+  // Show all newly created widgets
+  gtk_widget_show_all(sequencers_vbox_);
+}
+
+// Rebuild a single sequencer widget efficiently
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::rebuild_sequencer_widget(Seq_idx seq_idx) {
+  using Traits = Event_parameter_traits<Event_t>;
+
+  // Bounds check
+  if (seq_idx >= sequencer_widgets_.size()) {
+    return;
+  }
+
+  // Get fresh state
+  state_.controller_state = controller_.get_state();
+  const auto& state = state_.controller_state;
+
+  if (seq_idx >= state.sizes.size()) {
+    return;
+  }
+
+  // Remove old widget from container
+  auto& old_widget = sequencer_widgets_[seq_idx];
+  if (old_widget.frame) {
+    gtk_container_remove(GTK_CONTAINER(sequencers_vbox_), old_widget.frame);
+  }
+
+  // Build new widget
+  Sequencer_widget widget;
+  const size_t num_events = state.sizes[seq_idx];
+  constexpr size_t num_params = Traits::parameter_count;
+
+  // Create frame
+  widget.frame = gtk_frame_new(nullptr);
+  gtk_widget_set_name(widget.frame, "sequencer-frame");
+  gtk_frame_set_shadow_type(GTK_FRAME(widget.frame), GTK_SHADOW_ETCHED_IN);
+
+  // Create vertical box
+  widget.vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
+  gtk_container_add(GTK_CONTAINER(widget.frame), widget.vbox);
+
+  // Create header label with sequencer status
+  std::string header_text = "Sequencer " + std::to_string(seq_idx);
+  header_text += " [" + std::to_string(num_events) + " steps]";
+  if (seq_idx < state.scheduling.size() && state.scheduling[seq_idx]) {
+    header_text += " ▶";
+  } else {
+    header_text += " ⏸";
+  }
+  widget.header_label = gtk_label_new(header_text.c_str());
+  gtk_widget_set_name(widget.header_label, "sequencer-header");
+  gtk_box_pack_start(GTK_BOX(widget.vbox), widget.header_label, FALSE, FALSE, 2);
+
+  // Create column headers with event indices
+  widget.column_header = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
+  gtk_widget_set_name(widget.column_header, "column-headers");
+
+  // Add spacer for parameter name column
+  GtkWidget* spacer = gtk_label_new("");
+  gtk_widget_set_size_request(spacer, 80, -1);
+  gtk_box_pack_start(GTK_BOX(widget.column_header), spacer, FALSE, FALSE, 0);
+
+  // Add column headers for each event
+  for (Event_idx evt_idx = 0; evt_idx < num_events; ++evt_idx) {
+    std::string col_label = std::to_string(evt_idx);
+    GtkWidget* col_header_label = gtk_label_new(col_label.c_str());
+    gtk_widget_set_size_request(col_header_label, 70, -1);
+    gtk_box_pack_start(GTK_BOX(widget.column_header), col_header_label, FALSE, FALSE, 2);
+  }
+
+  gtk_box_pack_start(GTK_BOX(widget.vbox), widget.column_header, FALSE, FALSE, 2);
+
+  // Create grid for parameters
+  widget.grid = gtk_grid_new();
+  gtk_widget_set_name(widget.grid, "sequencer-grid");
+  gtk_grid_set_row_spacing(GTK_GRID(widget.grid), 2);
+  gtk_grid_set_column_spacing(GTK_GRID(widget.grid), 2);
+  gtk_box_pack_start(GTK_BOX(widget.vbox), widget.grid, TRUE, TRUE, 0);
+
+  // Build parameter rows
+  widget.cells.resize(num_params);
+  widget.row_labels.resize(num_params);
+
+  for (size_t param_idx = 0; param_idx < num_params; ++param_idx) {
+    // Create row label
+    GtkWidget* label = gtk_label_new(Traits::get_parameter_name(param_idx).c_str());
+    gtk_widget_set_size_request(label, 80, -1);
+    gtk_widget_set_halign(label, GTK_ALIGN_START);
+    gtk_grid_attach(GTK_GRID(widget.grid), label, 0, param_idx, 1, 1);
+    widget.row_labels[param_idx] = label;
+
+    // Create entry widgets for each event
+    for (Event_idx evt_idx = 0; evt_idx < num_events; ++evt_idx) {
+      GtkWidget* entry = gtk_entry_new();
+      gtk_entry_set_width_chars(GTK_ENTRY(entry), 10);
+      gtk_widget_set_size_request(entry, 70, -1);
+
+      // Set initial value
+      if (seq_idx < state.events.size() &&
+          evt_idx < state.events[seq_idx].size()) {
+        const auto& event = state.events[seq_idx][evt_idx];
+        std::string value_str = Traits::get_parameter_value(event, param_idx);
+        gtk_entry_set_text(GTK_ENTRY(entry), value_str.c_str());
+      }
+
+      // Allocate user data for callbacks
+      auto* user_data = new Entry_user_data{this, seq_idx, evt_idx, param_idx};
+
+      // Connect signals
+      g_signal_connect(entry, "focus-out-event",
+                       G_CALLBACK(on_entry_focus_out), user_data);
+      g_signal_connect(entry, "activate", G_CALLBACK(on_entry_activate),
+                       user_data);
+
+      // Store cleanup data
+      g_object_set_data_full(G_OBJECT(entry), "user-data", user_data, g_free);
+
+      gtk_grid_attach(GTK_GRID(widget.grid), entry, evt_idx + 1, param_idx, 1, 1);
+      widget.cells[param_idx].push_back(entry);
+    }
+  }
+
+  // Insert at correct position in container
+  gtk_box_pack_start(GTK_BOX(sequencers_vbox_), widget.frame, FALSE, FALSE, 5);
+  gtk_box_reorder_child(GTK_BOX(sequencers_vbox_), widget.frame, seq_idx);
+
+  // Replace in our vector
+  sequencer_widgets_[seq_idx] = widget;
+
+  // Show the new widget
+  gtk_widget_show_all(widget.frame);
 }
 
 // Parse and apply edit to event parameter
@@ -689,10 +822,10 @@ void Gui<Event_t>::gui_add_event() {
     debug::msg("[GUI] Successfully pushed back event  to " +
                std::to_string(*sel_seq));
 
-    debug::msg("[GUI] Rebuilding sequencer widgets ");
-    // Rebuild widgets to reflect the change
-    build_sequencer_widgets();
-    debug::msg("[GUI] Returned from build_sequencer_widgets()");
+    debug::msg("[GUI] Rebuilding sequencer widget " + std::to_string(*sel_seq));
+    // Rebuild only the affected widget
+    rebuild_sequencer_widget(*sel_seq);
+    debug::msg("[GUI] Returned from rebuild_sequencer_widget()");
 
     // Mark state as dirty to trigger render
     state_.state_dirty = true;
@@ -725,8 +858,8 @@ void Gui<Event_t>::gui_remove_event() {
     // Remove last event from sequencer
     controller_.pop_back_event(*sel_seq);
 
-    // Rebuild widgets to reflect the change
-    build_sequencer_widgets();
+    // Rebuild only the affected widget
+    rebuild_sequencer_widget(*sel_seq);
 
     // Mark state as dirty to trigger render
     state_.state_dirty = true;
