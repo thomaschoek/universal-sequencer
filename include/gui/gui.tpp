@@ -720,6 +720,13 @@ gboolean Gui<Event_t>::on_key_press(GtkWidget* widget, GdkEventKey* event,
     return TRUE;
   }
 
+  // Check for Ctrl+R (select all in row) in any mode
+  if ((event->state & GDK_CONTROL_MASK) &&
+      (event->keyval == GDK_KEY_r || event->keyval == GDK_KEY_R)) {
+    gui->gui_select_all_in_row();
+    return TRUE;
+  }
+
   // Check for Ctrl+Space (start/stop all sequencers) in any mode
   if ((event->state & GDK_CONTROL_MASK) && event->keyval == GDK_KEY_space) {
     auto time = Controller::Clock::now() + std::chrono::milliseconds(50);
@@ -1283,6 +1290,30 @@ void Gui<Event_t>::gui_extend_selection_right() {
 }
 
 template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::gui_select_all_in_row() {
+  auto sel_seq = controller_.selected_seq();
+  if (!sel_seq) {
+    return;
+  }
+
+  auto& state = state_.controller_state;
+  if (*sel_seq >= state.sizes.size() || state.sizes[*sel_seq] == 0) {
+    return;
+  }
+
+  // Clear existing multi-selection
+  state_.selected_event_range.clear();
+
+  // Add all event indices to selection
+  for (Event_idx i = 0; i < state.sizes[*sel_seq]; ++i) {
+    state_.selected_event_range.insert(i);
+  }
+
+  // Mark state as dirty for re-render
+  state_.state_dirty = true;
+}
+
+template <sequencable::Mut_seq_event Event_t>
 void Gui<Event_t>::gui_start(Seq_idx seq_idx) {
   auto start_time = Controller::Clock::now() + std::chrono::milliseconds(50);
   controller_.start(seq_idx, start_time, true); // true for repeat
@@ -1772,6 +1803,7 @@ EDITING
   ENTER (edit)     Confirm edit and exit edit mode
   UP / DOWN        Increment/decrement numeric values
   Shift+H / Shift+L  Extend multi-selection left/right
+  Ctrl+R           Select all cells in current row
   Ctrl+A           Add new event to selected sequencer
   Ctrl+D           Remove last event from selected sequencer
   Ctrl+C           Clear all events (with confirmation)

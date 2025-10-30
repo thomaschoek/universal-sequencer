@@ -105,6 +105,7 @@ public:
   void gui_select_prev_param();
   void gui_extend_selection_left();
   void gui_extend_selection_right();
+  void gui_select_all_in_row();
   void clear_multi_selection();
   void gui_start(Seq_idx seq_idx);
   void gui_pause(Seq_idx seq_idx);
