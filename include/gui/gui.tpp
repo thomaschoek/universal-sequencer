@@ -1,7 +1,8 @@
-#include "gui/gui.h"
 #include "gui/event_parameter_traits.h"
-#include <gdk/gdkkeysyms.h>
+#include "gui/gui.h"
+#include "utility/debug.h"
 #include <cstring>
+#include <gdk/gdkkeysyms.h>
 #include <iostream>
 
 namespace Micro_composer {
@@ -182,11 +183,14 @@ void Gui<Event_t>::build_sequencer_widgets() {
     for (Event_idx evt_idx = 0; evt_idx < num_events; ++evt_idx) {
       std::string col_label = std::to_string(evt_idx);
       GtkWidget* col_header_label = gtk_label_new(col_label.c_str());
-      gtk_widget_set_size_request(col_header_label, 70, -1); // Match entry width
-      gtk_box_pack_start(GTK_BOX(widget.column_header), col_header_label, FALSE, FALSE, 2);
+      gtk_widget_set_size_request(col_header_label, 70,
+                                  -1); // Match entry width
+      gtk_box_pack_start(GTK_BOX(widget.column_header), col_header_label, FALSE,
+                         FALSE, 2);
     }
 
-    gtk_box_pack_start(GTK_BOX(widget.vbox), widget.column_header, FALSE, FALSE, 2);
+    gtk_box_pack_start(GTK_BOX(widget.vbox), widget.column_header, FALSE, FALSE,
+                       2);
 
     // Create grid for parameters
     widget.grid = gtk_grid_new();
@@ -223,7 +227,8 @@ void Gui<Event_t>::build_sequencer_widgets() {
         }
 
         // Allocate user data for callbacks
-        auto* user_data = new Entry_user_data{this, seq_idx, evt_idx, param_idx};
+        auto* user_data =
+            new Entry_user_data{this, seq_idx, evt_idx, param_idx};
 
         // Connect signals
         g_signal_connect(entry, "focus-out-event",
@@ -232,11 +237,10 @@ void Gui<Event_t>::build_sequencer_widgets() {
                          user_data);
 
         // Store cleanup data
-        g_object_set_data_full(G_OBJECT(entry), "user-data", user_data,
-                               g_free);
+        g_object_set_data_full(G_OBJECT(entry), "user-data", user_data, g_free);
 
-        gtk_grid_attach(GTK_GRID(widget.grid), entry, evt_idx + 1, param_idx,
-                        1, 1);
+        gtk_grid_attach(GTK_GRID(widget.grid), entry, evt_idx + 1, param_idx, 1,
+                        1);
         widget.cells[param_idx].push_back(entry);
       }
     }
@@ -251,16 +255,17 @@ void Gui<Event_t>::build_sequencer_widgets() {
 // Parse and apply edit to event parameter
 template <sequencable::Mut_seq_event Event_t>
 bool Gui<Event_t>::parse_and_apply_edit(Seq_idx seq_idx, Event_idx event_idx,
-                                         size_t param_idx,
-                                         const std::string& value_str) {
+                                        size_t param_idx,
+                                        const std::string& value_str) {
   using Traits = Event_parameter_traits<Event_t>;
 
   try {
     // Apply mutation via controller
-    controller_.mutate(seq_idx, event_idx, [param_idx, &value_str](Event_t&& evt) {
-      Traits::set_parameter_value(evt, param_idx, value_str);
-      return std::move(evt);
-    });
+    controller_.mutate(seq_idx, event_idx,
+                       [param_idx, &value_str](Event_t&& evt) {
+                         Traits::set_parameter_value(evt, param_idx, value_str);
+                         return std::move(evt);
+                       });
     return true;
   } catch (const std::exception& e) {
     show_error(e.what());
@@ -297,7 +302,7 @@ gboolean Gui<Event_t>::clear_error_timeout(gpointer user_data) {
 // Entry focus-out callback - apply edit when focus leaves
 template <sequencable::Mut_seq_event Event_t>
 void Gui<Event_t>::on_entry_focus_out(GtkWidget* widget, GdkEventFocus* event,
-                                       gpointer user_data) {
+                                      gpointer user_data) {
   (void)event; // Unused
   auto* data = static_cast<Entry_user_data*>(user_data);
   auto* gui = data->gui;
@@ -504,14 +509,12 @@ template <sequencable::Mut_seq_event Event_t> void Gui<Event_t>::render() {
 }
 
 // Render the grid
-template <sequencable::Mut_seq_event Event_t>
-void Gui<Event_t>::render_grid() {
+template <sequencable::Mut_seq_event Event_t> void Gui<Event_t>::render_grid() {
   const auto& state = state_.controller_state;
 
   // Check if selection changed
-  bool selection_changed =
-      (state.selected_seq != state_.last_selected_seq) ||
-      (state.selected_event != state_.last_selected_event);
+  bool selection_changed = (state.selected_seq != state_.last_selected_seq) ||
+                           (state.selected_event != state_.last_selected_event);
 
   if (!selection_changed) {
     return; // Nothing to update
@@ -679,19 +682,30 @@ void Gui<Event_t>::gui_add_event() {
     new_event.enabled = true;
     new_event.duration = std::chrono::milliseconds(100);
 
+    debug::msg("[GUI] Adding new event to sequencer " +
+               std::to_string(*sel_seq));
     // Add event to sequencer
     controller_.push_back_event(*sel_seq, new_event);
+    debug::msg("[GUI] Successfully pushed back event  to " +
+               std::to_string(*sel_seq));
 
+    debug::msg("[GUI] Rebuilding sequencer widgets ");
     // Rebuild widgets to reflect the change
     build_sequencer_widgets();
+    debug::msg("[GUI] Returned from build_sequencer_widgets()");
 
     // Mark state as dirty to trigger render
     state_.state_dirty = true;
 
+    debug::msg("[GUI] Getting new size");
     // Select the newly added event
     auto new_size = controller_.get_state().sizes[*sel_seq];
+    debug::msg("[GUI] Got new size: " + std::to_string(new_size));
     if (new_size > 0) {
+      debug::msg("[GUI] selecting new event at index " +
+                 std::to_string(new_size - 1));
       controller_.select(*sel_seq, new_size - 1);
+      debug::msg("[GUI] Returned from controller_.select");
     }
   } catch (const std::exception& e) {
     show_error(std::string("Failed to add event: ") + e.what());
