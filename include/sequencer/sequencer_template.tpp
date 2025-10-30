@@ -56,8 +56,8 @@ Sequencer<T_event>::Sequencer(Sequencer&& other) noexcept
   // Copy atomic values (can't be moved)
   t_next_.store(other.t_next_.load(std::memory_order_acquire),
                 std::memory_order_release);
-  next_.store(other.next_.load(std::memory_order_acquire),
-              std::memory_order_release);
+  current_.store(other.current_.load(std::memory_order_acquire),
+                 std::memory_order_release);
 
   // Note: scheduler_ and transport_mutex_ are default-initialized
   // (stopped/unlocked)
@@ -153,7 +153,7 @@ inline Sequencer<T_event>::Size_type Sequencer<T_event>::size() const noexcept {
 template <sequencable::Mut_seq_event T_event>
 Sequencer<T_event>::Size_type inline Sequencer<T_event>::get_pos()
     const noexcept {
-  return next_.load(std::memory_order_acquire);
+  return current_.load(std::memory_order_acquire);
 }
 
 template <sequencable::Mut_seq_event T_event>
@@ -168,7 +168,7 @@ template <sequencable::Mut_seq_event T_event>
 void Sequencer<T_event>::set_pos(Size_type pos) {
   range_check(pos);
   await_scheduler();
-  next_.store(pos, std::memory_order_release);
+  current_.store(pos, std::memory_order_release);
 }
 
 template <sequencable::Mut_seq_event T_event>
@@ -208,7 +208,7 @@ void Sequencer<T_event>::insert(Size_type pos, const T_event& event) {
 
   Size_type current;
   while (is_scheduling()) {
-    current = next_.load(std::memory_order_acquire);
+    current = current_.load(std::memory_order_acquire);
     if (current < pos) {
       break;
     } else if (current > pos + 1) {
@@ -229,9 +229,9 @@ void Sequencer<T_event>::insert(Size_type pos, const T_event& event) {
     }
 #endif
     if (++current < events_.size()) {
-      next_.fetch_add(1, std::memory_order_acq_rel);
+      current_.fetch_add(1, std::memory_order_acq_rel);
     } else {
-      next_.store(0, std::memory_order_release);
+      current_.store(0, std::memory_order_release);
     }
   }
 }
@@ -390,8 +390,8 @@ void Sequencer<T_event>::assign(Events_initializer events) {
   std::scoped_lock lck{data_mutex_};
   pause();
   events_.assign(events);
-  if (next_.load(std::memory_order_acquire) >= events.size()) {
-    next_.store(0, std::memory_order_release);
+  if (current_.load(std::memory_order_acquire) >= events.size()) {
+    current_.store(0, std::memory_order_release);
   }
 }
 template <sequencable::Mut_seq_event T_event>
@@ -400,8 +400,8 @@ void Sequencer<T_event>::assign(const std::vector<T_event>& events) {
   std::scoped_lock lck{data_mutex_};
   pause();
   events_ = events;
-  if (next_.load(std::memory_order_acquire) >= events.size()) {
-    next_.store(0, std::memory_order_release);
+  if (current_.load(std::memory_order_acquire) >= events.size()) {
+    current_.store(0, std::memory_order_release);
   }
 }
 
@@ -412,8 +412,8 @@ void Sequencer<T_event>::assign(Size_type n, const T_event& event) {
   std::scoped_lock lck{data_mutex_};
   pause();
   events_.assign(n, event);
-  if (next_.load(std::memory_order_acquire) >= n) {
-    next_.store(0, std::memory_order_release);
+  if (current_.load(std::memory_order_acquire) >= n) {
+    current_.store(0, std::memory_order_release);
   }
 }
 
@@ -430,7 +430,7 @@ void Sequencer<T_event>::erase(Size_type idx) {
   range_check(idx);
   Size_type current;
   while (is_scheduling()) {
-    current = next_.load(std::memory_order_acquire);
+    current = current_.load(std::memory_order_acquire);
     if (current != idx) {
       break;
     }
@@ -441,7 +441,7 @@ void Sequencer<T_event>::erase(Size_type idx) {
   // If current > idx decrement current to account for the removed event
   if (current > idx) {
     // unsigned Size_type idx >= 0; so current > idx implies current > 0
-    next_.fetch_sub(1, std::memory_order_acq_rel);
+    current_.fetch_sub(1, std::memory_order_acq_rel);
   }
 }
 
@@ -534,26 +534,18 @@ Sequencer<T_event>::once(const std::stop_token st,
   Time_point t_next = initial_time;
   T_event current;
 
-  next_.store(initial_index, std::memory_order_release);
+  current_.store(initial_index, std::memory_order_release);
 
-  do {
+  while (!st.stop_requested() &&
+         (cur_idx = current_.fetch_add(1, std::memory_order_acq_rel)) <
+             events_.size()) {
     {
       std::scoped_lock lck{data_mutex_};
       // debug_msg("oncw(): Acquired data_mutex_");
-      //  Inform concurrent threads which event we are about to copy
-      cur_idx = next_.load(std::memory_order_acquire);
       // debug_msg("once(): Loaded next_ = " + std::to_string(event_idx) +
       //" from atomic next_");
-      events_size = events_.size();
       // debug_msg("once(): Loaded events_.size() = " +
       // std::to_string(events_size));
-      if (cur_idx >= events_size) {
-        // debug_msg("once(): event_idx " + std::to_string(event_idx)
-        // +
-        //">= events_size " + std::to_string(events_size) +
-        //", BREAK loop");
-        break;
-      }
 
       {
         events_.mutate(cur_idx, [&current, t_next](T_event&& evt) {
@@ -562,7 +554,6 @@ Sequencer<T_event>::once(const std::stop_token st,
           return std::forward<T_event>(evt);
         });
       }
-      next_.store(cur_idx + 1, std::memory_order_release);
     }
     // debug_msg("once(): Released data_mutex_");
 
@@ -578,11 +569,6 @@ Sequencer<T_event>::once(const std::stop_token st,
     //            std::chrono::duration_cast<std::chrono::milliseconds>(cur_duration)
     //                .count()) +
     //        " ms)");
-
-    if (st.stop_requested()) {
-      debug_msg("once(): stop requested, breaking loop");
-      break;
-    }
 
     if (current.enabled) {
       pool_.submit(std::forward<T_event>(current));
@@ -603,7 +589,7 @@ Sequencer<T_event>::once(const std::stop_token st,
     std::this_thread::sleep_until(t_next);
 
     t_next += cur_duration;
-  } while (!st.stop_requested());
+  }
 
   return t_next;
 }

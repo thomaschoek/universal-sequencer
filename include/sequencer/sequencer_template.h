@@ -125,7 +125,7 @@ private:
   mutable std::mutex transport_mutex_;
   mutable std::mutex data_mutex_;
   Container events_;
-  std::atomic<Size_type> next_{0};
+  std::atomic<Size_type> current_{0};
   std::atomic<Time_point> t_next_{Time_point::min()};
 };
 
