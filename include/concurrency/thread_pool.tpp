@@ -41,7 +41,8 @@ Thread_pool<T_event>::Thread_pool(Task event_handler,
                                   Size_type initial_n_threads,
                                   Size_type max_threads)
     : handler_{event_handler},
-      max_threads_{max_threads == 0 ? std::thread::hardware_concurrency() * 2 : max_threads} {
+      max_threads_{max_threads == 0 ? std::thread::hardware_concurrency() * 2
+                                    : max_threads} {
   if (handler_ == nullptr) {
     throw std::invalid_argument("Thread_pool: event_handler cannot be null");
   }
@@ -177,10 +178,11 @@ std::jthread Thread_pool<T_event>::worker() {
         //                  " ms");
       }
       std::this_thread::sleep_until(event.scheduled_time - spin_duration_);
+      if (st.stop_requested()) {
+        return;
+      }
       while (Clock::now() < event.scheduled_time) {
-        if (st.stop_requested()) {
-          return;
-        }
+        ;
       }
       // debug_msg("CALLING HANDLER");
       handler_(std::forward<T_event>(event));
