@@ -426,5 +426,67 @@ void Poly_sequencer_controller<T_event>::pop_back_event(Seq_idx seq) {
   }
 }
 
+// Toggle sequencer (mute/unmute)
+template <sequencable::Mut_seq_event T_event>
+void Poly_sequencer_controller<T_event>::toggle_sequencer(Seq_idx seq) {
+  if (seq >= Base_sequencer::size()) {
+    throw std::out_of_range(
+        "[ERROR] In Poly_sequencer_controller::toggle_sequencer: Sequencer "
+        "index out of range.");
+  }
+
+  std::scoped_lock lck{toggle_mutex_, state_mutex_};
+
+  // Check if we have saved state for this sequencer
+  auto it = saved_enabled_states_.find(seq);
+
+  if (it == saved_enabled_states_.end()) {
+    // Not currently toggled - save current enabled states and disable all
+    auto& sequencer = Base_sequencer::operator[](seq);
+    std::vector<bool> enabled_states;
+    enabled_states.reserve(sequencer.size());
+
+    // Save current enabled states
+    for (Event_idx i = 0; i < sequencer.size(); ++i) {
+      enabled_states.push_back(state_.events[seq][i].enabled);
+    }
+
+    // Store the saved states
+    saved_enabled_states_[seq] = std::move(enabled_states);
+
+    // Disable all events
+    Base_sequencer::disable(seq);
+
+    // Update state
+    state_.events[seq] = sequencer.snapshot();
+  } else {
+    // Currently toggled - restore saved enabled states
+    const auto& saved_states = it->second;
+    auto& sequencer = Base_sequencer::operator[](seq);
+
+    // Restore enabled states (handle size mismatch gracefully)
+    for (Event_idx i = 0; i < sequencer.size() && i < saved_states.size(); ++i) {
+      if (saved_states[i]) {
+        Base_sequencer::enable(seq, i);
+      } else {
+        Base_sequencer::disable(seq, i);
+      }
+    }
+
+    // Update state
+    state_.events[seq] = sequencer.snapshot();
+
+    // Remove saved state
+    saved_enabled_states_.erase(it);
+  }
+}
+
+// Check if sequencer is toggled (muted)
+template <sequencable::Mut_seq_event T_event>
+bool Poly_sequencer_controller<T_event>::is_sequencer_toggled(Seq_idx seq) const {
+  std::scoped_lock lck{toggle_mutex_};
+  return saved_enabled_states_.find(seq) != saved_enabled_states_.end();
+}
+
 } // namespace controller
 } // namespace Micro_composer

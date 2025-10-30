@@ -47,6 +47,8 @@ Gui<Event_t>::Gui(Controller& controller, unsigned int fps)
     }
   };
 
+  normal_mode_actions_[GDK_KEY_t] = [this]() { gui_toggle_sequencer(); };
+
   normal_mode_actions_[GDK_KEY_i] = [this]() {
     state_.mode = Mode::Edit;
     state_.state_dirty = true;
@@ -233,6 +235,9 @@ void Gui<Event_t>::build_sequencer_widgets() {
     } else {
       header_text += " ⏸";
     }
+    if (controller_.is_sequencer_toggled(seq_idx)) {
+      header_text += " 🔇";
+    }
     widget.header_label = gtk_label_new(header_text.c_str());
     gtk_widget_set_name(widget.header_label, "sequencer-header");
     gtk_box_pack_start(GTK_BOX(widget.vbox), widget.header_label, FALSE, FALSE,
@@ -370,6 +375,9 @@ void Gui<Event_t>::rebuild_sequencer_widget(Seq_idx seq_idx) {
     header_text += " ▶";
   } else {
     header_text += " ⏸";
+  }
+  if (controller_.is_sequencer_toggled(seq_idx)) {
+    header_text += " 🔇";
   }
   widget.header_label = gtk_label_new(header_text.c_str());
   gtk_widget_set_name(widget.header_label, "sequencer-header");
@@ -1248,6 +1256,22 @@ void Gui<Event_t>::gui_toggle_play(Seq_idx seq_idx) {
   }
 }
 
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::gui_toggle_sequencer() {
+  auto sel_seq = controller_.selected_seq();
+  if (!sel_seq) {
+    show_error("No sequencer selected");
+    return;
+  }
+
+  try {
+    controller_.toggle_sequencer(*sel_seq);
+    state_.state_dirty = true;
+  } catch (const std::exception& e) {
+    show_error(std::string("Failed to toggle sequencer: ") + e.what());
+  }
+}
+
 // Update window title with current mode
 template <sequencable::Mut_seq_event Event_t>
 void Gui<Event_t>::update_window_title() {
@@ -1484,6 +1508,8 @@ NAVIGATION
 
 PLAYBACK
   SPACE          Toggle play/pause for selected sequencer
+  t              Toggle (mute/unmute) selected sequencer
+                 (playhead continues, but no output)
   Ctrl+SPACE     Toggle play/pause for ALL sequencers
   Ctrl+0 / Ctrl+)  Reset selected sequencer to position 0
 

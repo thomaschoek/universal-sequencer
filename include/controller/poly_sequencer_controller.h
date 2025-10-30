@@ -4,6 +4,7 @@
 #include "sequencable/concepts.h"
 #include "sequencer/poly_sequencer_template.h"
 #include <optional>
+#include <unordered_map>
 
 namespace Micro_composer {
 
@@ -83,6 +84,10 @@ public:
   void push_back_event(Seq_idx seq, const Event_t& event);
   void pop_back_event(Seq_idx seq);
 
+  // Toggle sequencer (mute/unmute)
+  void toggle_sequencer(Seq_idx seq);
+  bool is_sequencer_toggled(Seq_idx seq) const;
+
   struct State {
     std::optional<Seq_idx> selected_seq;
     std::optional<Event_idx> selected_event;
@@ -101,6 +106,8 @@ private:
   State state_;
   mutable std::mutex selection_mutex_;
   mutable std::mutex state_mutex_;
+  mutable std::mutex toggle_mutex_;
+  std::unordered_map<Seq_idx, std::vector<bool>> saved_enabled_states_;
 };
 
 } // namespace controller
