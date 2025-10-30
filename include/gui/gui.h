@@ -54,6 +54,10 @@ public:
     // Track previous selection to avoid unnecessary updates
     std::optional<Seq_idx> last_selected_seq;
     std::optional<Event_idx> last_selected_event;
+    std::optional<size_t> last_selected_param;
+
+    // Current parameter selection (which row in the grid)
+    size_t selected_param_idx{0};
 
     // Global GUI state
     Mode mode{Mode::Normal};
@@ -75,6 +79,8 @@ public:
   void gui_select_prev_seq();
   void gui_select_next_pos();
   void gui_select_prev_pos();
+  void gui_select_next_param();
+  void gui_select_prev_param();
   void gui_start(Seq_idx seq_idx);
   void gui_pause(Seq_idx seq_idx);
   void gui_stop(Seq_idx seq_idx);

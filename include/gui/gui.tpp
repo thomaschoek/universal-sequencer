@@ -29,9 +29,9 @@ Gui<Event_t>::Gui(Controller& controller, unsigned int fps)
   // Normal mode mappings
   normal_mode_actions_[GDK_KEY_h] = [this]() { gui_select_prev_pos(); };
 
-  normal_mode_actions_[GDK_KEY_j] = [this]() { gui_select_next_seq(); };
+  normal_mode_actions_[GDK_KEY_j] = [this]() { gui_select_next_param(); };
 
-  normal_mode_actions_[GDK_KEY_k] = [this]() { gui_select_prev_seq(); };
+  normal_mode_actions_[GDK_KEY_k] = [this]() { gui_select_prev_param(); };
 
   normal_mode_actions_[GDK_KEY_l] = [this]() { gui_select_next_pos(); };
 
@@ -523,6 +523,18 @@ gboolean Gui<Event_t>::on_key_press(GtkWidget* widget, GdkEventKey* event,
     return TRUE;
   }
 
+  // Check for Ctrl+J (next sequencer) in any mode
+  if ((event->state & GDK_CONTROL_MASK) && event->keyval == GDK_KEY_j) {
+    gui->gui_select_next_seq();
+    return TRUE;
+  }
+
+  // Check for Ctrl+K (previous sequencer) in any mode
+  if ((event->state & GDK_CONTROL_MASK) && event->keyval == GDK_KEY_k) {
+    gui->gui_select_prev_seq();
+    return TRUE;
+  }
+
   if (gui->state_.mode == Mode::Normal) {
     // In normal mode, we handle all keys and consume them
     gui->handle_normal_mode_key(event->keyval);
@@ -653,42 +665,41 @@ template <sequencable::Mut_seq_event Event_t> void Gui<Event_t>::render_grid() {
 
   // Check if selection changed
   bool selection_changed = (state.selected_seq != state_.last_selected_seq) ||
-                           (state.selected_event != state_.last_selected_event);
+                           (state.selected_event != state_.last_selected_event) ||
+                           (state_.selected_param_idx != state_.last_selected_param);
 
   if (!selection_changed) {
     return; // Nothing to update
   }
 
-  // Remove selection from previous selection
-  if (state_.last_selected_seq && state_.last_selected_event) {
+  // Remove selection from previous cell
+  if (state_.last_selected_seq && state_.last_selected_event && state_.last_selected_param) {
     Seq_idx prev_seq = *state_.last_selected_seq;
     Event_idx prev_evt = *state_.last_selected_event;
+    size_t prev_param = *state_.last_selected_param;
 
     if (prev_seq < sequencer_widgets_.size()) {
       const auto& widget = sequencer_widgets_[prev_seq];
-      for (const auto& param_row : widget.cells) {
-        if (prev_evt < param_row.size()) {
-          GtkWidget* cell = param_row[prev_evt];
-          GtkStyleContext* context = gtk_widget_get_style_context(cell);
-          gtk_style_context_remove_class(context, "selected");
-        }
+      if (prev_param < widget.cells.size() && prev_evt < widget.cells[prev_param].size()) {
+        GtkWidget* cell = widget.cells[prev_param][prev_evt];
+        GtkStyleContext* context = gtk_widget_get_style_context(cell);
+        gtk_style_context_remove_class(context, "selected");
       }
     }
   }
 
-  // Add selection to new selection
+  // Add selection to new cell
   if (state.selected_seq && state.selected_event) {
     Seq_idx sel_seq = *state.selected_seq;
     Event_idx sel_evt = *state.selected_event;
+    size_t sel_param = state_.selected_param_idx;
 
     if (sel_seq < sequencer_widgets_.size()) {
       const auto& widget = sequencer_widgets_[sel_seq];
-      for (const auto& param_row : widget.cells) {
-        if (sel_evt < param_row.size()) {
-          GtkWidget* cell = param_row[sel_evt];
-          GtkStyleContext* context = gtk_widget_get_style_context(cell);
-          gtk_style_context_add_class(context, "selected");
-        }
+      if (sel_param < widget.cells.size() && sel_evt < widget.cells[sel_param].size()) {
+        GtkWidget* cell = widget.cells[sel_param][sel_evt];
+        GtkStyleContext* context = gtk_widget_get_style_context(cell);
+        gtk_style_context_add_class(context, "selected");
       }
     }
   }
@@ -696,6 +707,7 @@ template <sequencable::Mut_seq_event Event_t> void Gui<Event_t>::render_grid() {
   // Update tracking
   state_.last_selected_seq = state.selected_seq;
   state_.last_selected_event = state.selected_event;
+  state_.last_selected_param = state_.selected_param_idx;
 }
 
 // GUI wrapper functions for controller actions
@@ -727,6 +739,24 @@ void Gui<Event_t>::gui_select_next_pos() {
 template <sequencable::Mut_seq_event Event_t>
 void Gui<Event_t>::gui_select_prev_pos() {
   controller_.select_prev_pos();
+  state_.state_dirty = true;
+}
+
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::gui_select_next_param() {
+  using Traits = Event_parameter_traits<Event_t>;
+  state_.selected_param_idx = (state_.selected_param_idx + 1) % Traits::parameter_count;
+  state_.state_dirty = true;
+}
+
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::gui_select_prev_param() {
+  using Traits = Event_parameter_traits<Event_t>;
+  if (state_.selected_param_idx == 0) {
+    state_.selected_param_idx = Traits::parameter_count - 1;
+  } else {
+    state_.selected_param_idx--;
+  }
   state_.state_dirty = true;
 }
 
@@ -789,6 +819,7 @@ void Gui<Event_t>::focus_selected_cell() {
 
   Seq_idx sel_seq = *state.selected_seq;
   Event_idx sel_evt = *state.selected_event;
+  size_t sel_param = state_.selected_param_idx;
 
   // Check bounds
   if (sel_seq >= sequencer_widgets_.size()) {
@@ -797,11 +828,10 @@ void Gui<Event_t>::focus_selected_cell() {
 
   const auto& widget = sequencer_widgets_[sel_seq];
 
-  // Focus the first parameter row (Offset) for the selected event
-  constexpr size_t default_param = 0; // Offset
-  if (default_param < widget.cells.size() &&
-      sel_evt < widget.cells[default_param].size()) {
-    GtkWidget* selected_cell = widget.cells[default_param][sel_evt];
+  // Focus the currently selected parameter row for the selected event
+  if (sel_param < widget.cells.size() &&
+      sel_evt < widget.cells[sel_param].size()) {
+    GtkWidget* selected_cell = widget.cells[sel_param][sel_evt];
     gtk_widget_grab_focus(selected_cell);
   }
 }
