@@ -517,6 +517,12 @@ gboolean Gui<Event_t>::on_key_press(GtkWidget* widget, GdkEventKey* event,
     return TRUE;
   }
 
+  // Check for Ctrl+C (clear sequence) in any mode
+  if ((event->state & GDK_CONTROL_MASK) && event->keyval == GDK_KEY_c) {
+    gui->gui_clear_sequence();
+    return TRUE;
+  }
+
   if (gui->state_.mode == Mode::Normal) {
     // In normal mode, we handle all keys and consume them
     gui->handle_normal_mode_key(event->keyval);
@@ -865,6 +871,50 @@ void Gui<Event_t>::gui_remove_event() {
     state_.state_dirty = true;
   } catch (const std::exception& e) {
     show_error(std::string("Failed to remove event: ") + e.what());
+  }
+}
+
+// Clear selected sequencer with confirmation dialog
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::gui_clear_sequence() {
+  auto sel_seq = controller_.selected_seq();
+  if (!sel_seq) {
+    show_error("No sequencer selected");
+    return;
+  }
+
+  // Create confirmation dialog
+  GtkWidget* dialog = gtk_dialog_new_with_buttons(
+      ("Clear Sequence " + std::to_string(*sel_seq) + "?").c_str(),
+      GTK_WINDOW(window_),
+      GTK_DIALOG_MODAL,
+      "Cancel", GTK_RESPONSE_CANCEL,
+      "OK", GTK_RESPONSE_OK,
+      nullptr);
+
+  // Run dialog and wait for response
+  gint response = gtk_dialog_run(GTK_DIALOG(dialog));
+  gtk_widget_destroy(dialog);
+
+  // If user clicked OK or pressed Enter, clear the sequence
+  if (response == GTK_RESPONSE_OK) {
+    try {
+      // Stop the sequencer first
+      controller_.stop(*sel_seq,
+                      Controller::Clock::now() + std::chrono::milliseconds(50),
+                      0);
+
+      // Clear all events from the sequencer
+      controller_[*sel_seq].clear();
+
+      // Rebuild the widget
+      rebuild_sequencer_widget(*sel_seq);
+
+      // Mark state as dirty
+      state_.state_dirty = true;
+    } catch (const std::exception& e) {
+      show_error(std::string("Failed to clear sequence: ") + e.what());
+    }
   }
 }
 
