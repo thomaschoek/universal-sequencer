@@ -761,14 +761,16 @@ gboolean Gui<Event_t>::on_key_press(GtkWidget* widget, GdkEventKey* event,
   }
 
   // Check for Shift+H (extend selection left) in normal mode
-  if ((event->state & GDK_SHIFT_MASK) && event->keyval == GDK_KEY_h &&
+  if ((event->state & GDK_SHIFT_MASK) &&
+      (event->keyval == GDK_KEY_h || event->keyval == GDK_KEY_H) &&
       gui->state_.mode == Mode::Normal) {
     gui->gui_extend_selection_left();
     return TRUE;
   }
 
   // Check for Shift+L (extend selection right) in normal mode
-  if ((event->state & GDK_SHIFT_MASK) && event->keyval == GDK_KEY_l &&
+  if ((event->state & GDK_SHIFT_MASK) &&
+      (event->keyval == GDK_KEY_l || event->keyval == GDK_KEY_L) &&
       gui->state_.mode == Mode::Normal) {
     gui->gui_extend_selection_right();
     return TRUE;
