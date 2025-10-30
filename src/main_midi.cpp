@@ -74,7 +74,7 @@ int main(int argc, char** argv) {
         std::thread([midi_output, note_off = msgs.note_off, duration_ms]() {
           std::this_thread::sleep_for(duration_ms);
           midi_output->send_message(note_off);
-        }).detach();
+        });
       };
     };
 
@@ -106,7 +106,7 @@ int main(int argc, char** argv) {
 
     // Create controller
     Poly_sequencer_controller<Midi_event> controller(handler_factory,
-                                                      sequences);
+                                                     sequences);
 
     // Enable all events
     controller.enable();
