@@ -49,6 +49,17 @@ Gui<Event_t>::Gui(Controller& controller, unsigned int fps)
     focus_selected_cell();
   };
 
+  normal_mode_actions_[GDK_KEY_Return] = [this]() {
+    auto sel_seq = controller_.selected_seq();
+    auto sel_evt = controller_.selected_event();
+    if (sel_seq && sel_evt) {
+      controller_.toggle(*sel_seq, *sel_evt);
+      // Update the enabled cell (param index 0)
+      update_cell_value(*sel_seq, *sel_evt, 0);
+      state_.state_dirty = true;
+    }
+  };
+
   // Edit mode mappings
   edit_mode_actions_[GDK_KEY_Escape] = [this]() {
     state_.mode = Mode::Normal;
@@ -708,6 +719,34 @@ template <sequencable::Mut_seq_event Event_t> void Gui<Event_t>::render_grid() {
   state_.last_selected_seq = state.selected_seq;
   state_.last_selected_event = state.selected_event;
   state_.last_selected_param = state_.selected_param_idx;
+}
+
+// Update a specific cell's value from the controller state
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::update_cell_value(Seq_idx seq_idx, Event_idx event_idx, size_t param_idx) {
+  using Traits = Event_parameter_traits<Event_t>;
+
+  // Bounds check
+  if (seq_idx >= sequencer_widgets_.size()) {
+    return;
+  }
+
+  const auto& widget = sequencer_widgets_[seq_idx];
+  if (param_idx >= widget.cells.size() || event_idx >= widget.cells[param_idx].size()) {
+    return;
+  }
+
+  // Get fresh state
+  state_.controller_state = controller_.get_state();
+  const auto& state = state_.controller_state;
+
+  // Update cell value
+  if (seq_idx < state.events.size() && event_idx < state.events[seq_idx].size()) {
+    const auto& event = state.events[seq_idx][event_idx];
+    std::string value_str = Traits::get_parameter_value(event, param_idx);
+    GtkWidget* cell = widget.cells[param_idx][event_idx];
+    gtk_entry_set_text(GTK_ENTRY(cell), value_str.c_str());
+  }
 }
 
 // GUI wrapper functions for controller actions

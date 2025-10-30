@@ -114,6 +114,7 @@ private:
   // Rendering helpers
   void render_grid();
   void update_cell(Seq_idx seq_idx, Event_idx event_idx);
+  void update_cell_value(Seq_idx seq_idx, Event_idx event_idx, size_t param_idx);
   void update_playhead_visual(Seq_idx seq_idx, Event_idx old_pos,
                               Event_idx new_pos);
   void update_window_title();
