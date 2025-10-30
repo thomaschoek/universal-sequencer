@@ -1395,13 +1395,13 @@ void Gui<Event_t>::build_menu_bar() {
   gtk_menu_item_set_submenu(GTK_MENU_ITEM(file_item), file_menu);
   gtk_menu_shell_append(GTK_MENU_SHELL(menu_bar_), file_item);
 
-  // Add placeholder items to File menu (will be implemented in Task 11)
+  // Add Save and Load items to File menu
   GtkWidget* save_item = gtk_menu_item_new_with_label("Save...");
-  gtk_widget_set_sensitive(save_item, FALSE); // Disabled for now
+  g_signal_connect(save_item, "activate", G_CALLBACK(on_save_activate), this);
   gtk_menu_shell_append(GTK_MENU_SHELL(file_menu), save_item);
 
   GtkWidget* load_item = gtk_menu_item_new_with_label("Load...");
-  gtk_widget_set_sensitive(load_item, FALSE); // Disabled for now
+  g_signal_connect(load_item, "activate", G_CALLBACK(on_load_activate), this);
   gtk_menu_shell_append(GTK_MENU_SHELL(file_menu), load_item);
 
   // Create Help menu
@@ -1603,6 +1603,263 @@ void Gui<Event_t>::apply_preferences() {
                                  preferences_.window_width,
                                  preferences_.window_height);
   }
+}
+
+// Serialize sequences to JSON string
+template <sequencable::Mut_seq_event Event_t>
+std::string Gui<Event_t>::sequences_to_json() const {
+  using Traits = Event_parameter_traits<Event_t>;
+  const auto& state = state_.controller_state;
+
+  std::ostringstream json;
+  json << "{\n  \"sequencers\": [\n";
+
+  for (size_t seq_idx = 0; seq_idx < state.events.size(); ++seq_idx) {
+    if (seq_idx > 0) json << ",\n";
+    json << "    {\n";
+    json << "      \"events\": [\n";
+
+    const auto& events = state.events[seq_idx];
+    for (size_t evt_idx = 0; evt_idx < events.size(); ++evt_idx) {
+      if (evt_idx > 0) json << ",\n";
+      json << "        {\n";
+
+      const auto& event = events[evt_idx];
+      constexpr size_t num_params = Traits::parameter_count;
+
+      for (size_t param_idx = 0; param_idx < num_params; ++param_idx) {
+        if (param_idx > 0) json << ",\n";
+        std::string param_name = Traits::get_parameter_name(param_idx);
+        std::string param_value = Traits::get_parameter_value(event, param_idx);
+
+        // Escape quotes in value
+        size_t pos = 0;
+        while ((pos = param_value.find('"', pos)) != std::string::npos) {
+          param_value.insert(pos, "\\");
+          pos += 2;
+        }
+
+        json << "          \"" << param_name << "\": \"" << param_value << "\"";
+      }
+
+      json << "\n        }";
+    }
+
+    json << "\n      ]\n";
+    json << "    }";
+  }
+
+  json << "\n  ]\n}\n";
+  return json.str();
+}
+
+// Deserialize sequences from JSON string
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::json_to_sequences(const std::string& json_str) {
+  using Traits = Event_parameter_traits<Event_t>;
+
+  // Simple JSON parser - parse line by line looking for parameter:value pairs
+  std::istringstream input(json_str);
+  std::string line;
+
+  std::vector<std::vector<Event_t>> new_sequences;
+  std::vector<Event_t> current_sequence;
+  Event_t current_event{};
+  size_t param_idx = 0;
+  bool in_event = false;
+
+  while (std::getline(input, line)) {
+    // Trim whitespace
+    line.erase(0, line.find_first_not_of(" \t\n\r"));
+    line.erase(line.find_last_not_of(" \t\n\r") + 1);
+
+    // Start of event object
+    if (line == "{" && !in_event) {
+      in_event = true;
+      current_event = Event_t{};
+      param_idx = 0;
+      continue;
+    }
+
+    // End of event object
+    if (line == "}," || line == "}") {
+      if (in_event) {
+        current_sequence.push_back(current_event);
+        in_event = false;
+      }
+      continue;
+    }
+
+    // Look for parameter:value pairs
+    size_t colon_pos = line.find(':');
+    if (colon_pos != std::string::npos && in_event) {
+      // Extract parameter name and value
+      std::string param_part = line.substr(0, colon_pos);
+      std::string value_part = line.substr(colon_pos + 1);
+
+      // Remove quotes and whitespace
+      auto remove_quotes = [](std::string& s) {
+        s.erase(0, s.find_first_not_of(" \t\""));
+        s.erase(s.find_last_not_of(" \t\",") + 1);
+      };
+
+      remove_quotes(param_part);
+      remove_quotes(value_part);
+
+      // Find parameter index by name
+      constexpr size_t num_params = Traits::parameter_count;
+      for (size_t i = 0; i < num_params; ++i) {
+        if (Traits::get_parameter_name(i) == param_part) {
+          try {
+            Traits::set_parameter_value(current_event, i, value_part);
+          } catch (const std::exception& e) {
+            show_error(std::string("Error parsing parameter '") + param_part +
+                      "': " + e.what());
+            return;
+          }
+          break;
+        }
+      }
+    }
+
+    // Check for start of new sequencer
+    if (line.find("\"events\":") != std::string::npos && !current_sequence.empty()) {
+      new_sequences.push_back(current_sequence);
+      current_sequence.clear();
+    }
+  }
+
+  // Add last sequence if any
+  if (!current_sequence.empty()) {
+    new_sequences.push_back(current_sequence);
+  }
+
+  // Clear all existing sequences
+  for (size_t seq_idx = 0; seq_idx < controller_.size(); ++seq_idx) {
+    controller_[seq_idx].clear();
+  }
+
+  // Load new sequences
+  for (size_t seq_idx = 0; seq_idx < new_sequences.size() && seq_idx < controller_.size(); ++seq_idx) {
+    for (const auto& event : new_sequences[seq_idx]) {
+      controller_.push_back_event(seq_idx, event);
+    }
+    rebuild_sequencer_widget(seq_idx);
+  }
+
+  state_.state_dirty = true;
+}
+
+// Save sequences to file
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::save_sequences_to_file(const std::string& filepath) {
+  std::string json_str = sequences_to_json();
+
+  std::ofstream file(filepath);
+  if (!file.is_open()) {
+    show_error("Failed to open file for writing: " + filepath);
+    return;
+  }
+
+  file << json_str;
+  file.close();
+
+  // Update last save directory in preferences
+  size_t last_slash = filepath.find_last_of('/');
+  if (last_slash != std::string::npos) {
+    preferences_.last_save_directory = filepath.substr(0, last_slash);
+    save_preferences();
+  }
+}
+
+// Load sequences from file
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::load_sequences_from_file(const std::string& filepath) {
+  std::ifstream file(filepath);
+  if (!file.is_open()) {
+    show_error("Failed to open file for reading: " + filepath);
+    return;
+  }
+
+  std::ostringstream buffer;
+  buffer << file.rdbuf();
+  file.close();
+
+  json_to_sequences(buffer.str());
+
+  // Update last save directory in preferences
+  size_t last_slash = filepath.find_last_of('/');
+  if (last_slash != std::string::npos) {
+    preferences_.last_save_directory = filepath.substr(0, last_slash);
+    save_preferences();
+  }
+}
+
+// Save menu callback
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::on_save_activate(GtkMenuItem* item, gpointer user_data) {
+  (void)item;
+  auto* gui = static_cast<Gui*>(user_data);
+
+  GtkWidget* dialog = gtk_file_chooser_dialog_new(
+      "Save Sequences",
+      GTK_WINDOW(gui->window_),
+      GTK_FILE_CHOOSER_ACTION_SAVE,
+      "Cancel", GTK_RESPONSE_CANCEL,
+      "Save", GTK_RESPONSE_ACCEPT,
+      nullptr);
+
+  gtk_file_chooser_set_do_overwrite_confirmation(GTK_FILE_CHOOSER(dialog), TRUE);
+
+  // Set default directory from preferences
+  if (!gui->preferences_.last_save_directory.empty()) {
+    gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(dialog),
+                                        gui->preferences_.last_save_directory.c_str());
+  }
+
+  // Set default filename
+  gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER(dialog), "sequences.json");
+
+  gint result = gtk_dialog_run(GTK_DIALOG(dialog));
+
+  if (result == GTK_RESPONSE_ACCEPT) {
+    char* filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
+    gui->save_sequences_to_file(std::string(filename));
+    g_free(filename);
+  }
+
+  gtk_widget_destroy(dialog);
+}
+
+// Load menu callback
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::on_load_activate(GtkMenuItem* item, gpointer user_data) {
+  (void)item;
+  auto* gui = static_cast<Gui*>(user_data);
+
+  GtkWidget* dialog = gtk_file_chooser_dialog_new(
+      "Load Sequences",
+      GTK_WINDOW(gui->window_),
+      GTK_FILE_CHOOSER_ACTION_OPEN,
+      "Cancel", GTK_RESPONSE_CANCEL,
+      "Load", GTK_RESPONSE_ACCEPT,
+      nullptr);
+
+  // Set default directory from preferences
+  if (!gui->preferences_.last_save_directory.empty()) {
+    gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(dialog),
+                                        gui->preferences_.last_save_directory.c_str());
+  }
+
+  gint result = gtk_dialog_run(GTK_DIALOG(dialog));
+
+  if (result == GTK_RESPONSE_ACCEPT) {
+    char* filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
+    gui->load_sequences_from_file(std::string(filename));
+    g_free(filename);
+  }
+
+  gtk_widget_destroy(dialog);
 }
 
 } // namespace gui

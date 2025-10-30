@@ -142,6 +142,14 @@ private:
   void apply_preferences();
   std::string get_config_file_path() const;
 
+  // File save/load
+  void save_sequences_to_file(const std::string& filepath);
+  void load_sequences_from_file(const std::string& filepath);
+  std::string sequences_to_json() const;
+  void json_to_sequences(const std::string& json_str);
+  static void on_save_activate(GtkMenuItem* item, gpointer user_data);
+  static void on_load_activate(GtkMenuItem* item, gpointer user_data);
+
   // Rendering helpers
   void render_grid();
   void update_cell(Seq_idx seq_idx, Event_idx event_idx);
