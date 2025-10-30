@@ -546,6 +546,18 @@ gboolean Gui<Event_t>::on_key_press(GtkWidget* widget, GdkEventKey* event,
     return TRUE;
   }
 
+  // Check for Ctrl+Space (start/stop all sequencers) in any mode
+  if ((event->state & GDK_CONTROL_MASK) && event->keyval == GDK_KEY_space) {
+    auto time = Controller::Clock::now() + std::chrono::milliseconds(50);
+    if (gui->controller_.any_scheduling()) {
+      gui->controller_.pause(time);
+    } else {
+      gui->controller_.start(time, true); // true for repeat
+    }
+    gui->state_.state_dirty = true;
+    return TRUE;
+  }
+
   if (gui->state_.mode == Mode::Normal) {
     // In normal mode, we handle all keys and consume them
     gui->handle_normal_mode_key(event->keyval);
