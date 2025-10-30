@@ -60,6 +60,22 @@ Gui<Event_t>::Gui(Controller& controller, unsigned int fps)
     }
   };
 
+  // Keys 1-8 select events at indexes 0-7
+  for (guint key = GDK_KEY_1; key <= GDK_KEY_8; ++key) {
+    normal_mode_actions_[key] = [this, key]() {
+      auto sel_seq = controller_.selected_seq();
+      if (sel_seq) {
+        Event_idx event_idx = key - GDK_KEY_1; // Convert key to index (1->0, 2->1, etc.)
+        auto& state = state_.controller_state;
+        // Bounds check
+        if (*sel_seq < state.sizes.size() && event_idx < state.sizes[*sel_seq]) {
+          controller_.select(*sel_seq, event_idx);
+          state_.state_dirty = true;
+        }
+      }
+    };
+  }
+
   // Edit mode mappings
   edit_mode_actions_[GDK_KEY_Escape] = [this]() {
     state_.mode = Mode::Normal;
