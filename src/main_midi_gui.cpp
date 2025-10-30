@@ -86,26 +86,15 @@ int main(int argc, char** argv) {
 
     // Sequence 1: C major scale (C4 to C5)
     std::vector<Midi_event> scale;
-    std::vector<std::string> notes = {"C4", "D4", "E4", "F4",
-                                      "G4", "A4", "B4", "C5"};
+    std::vector<std::string> notes = {"C4", "C4", "C4", "C4",
+                                      "C4", "C4", "C4", "C4"};
     for (const auto& note : notes) {
-      scale.emplace_back(std::chrono::milliseconds(300), note, 80);
+      scale.emplace_back(std::chrono::milliseconds(250), note, 64);
     }
+    sequences.push_back(scale);
+    sequences.push_back(scale);
+    sequences.push_back(scale);
     sequences.push_back(std::move(scale));
-
-    // Sequence 2: Bass line (C2, G2)
-    sequences.push_back({
-        Midi_event(std::chrono::milliseconds(600), "C2", 100),
-        Midi_event(std::chrono::milliseconds(600), "G2", 100),
-    });
-
-    // Sequence 3: Chord progression (arpeggiated)
-    sequences.push_back({
-        Midi_event(std::chrono::milliseconds(200), "C4", 70),
-        Midi_event(std::chrono::milliseconds(200), "E4", 70),
-        Midi_event(std::chrono::milliseconds(200), "G4", 70),
-        Midi_event(std::chrono::milliseconds(200), "C5", 70),
-    });
 
     // Create controller
     Poly_sequencer_controller<Midi_event> controller(handler_factory,
