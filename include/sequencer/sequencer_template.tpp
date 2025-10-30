@@ -206,7 +206,7 @@ void Sequencer<T_event>::insert(Size_type pos, const T_event& event) {
   validate(event);
   range_check(pos);
 
-  Size_type current = current_.load(std::memory_order_acquire);
+  Size_type current{0};
   while (is_scheduling()) {
     current = current_.load(std::memory_order_acquire);
     if (current < pos) {
@@ -428,7 +428,7 @@ void Sequencer<T_event>::pop_back() {
 template <sequencable::Mut_seq_event T_event>
 void Sequencer<T_event>::erase(Size_type idx) {
   range_check(idx);
-  Size_type current = current_.load(std::memory_order_acquire);
+  Size_type current{0};
   while (is_scheduling()) {
     current = current_.load(std::memory_order_acquire);
     if (current != idx) {
