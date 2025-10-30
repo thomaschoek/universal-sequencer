@@ -76,6 +76,26 @@ Gui<Event_t>::Gui(Controller& controller, unsigned int fps)
     };
   }
 
+  // UP key increments selected cell value
+  normal_mode_actions_[GDK_KEY_Up] = [this]() {
+    auto sel_seq = controller_.selected_seq();
+    auto sel_evt = controller_.selected_event();
+    if (sel_seq && sel_evt) {
+      size_t param_idx = state_.selected_param_idx;
+      increment_cell_value(*sel_seq, *sel_evt, param_idx, true);
+    }
+  };
+
+  // DOWN key decrements selected cell value
+  normal_mode_actions_[GDK_KEY_Down] = [this]() {
+    auto sel_seq = controller_.selected_seq();
+    auto sel_evt = controller_.selected_event();
+    if (sel_seq && sel_evt) {
+      size_t param_idx = state_.selected_param_idx;
+      increment_cell_value(*sel_seq, *sel_evt, param_idx, false);
+    }
+  };
+
   // Edit mode mappings
   edit_mode_actions_[GDK_KEY_Escape] = [this]() {
     state_.mode = Mode::Normal;
@@ -802,6 +822,68 @@ void Gui<Event_t>::update_cell_value(Seq_idx seq_idx, Event_idx event_idx, size_
     std::string value_str = Traits::get_parameter_value(event, param_idx);
     GtkWidget* cell = widget.cells[param_idx][event_idx];
     gtk_entry_set_text(GTK_ENTRY(cell), value_str.c_str());
+  }
+}
+
+// Increment or decrement a cell's numeric value
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::increment_cell_value(Seq_idx seq_idx, Event_idx event_idx, size_t param_idx, bool increment) {
+  using Traits = Event_parameter_traits<Event_t>;
+
+  // Get fresh state
+  state_.controller_state = controller_.get_state();
+  const auto& state = state_.controller_state;
+
+  // Bounds check
+  if (seq_idx >= state.events.size() || event_idx >= state.events[seq_idx].size()) {
+    return;
+  }
+
+  try {
+    // Get current value as string
+    const auto& event = state.events[seq_idx][event_idx];
+    std::string current_value = Traits::get_parameter_value(event, param_idx);
+
+    // Try to parse as double
+    char* end;
+    double numeric_value = std::strtod(current_value.c_str(), &end);
+
+    // Check if it's a valid number
+    if (end == current_value.c_str() || (*end != '\0' && *end != ' ')) {
+      // Not a numeric value, ignore
+      return;
+    }
+
+    // Determine increment amount
+    // Check if current value has a decimal point to decide on increment amount
+    double delta = (current_value.find('.') != std::string::npos) ? 0.001 : 1.0;
+    if (!increment) {
+      delta = -delta;
+    }
+
+    numeric_value += delta;
+
+    // Convert back to string
+    char buffer[32];
+    if (current_value.find('.') != std::string::npos) {
+      // Float format
+      snprintf(buffer, sizeof(buffer), "%.3f", numeric_value);
+    } else {
+      // Integer format
+      snprintf(buffer, sizeof(buffer), "%ld", static_cast<long>(numeric_value));
+    }
+    std::string new_value(buffer);
+
+    // Apply via mutate
+    controller_.mutate(seq_idx, event_idx, [param_idx, &new_value](Event_t&& evt) {
+      Traits::set_parameter_value(evt, param_idx, new_value);
+      return std::move(evt);
+    });
+
+    // Update GUI
+    update_cell_value(seq_idx, event_idx, param_idx);
+  } catch (const std::exception& e) {
+    // Silently ignore errors for non-numeric parameters
   }
 }
 
