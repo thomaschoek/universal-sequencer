@@ -3,6 +3,7 @@
 
 #include <libremidi/libremidi.hpp>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -51,6 +52,7 @@ private:
   std::unique_ptr<libremidi::midi_out> midi_out_;
   int current_port_{-1};
   std::string current_port_name_;
+  mutable std::mutex send_mutex_;  // Protects send_message calls
 };
 
 } // namespace midi

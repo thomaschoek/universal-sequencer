@@ -913,6 +913,17 @@ template <sequencable::Mut_seq_event Event_t> void Gui<Event_t>::render_grid() {
         GtkStyleContext* context = gtk_widget_get_style_context(cell);
         gtk_style_context_remove_class(context, "selected");
       }
+
+      // Remove multi-selection classes from previously selected range
+      if (!state_.last_selected_event_range.empty()) {
+        for (Event_idx evt_idx : state_.last_selected_event_range) {
+          if (prev_param < widget.cells.size() && evt_idx < widget.cells[prev_param].size()) {
+            GtkWidget* cell = widget.cells[prev_param][evt_idx];
+            GtkStyleContext* context = gtk_widget_get_style_context(cell);
+            gtk_style_context_remove_class(context, "multi-selected");
+          }
+        }
+      }
     }
   }
 
@@ -951,6 +962,7 @@ template <sequencable::Mut_seq_event Event_t> void Gui<Event_t>::render_grid() {
   state_.last_selected_seq = state.selected_seq;
   state_.last_selected_event = state.selected_event;
   state_.last_selected_param = state_.selected_param_idx;
+  state_.last_selected_event_range = state_.selected_event_range;
 }
 
 // Update a specific cell's value from the controller state
@@ -1069,6 +1081,7 @@ void Gui<Event_t>::clear_multi_selection() {
   }
 
   state_.selected_event_range.clear();
+  state_.last_selected_event_range.clear();
   state_.state_dirty = true;
 }
 

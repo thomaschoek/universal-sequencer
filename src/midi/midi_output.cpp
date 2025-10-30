@@ -105,6 +105,8 @@ bool Midi_output::is_open() const {
 }
 
 void Midi_output::send_message(const libremidi::message& msg) {
+  std::lock_guard<std::mutex> lock(send_mutex_);
+
   if (!is_open()) {
     throw std::runtime_error("Cannot send MIDI message: no port is open");
   }

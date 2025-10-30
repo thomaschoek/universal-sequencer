@@ -73,6 +73,7 @@ public:
 
     // Multi-selection support
     std::set<Event_idx> selected_event_range;  // Selected event columns in current row
+    std::set<Event_idx> last_selected_event_range;  // Previous multi-selection for cleanup
     Event_idx anchor_event{0};                 // Selection anchor point
     bool in_text_update{false};                // Prevents signal recursion
 
