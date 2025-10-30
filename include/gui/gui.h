@@ -28,6 +28,17 @@ public:
   // GUI operation modes (vim-like)
   enum class Mode { Normal, Edit };
 
+  // Preferences structure
+  struct Preferences {
+    unsigned int fps{50};
+    int window_width{1000};
+    int window_height{700};
+    std::string last_save_directory;
+
+    // Default constructor with sensible defaults
+    Preferences() = default;
+  };
+
   // Sequencer widget structure (holds GTK widgets for one sequencer)
   struct Sequencer_widget {
     GtkWidget* frame{nullptr};          // Outer frame with border
@@ -125,6 +136,12 @@ private:
   static void on_help_activate(GtkMenuItem* item, gpointer user_data);
   void show_help_dialog();
 
+  // Preferences
+  void load_preferences();
+  void save_preferences();
+  void apply_preferences();
+  std::string get_config_file_path() const;
+
   // Rendering helpers
   void render_grid();
   void update_cell(Seq_idx seq_idx, Event_idx event_idx);
@@ -162,6 +179,7 @@ private:
   // Data members
   Controller& controller_;
   Gui_state state_;
+  Preferences preferences_;
   unsigned int fps_;
   Duration frame_duration_;
   bool running_{false};
