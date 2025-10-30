@@ -791,10 +791,14 @@ gboolean Gui<Event_t>::on_key_press(GtkWidget* widget, GdkEventKey* event,
         gui->update_window_title();
       }
       return TRUE;
-    } else if ((event->keyval >= GDK_KEY_0 && event->keyval <= GDK_KEY_9) ||
-               event->keyval == GDK_KEY_period) {
-      // Add digit or period to buffer
-      gui->state_.tempo_input_buffer += gdk_keyval_name(event->keyval);
+    } else if (event->keyval >= GDK_KEY_0 && event->keyval <= GDK_KEY_9) {
+      // Add digit to buffer
+      gui->state_.tempo_input_buffer += static_cast<char>('0' + (event->keyval - GDK_KEY_0));
+      gui->update_window_title();
+      return TRUE;
+    } else if (event->keyval == GDK_KEY_period) {
+      // Add decimal point to buffer
+      gui->state_.tempo_input_buffer += '.';
       gui->update_window_title();
       return TRUE;
     }
