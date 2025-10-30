@@ -119,6 +119,11 @@ private:
   // Initialize GTK widgets
   void init_widgets();
   void build_grid();
+  void build_menu_bar();
+
+  // Menu callbacks
+  static void on_help_activate(GtkMenuItem* item, gpointer user_data);
+  void show_help_dialog();
 
   // Rendering helpers
   void render_grid();
@@ -163,6 +168,7 @@ private:
 
   // GTK widgets
   GtkWidget* window_{nullptr};
+  GtkWidget* menu_bar_{nullptr};         // Menu bar
   GtkWidget* main_vbox_{nullptr};        // Main vertical container
   GtkWidget* scrolled_window_{nullptr};  // Scrollable area
   GtkWidget* sequencers_vbox_{nullptr};  // Container for sequencer widgets

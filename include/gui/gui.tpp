@@ -153,8 +153,11 @@ void Gui<Event_t>::init_widgets() {
       GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
 
   // Create main vertical box
-  main_vbox_ = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+  main_vbox_ = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
   gtk_container_add(GTK_CONTAINER(window_), main_vbox_);
+
+  // Build menu bar
+  build_menu_bar();
 
   // Create error label (initially hidden)
   error_label_ = gtk_label_new("");
@@ -653,6 +656,12 @@ template <sequencable::Mut_seq_event Event_t>
 gboolean Gui<Event_t>::on_key_press(GtkWidget* widget, GdkEventKey* event,
                                     gpointer user_data) {
   auto* gui = static_cast<Gui*>(user_data);
+
+  // Check for F1 (help dialog) in any mode
+  if (event->keyval == GDK_KEY_F1) {
+    gui->show_help_dialog();
+    return TRUE;
+  }
 
   // Check for Ctrl+A (add event) in any mode
   if ((event->state & GDK_CONTROL_MASK) && event->keyval == GDK_KEY_a) {
@@ -1357,6 +1366,121 @@ void Gui<Event_t>::gui_clear_sequence() {
       show_error(std::string("Failed to clear sequence: ") + e.what());
     }
   }
+}
+
+// Build menu bar
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::build_menu_bar() {
+  menu_bar_ = gtk_menu_bar_new();
+
+  // Create File menu
+  GtkWidget* file_menu = gtk_menu_new();
+  GtkWidget* file_item = gtk_menu_item_new_with_label("File");
+  gtk_menu_item_set_submenu(GTK_MENU_ITEM(file_item), file_menu);
+  gtk_menu_shell_append(GTK_MENU_SHELL(menu_bar_), file_item);
+
+  // Add placeholder items to File menu (will be implemented in Task 11)
+  GtkWidget* save_item = gtk_menu_item_new_with_label("Save...");
+  gtk_widget_set_sensitive(save_item, FALSE); // Disabled for now
+  gtk_menu_shell_append(GTK_MENU_SHELL(file_menu), save_item);
+
+  GtkWidget* load_item = gtk_menu_item_new_with_label("Load...");
+  gtk_widget_set_sensitive(load_item, FALSE); // Disabled for now
+  gtk_menu_shell_append(GTK_MENU_SHELL(file_menu), load_item);
+
+  // Create Help menu
+  GtkWidget* help_menu = gtk_menu_new();
+  GtkWidget* help_item = gtk_menu_item_new_with_label("Help");
+  gtk_menu_item_set_submenu(GTK_MENU_ITEM(help_item), help_menu);
+  gtk_menu_shell_append(GTK_MENU_SHELL(menu_bar_), help_item);
+
+  // Add "Keyboard Shortcuts" item with F1 accelerator
+  GtkWidget* shortcuts_item = gtk_menu_item_new_with_label("Keyboard Shortcuts");
+  g_signal_connect(shortcuts_item, "activate", G_CALLBACK(on_help_activate), this);
+  gtk_menu_shell_append(GTK_MENU_SHELL(help_menu), shortcuts_item);
+
+  // Add menu bar to main vbox at the top
+  gtk_box_pack_start(GTK_BOX(main_vbox_), menu_bar_, FALSE, FALSE, 0);
+}
+
+// Help menu callback
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::on_help_activate(GtkMenuItem* item, gpointer user_data) {
+  (void)item; // Unused
+  auto* gui = static_cast<Gui*>(user_data);
+  gui->show_help_dialog();
+}
+
+// Show help dialog with keyboard shortcuts
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::show_help_dialog() {
+  GtkWidget* dialog = gtk_dialog_new_with_buttons(
+      "Keyboard Shortcuts",
+      GTK_WINDOW(window_),
+      GTK_DIALOG_MODAL,
+      "OK",
+      GTK_RESPONSE_OK,
+      nullptr);
+
+  gtk_window_set_default_size(GTK_WINDOW(dialog), 500, 600);
+
+  GtkWidget* content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+
+  // Create scrolled window for help text
+  GtkWidget* scrolled = gtk_scrolled_window_new(nullptr, nullptr);
+  gtk_box_pack_start(GTK_BOX(content_area), scrolled, TRUE, TRUE, 10);
+
+  // Create text view for help content
+  GtkWidget* text_view = gtk_text_view_new();
+  gtk_text_view_set_editable(GTK_TEXT_VIEW(text_view), FALSE);
+  gtk_text_view_set_cursor_visible(GTK_TEXT_VIEW(text_view), FALSE);
+  gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(text_view), GTK_WRAP_WORD);
+  gtk_text_view_set_left_margin(GTK_TEXT_VIEW(text_view), 10);
+  gtk_text_view_set_right_margin(GTK_TEXT_VIEW(text_view), 10);
+  gtk_container_add(GTK_CONTAINER(scrolled), text_view);
+
+  GtkTextBuffer* buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(text_view));
+
+  std::string help_text = R"(MicroComposer Keyboard Shortcuts
+
+MODES
+  i              Enter edit mode (allows editing cell values)
+  ESC            Exit edit mode (return to normal mode)
+
+NAVIGATION
+  h / l          Navigate left/right between events
+  j / k          Navigate down/up between parameters
+  Ctrl+J / Ctrl+K  Navigate down/up between sequencers
+  1-8            Jump to event at index 0-7
+
+PLAYBACK
+  SPACE          Toggle play/pause for selected sequencer
+  Ctrl+SPACE     Toggle play/pause for ALL sequencers
+  Ctrl+0 / Ctrl+)  Reset selected sequencer to position 0
+
+EDITING
+  ENTER (normal)   Toggle step enabled/disabled
+  ENTER (edit)     Confirm edit and exit edit mode
+  UP / DOWN        Increment/decrement numeric values
+  Shift+H / Shift+L  Extend multi-selection left/right
+  Ctrl+A           Add new event to selected sequencer
+  Ctrl+D           Remove last event from selected sequencer
+  Ctrl+C           Clear all events (with confirmation)
+
+HELP
+  F1             Show this help dialog
+
+TIPS
+  - Multi-selection: Use Shift+H/L to select multiple cells
+  - Edits in multi-selection apply to all selected cells simultaneously
+  - Navigation wraps around at sequence boundaries
+  - Increment/decrement only works on numeric parameters)";
+
+  gtk_text_buffer_set_text(buffer, help_text.c_str(), -1);
+
+  gtk_widget_show_all(dialog);
+  gtk_dialog_run(GTK_DIALOG(dialog));
+  gtk_widget_destroy(dialog);
 }
 
 } // namespace gui
