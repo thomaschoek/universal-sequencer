@@ -558,6 +558,34 @@ gboolean Gui<Event_t>::on_key_press(GtkWidget* widget, GdkEventKey* event,
     return TRUE;
   }
 
+  // Check for Ctrl+0 (reset selected sequencer) or Ctrl+) (reset all sequencers)
+  if ((event->state & GDK_CONTROL_MASK) &&
+      (event->keyval == GDK_KEY_0 || event->keyval == GDK_KEY_parenright)) {
+    auto time = Controller::Clock::now() + std::chrono::milliseconds(50);
+
+    if (event->state & GDK_SHIFT_MASK || event->keyval == GDK_KEY_parenright) {
+      // Ctrl+Shift+0 or Ctrl+) - Reset all sequencers
+      gui->controller_.stop(time, 0);
+
+      // Update all playhead visuals to position 0
+      for (Seq_idx seq_idx = 0; seq_idx < gui->state_.sequencer_gui_states.size(); ++seq_idx) {
+        auto& gui_state = gui->state_.sequencer_gui_states[seq_idx];
+        gui->update_playhead_visual(seq_idx, gui_state.last_rendered_playhead, 0);
+        gui_state.last_rendered_playhead = 0;
+        gui_state.playhead_visible = true;
+      }
+    } else {
+      // Ctrl+0 - Reset selected sequencer
+      auto sel_seq = gui->controller_.selected_seq();
+      if (sel_seq) {
+        gui->gui_stop(*sel_seq);
+      }
+    }
+
+    gui->state_.state_dirty = true;
+    return TRUE;
+  }
+
   if (gui->state_.mode == Mode::Normal) {
     // In normal mode, we handle all keys and consume them
     gui->handle_normal_mode_key(event->keyval);
