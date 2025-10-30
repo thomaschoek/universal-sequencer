@@ -47,6 +47,7 @@ Gui<Event_t>::Gui(Controller& controller, unsigned int fps)
     state_.state_dirty = true;
     update_window_title();
     focus_selected_cell();
+    // Note: Keep multi-selection active when entering edit mode
   };
 
   normal_mode_actions_[GDK_KEY_Return] = [this]() {
@@ -99,6 +100,7 @@ Gui<Event_t>::Gui(Controller& controller, unsigned int fps)
   // Edit mode mappings
   edit_mode_actions_[GDK_KEY_Escape] = [this]() {
     state_.mode = Mode::Normal;
+    clear_multi_selection();  // Clear multi-selection when exiting edit mode
     state_.state_dirty = true;
     update_window_title();
   };
@@ -282,6 +284,8 @@ void Gui<Event_t>::build_sequencer_widgets() {
                          G_CALLBACK(on_entry_focus_out), user_data);
         g_signal_connect(entry, "activate", G_CALLBACK(on_entry_activate),
                          user_data);
+        g_signal_connect(entry, "changed", G_CALLBACK(on_entry_changed),
+                         user_data);
 
         // Store cleanup data
         g_object_set_data_full(G_OBJECT(entry), "user-data", user_data, g_free);
@@ -412,6 +416,8 @@ void Gui<Event_t>::rebuild_sequencer_widget(Seq_idx seq_idx) {
                        G_CALLBACK(on_entry_focus_out), user_data);
       g_signal_connect(entry, "activate", G_CALLBACK(on_entry_activate),
                        user_data);
+      g_signal_connect(entry, "changed", G_CALLBACK(on_entry_changed),
+                       user_data);
 
       // Store cleanup data
       g_object_set_data_full(G_OBJECT(entry), "user-data", user_data, g_free);
@@ -491,23 +497,46 @@ void Gui<Event_t>::on_entry_focus_out(GtkWidget* widget, GdkEventFocus* event,
   const char* text = gtk_entry_get_text(GTK_ENTRY(widget));
   std::string value_str(text);
 
-  // Try to apply the edit
-  bool success = gui->parse_and_apply_edit(data->seq_idx, data->event_idx,
-                                           data->param_idx, value_str);
+  // Check if multi-selection is active
+  if (!gui->state_.selected_event_range.empty()) {
+    // Apply to all selected cells
+    bool all_success = true;
+    for (Event_idx evt_idx : gui->state_.selected_event_range) {
+      bool success = gui->parse_and_apply_edit(data->seq_idx, evt_idx,
+                                                data->param_idx, value_str);
+      all_success = all_success && success;
+    }
 
-  if (success) {
-    // Update state and mark dirty
+    if (!all_success) {
+      // Restore all cells to original values
+      using Traits = Event_parameter_traits<Event_t>;
+      for (Event_idx evt_idx : gui->state_.selected_event_range) {
+        gui->update_cell_value(data->seq_idx, evt_idx, data->param_idx);
+      }
+    }
+
+    // Clear multi-selection after apply
+    gui->clear_multi_selection();
     gui->state_.state_dirty = true;
   } else {
-    // Restore original value on failure
-    using Traits = Event_parameter_traits<Event_t>;
-    auto& state = gui->state_.controller_state;
-    if (data->seq_idx < state.events.size() &&
-        data->event_idx < state.events[data->seq_idx].size()) {
-      const auto& event = state.events[data->seq_idx][data->event_idx];
-      std::string original_value =
-          Traits::get_parameter_value(event, data->param_idx);
-      gtk_entry_set_text(GTK_ENTRY(widget), original_value.c_str());
+    // Single cell edit
+    bool success = gui->parse_and_apply_edit(data->seq_idx, data->event_idx,
+                                             data->param_idx, value_str);
+
+    if (success) {
+      // Update state and mark dirty
+      gui->state_.state_dirty = true;
+    } else {
+      // Restore original value on failure
+      using Traits = Event_parameter_traits<Event_t>;
+      auto& state = gui->state_.controller_state;
+      if (data->seq_idx < state.events.size() &&
+          data->event_idx < state.events[data->seq_idx].size()) {
+        const auto& event = state.events[data->seq_idx][data->event_idx];
+        std::string original_value =
+            Traits::get_parameter_value(event, data->param_idx);
+        gtk_entry_set_text(GTK_ENTRY(widget), original_value.c_str());
+      }
     }
   }
 }
@@ -522,28 +551,101 @@ void Gui<Event_t>::on_entry_activate(GtkEntry* entry, gpointer user_data) {
   const char* text = gtk_entry_get_text(entry);
   std::string value_str(text);
 
-  // Try to apply the edit
-  bool success = gui->parse_and_apply_edit(data->seq_idx, data->event_idx,
-                                           data->param_idx, value_str);
+  // Check if multi-selection is active
+  if (!gui->state_.selected_event_range.empty()) {
+    // Apply to all selected cells
+    bool all_success = true;
+    for (Event_idx evt_idx : gui->state_.selected_event_range) {
+      bool success = gui->parse_and_apply_edit(data->seq_idx, evt_idx,
+                                                data->param_idx, value_str);
+      all_success = all_success && success;
+    }
 
-  if (success) {
-    // Update state and mark dirty
+    if (!all_success) {
+      // Restore all cells to original values
+      using Traits = Event_parameter_traits<Event_t>;
+      for (Event_idx evt_idx : gui->state_.selected_event_range) {
+        gui->update_cell_value(data->seq_idx, evt_idx, data->param_idx);
+      }
+    } else {
+      // Success - remove focus from entry to exit edit mode visually
+      gtk_widget_grab_focus(gui->window_);
+    }
+
+    // Clear multi-selection after apply
+    gui->clear_multi_selection();
     gui->state_.state_dirty = true;
-
-    // Remove focus from entry to exit edit mode visually
-    gtk_widget_grab_focus(gui->window_);
   } else {
-    // Restore original value on failure
-    using Traits = Event_parameter_traits<Event_t>;
-    auto& state = gui->state_.controller_state;
-    if (data->seq_idx < state.events.size() &&
-        data->event_idx < state.events[data->seq_idx].size()) {
-      const auto& event = state.events[data->seq_idx][data->event_idx];
-      std::string original_value =
-          Traits::get_parameter_value(event, data->param_idx);
-      gtk_entry_set_text(entry, original_value.c_str());
+    // Single cell edit
+    bool success = gui->parse_and_apply_edit(data->seq_idx, data->event_idx,
+                                             data->param_idx, value_str);
+
+    if (success) {
+      // Update state and mark dirty
+      gui->state_.state_dirty = true;
+
+      // Remove focus from entry to exit edit mode visually
+      gtk_widget_grab_focus(gui->window_);
+    } else {
+      // Restore original value on failure
+      using Traits = Event_parameter_traits<Event_t>;
+      auto& state = gui->state_.controller_state;
+      if (data->seq_idx < state.events.size() &&
+          data->event_idx < state.events[data->seq_idx].size()) {
+        const auto& event = state.events[data->seq_idx][data->event_idx];
+        std::string original_value =
+            Traits::get_parameter_value(event, data->param_idx);
+        gtk_entry_set_text(entry, original_value.c_str());
+      }
     }
   }
+}
+
+// Entry changed callback - propagate text to all selected cells
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::on_entry_changed(GtkEntry* entry, gpointer user_data) {
+  auto* data = static_cast<Entry_user_data*>(user_data);
+  auto* gui = data->gui;
+
+  // Prevent recursion
+  if (gui->state_.in_text_update) {
+    return;
+  }
+
+  // Only propagate if multi-selection is active
+  if (gui->state_.selected_event_range.empty()) {
+    return;
+  }
+
+  // Only propagate from the currently selected cell
+  auto sel_seq = gui->controller_.selected_seq();
+  auto sel_evt = gui->controller_.selected_event();
+  if (!sel_seq || !sel_evt || data->event_idx != *sel_evt) {
+    return;
+  }
+
+  // Get current text
+  const char* text = gtk_entry_get_text(entry);
+
+  // Block recursion
+  gui->state_.in_text_update = true;
+
+  // Update all other selected cells in the same row
+  if (*sel_seq < gui->sequencer_widgets_.size()) {
+    auto& widget = gui->sequencer_widgets_[*sel_seq];
+    size_t param_idx = gui->state_.selected_param_idx;
+
+    for (Event_idx evt_idx : gui->state_.selected_event_range) {
+      if (evt_idx != data->event_idx &&
+          param_idx < widget.cells.size() &&
+          evt_idx < widget.cells[param_idx].size()) {
+        GtkWidget* target_cell = widget.cells[param_idx][evt_idx];
+        gtk_entry_set_text(GTK_ENTRY(target_cell), text);
+      }
+    }
+  }
+
+  gui->state_.in_text_update = false;
 }
 
 // GTK key press callback
@@ -619,6 +721,20 @@ gboolean Gui<Event_t>::on_key_press(GtkWidget* widget, GdkEventKey* event,
     }
 
     gui->state_.state_dirty = true;
+    return TRUE;
+  }
+
+  // Check for Shift+H (extend selection left) in normal mode
+  if ((event->state & GDK_SHIFT_MASK) && event->keyval == GDK_KEY_h &&
+      gui->state_.mode == Mode::Normal) {
+    gui->gui_extend_selection_left();
+    return TRUE;
+  }
+
+  // Check for Shift+L (extend selection right) in normal mode
+  if ((event->state & GDK_SHIFT_MASK) && event->keyval == GDK_KEY_l &&
+      gui->state_.mode == Mode::Normal) {
+    gui->gui_extend_selection_right();
     return TRUE;
   }
 
@@ -788,6 +904,21 @@ template <sequencable::Mut_seq_event Event_t> void Gui<Event_t>::render_grid() {
         GtkStyleContext* context = gtk_widget_get_style_context(cell);
         gtk_style_context_add_class(context, "selected");
       }
+
+      // Add multi-selection highlighting
+      if (!state_.selected_event_range.empty()) {
+        for (Event_idx evt_idx : state_.selected_event_range) {
+          if (sel_param < widget.cells.size() && evt_idx < widget.cells[sel_param].size()) {
+            GtkWidget* cell = widget.cells[sel_param][evt_idx];
+            GtkStyleContext* context = gtk_widget_get_style_context(cell);
+
+            // Use different class for multi-selected vs primary selected
+            if (evt_idx != sel_evt) {
+              gtk_style_context_add_class(context, "multi-selected");
+            }
+          }
+        }
+      }
     }
   }
 
@@ -887,6 +1018,35 @@ void Gui<Event_t>::increment_cell_value(Seq_idx seq_idx, Event_idx event_idx, si
   }
 }
 
+// Clear multi-cell selection
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::clear_multi_selection() {
+  if (state_.selected_event_range.empty()) {
+    return; // Nothing to clear
+  }
+
+  auto sel_seq = controller_.selected_seq();
+  if (!sel_seq || *sel_seq >= sequencer_widgets_.size()) {
+    state_.selected_event_range.clear();
+    return;
+  }
+
+  const auto& widget = sequencer_widgets_[*sel_seq];
+  size_t param = state_.selected_param_idx;
+
+  // Remove multi-selected class from all cells
+  for (Event_idx evt_idx : state_.selected_event_range) {
+    if (param < widget.cells.size() && evt_idx < widget.cells[param].size()) {
+      GtkWidget* cell = widget.cells[param][evt_idx];
+      GtkStyleContext* context = gtk_widget_get_style_context(cell);
+      gtk_style_context_remove_class(context, "multi-selected");
+    }
+  }
+
+  state_.selected_event_range.clear();
+  state_.state_dirty = true;
+}
+
 // GUI wrapper functions for controller actions
 
 template <sequencable::Mut_seq_event Event_t>
@@ -934,6 +1094,80 @@ void Gui<Event_t>::gui_select_prev_param() {
   } else {
     state_.selected_param_idx--;
   }
+  state_.state_dirty = true;
+}
+
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::gui_extend_selection_left() {
+  auto sel_seq = controller_.selected_seq();
+  auto sel_evt = controller_.selected_event();
+  if (!sel_seq || !sel_evt) {
+    return;
+  }
+
+  auto& state = state_.controller_state;
+  if (*sel_seq >= state.sizes.size() || state.sizes[*sel_seq] == 0) {
+    return;
+  }
+
+  Event_idx seq_size = state.sizes[*sel_seq];
+
+  // Initialize selection if empty
+  if (state_.selected_event_range.empty()) {
+    state_.anchor_event = *sel_evt;
+    state_.selected_event_range.insert(*sel_evt);
+  }
+
+  // Calculate previous event index with wraparound
+  Event_idx prev_evt = (*sel_evt == 0) ? (seq_size - 1) : (*sel_evt - 1);
+
+  // Toggle: if already selected, remove; otherwise add
+  auto it = state_.selected_event_range.find(prev_evt);
+  if (it != state_.selected_event_range.end()) {
+    state_.selected_event_range.erase(it);
+  } else {
+    state_.selected_event_range.insert(prev_evt);
+  }
+
+  // Move controller selection to the new position
+  controller_.select(*sel_seq, prev_evt);
+  state_.state_dirty = true;
+}
+
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::gui_extend_selection_right() {
+  auto sel_seq = controller_.selected_seq();
+  auto sel_evt = controller_.selected_event();
+  if (!sel_seq || !sel_evt) {
+    return;
+  }
+
+  auto& state = state_.controller_state;
+  if (*sel_seq >= state.sizes.size() || state.sizes[*sel_seq] == 0) {
+    return;
+  }
+
+  Event_idx seq_size = state.sizes[*sel_seq];
+
+  // Initialize selection if empty
+  if (state_.selected_event_range.empty()) {
+    state_.anchor_event = *sel_evt;
+    state_.selected_event_range.insert(*sel_evt);
+  }
+
+  // Calculate next event index with wraparound
+  Event_idx next_evt = (*sel_evt + 1) % seq_size;
+
+  // Toggle: if already selected, remove; otherwise add
+  auto it = state_.selected_event_range.find(next_evt);
+  if (it != state_.selected_event_range.end()) {
+    state_.selected_event_range.erase(it);
+  } else {
+    state_.selected_event_range.insert(next_evt);
+  }
+
+  // Move controller selection to the new position
+  controller_.select(*sel_seq, next_evt);
   state_.state_dirty = true;
 }
 

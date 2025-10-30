@@ -6,6 +6,7 @@
 #include <chrono>
 #include <functional>
 #include <gtk/gtk.h>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -59,6 +60,11 @@ public:
     // Current parameter selection (which row in the grid)
     size_t selected_param_idx{0};
 
+    // Multi-selection support
+    std::set<Event_idx> selected_event_range;  // Selected event columns in current row
+    Event_idx anchor_event{0};                 // Selection anchor point
+    bool in_text_update{false};                // Prevents signal recursion
+
     // Global GUI state
     Mode mode{Mode::Normal};
     bool state_dirty{true}; // True on first render
@@ -81,6 +87,9 @@ public:
   void gui_select_prev_pos();
   void gui_select_next_param();
   void gui_select_prev_param();
+  void gui_extend_selection_left();
+  void gui_extend_selection_right();
+  void clear_multi_selection();
   void gui_start(Seq_idx seq_idx);
   void gui_pause(Seq_idx seq_idx);
   void gui_stop(Seq_idx seq_idx);
@@ -135,6 +144,7 @@ private:
   static void on_entry_focus_out(GtkWidget* widget, GdkEventFocus* event,
                                   gpointer user_data);
   static void on_entry_activate(GtkEntry* entry, gpointer user_data);
+  static void on_entry_changed(GtkEntry* entry, gpointer user_data);
 
   // User data for entry callbacks
   struct Entry_user_data {

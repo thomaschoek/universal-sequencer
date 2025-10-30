@@ -92,3 +92,17 @@ entry.selected text,
   background: #E3F2FD;
   background-color: #E3F2FD;
 }
+
+/* Multi-selection highlighting */
+#sequencer-grid entry.multi-selected,
+entry.multi-selected,
+.multi-selected {
+  border: 2px solid #FF9800;
+}
+
+#sequencer-grid entry.multi-selected text,
+entry.multi-selected text,
+.multi-selected text {
+  background: #FFE0B2;
+  background-color: #FFE0B2;
+}
