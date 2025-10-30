@@ -294,7 +294,7 @@ void Poly_sequencer_controller<T_event>::adjust_durations(
 template <sequencable::Mut_seq_event T_event>
 void Poly_sequencer_controller<T_event>::adjust_durations_all(
     typename Base_sequencer::Duration delta) {
-  Base_sequencer::adjust_durations_all(delta);
+  Base_sequencer::adjust_durations(delta);
   std::scoped_lock lck{state_mutex_};
   for (Seq_idx i = 0; i < Base_sequencer::size(); ++i) {
     state_.events[i] = Base_sequencer::operator[](i).snapshot();
@@ -313,7 +313,7 @@ void Poly_sequencer_controller<T_event>::multiply_durations(Seq_idx seq,
 
 template <sequencable::Mut_seq_event T_event>
 void Poly_sequencer_controller<T_event>::multiply_durations_all(double factor) {
-  Base_sequencer::multiply_durations_all(factor);
+  Base_sequencer::multiply_durations(factor);
   std::scoped_lock lck{state_mutex_};
   for (Seq_idx i = 0; i < Base_sequencer::size(); ++i) {
     state_.events[i] = Base_sequencer::operator[](i).snapshot();

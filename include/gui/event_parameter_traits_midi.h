@@ -38,9 +38,8 @@ template <> struct Event_parameter_traits<sequencable::Midi_event> {
     case 2: // Channel
       snprintf(buffer, sizeof(buffer), "%u", static_cast<unsigned>(event.channel));
       return buffer;
-    case 3: // Note (show as name if possible)
-      return Event_t::note_to_name(event.note) + " (" +
-             std::to_string(static_cast<unsigned>(event.note)) + ")";
+    case 3: // Note (show as numeric value)
+      return std::to_string(static_cast<unsigned>(event.note));
     case 4: // Velocity
       snprintf(buffer, sizeof(buffer), "%u", static_cast<unsigned>(event.velocity));
       return buffer;

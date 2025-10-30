@@ -104,6 +104,9 @@ Gui<Event_t>::Gui(Controller& controller, unsigned int fps)
     }
   };
 
+  // Tempo modification keys
+  normal_mode_actions_[GDK_KEY_asterisk] = [this]() { gui_enter_tempo_multiply_mode(); };
+
   // Edit mode mappings
   edit_mode_actions_[GDK_KEY_Escape] = [this]() {
     state_.mode = Mode::Normal;
@@ -771,6 +774,62 @@ gboolean Gui<Event_t>::on_key_press(GtkWidget* widget, GdkEventKey* event,
     return TRUE;
   }
 
+  // Handle tempo multiply mode input
+  if (gui->state_.in_tempo_multiply_mode) {
+    if (event->keyval == GDK_KEY_Return) {
+      // Apply the multiplication
+      gui->gui_apply_tempo_multiply();
+      return TRUE;
+    } else if (event->keyval == GDK_KEY_Escape) {
+      // Cancel tempo multiply mode
+      gui->gui_cancel_tempo_multiply();
+      return TRUE;
+    } else if (event->keyval == GDK_KEY_BackSpace) {
+      // Remove last character
+      if (!gui->state_.tempo_input_buffer.empty()) {
+        gui->state_.tempo_input_buffer.pop_back();
+        gui->update_window_title();
+      }
+      return TRUE;
+    } else if ((event->keyval >= GDK_KEY_0 && event->keyval <= GDK_KEY_9) ||
+               event->keyval == GDK_KEY_period) {
+      // Add digit or period to buffer
+      gui->state_.tempo_input_buffer += gdk_keyval_name(event->keyval);
+      gui->update_window_title();
+      return TRUE;
+    }
+    // Ignore other keys in tempo multiply mode
+    return TRUE;
+  }
+
+  // Check for '>' key (increment tempo) - with Ctrl for all sequencers
+  if (event->keyval == GDK_KEY_greater) {
+    constexpr auto TEMPO_INCREMENT_DELTA = std::chrono::milliseconds(10);
+    if (event->state & GDK_CONTROL_MASK) {
+      gui->gui_adjust_durations_all(TEMPO_INCREMENT_DELTA, true);
+    } else {
+      auto sel_seq = gui->controller_.selected_seq();
+      if (sel_seq) {
+        gui->gui_adjust_durations(*sel_seq, TEMPO_INCREMENT_DELTA, true);
+      }
+    }
+    return TRUE;
+  }
+
+  // Check for '<' key (decrement tempo) - with Ctrl for all sequencers
+  if (event->keyval == GDK_KEY_less) {
+    constexpr auto TEMPO_INCREMENT_DELTA = std::chrono::milliseconds(10);
+    if (event->state & GDK_CONTROL_MASK) {
+      gui->gui_adjust_durations_all(TEMPO_INCREMENT_DELTA, false);
+    } else {
+      auto sel_seq = gui->controller_.selected_seq();
+      if (sel_seq) {
+        gui->gui_adjust_durations(*sel_seq, TEMPO_INCREMENT_DELTA, false);
+      }
+    }
+    return TRUE;
+  }
+
   if (gui->state_.mode == Mode::Normal) {
     // In normal mode, we handle all keys and consume them
     gui->handle_normal_mode_key(event->keyval);
@@ -1266,6 +1325,7 @@ void Gui<Event_t>::gui_toggle_sequencer() {
 
   try {
     controller_.toggle_sequencer(*sel_seq);
+    update_sequencer_header(*sel_seq);
     state_.state_dirty = true;
   } catch (const std::exception& e) {
     show_error(std::string("Failed to toggle sequencer: ") + e.what());
@@ -1276,8 +1336,52 @@ void Gui<Event_t>::gui_toggle_sequencer() {
 template <sequencable::Mut_seq_event Event_t>
 void Gui<Event_t>::update_window_title() {
   std::string title = "MicroComposer - ";
-  title += (state_.mode == Mode::Normal) ? "NORMAL" : "EDIT";
+
+  if (state_.in_tempo_multiply_mode) {
+    title += "TEMPO MULTIPLY: " + state_.tempo_input_buffer;
+  } else {
+    title += (state_.mode == Mode::Normal) ? "NORMAL" : "EDIT";
+  }
+
   gtk_window_set_title(GTK_WINDOW(window_), title.c_str());
+}
+
+// Update sequencer header label
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::update_sequencer_header(Seq_idx seq_idx) {
+  if (seq_idx >= sequencer_widgets_.size()) {
+    return;
+  }
+
+  // Get fresh state
+  state_.controller_state = controller_.get_state();
+  const auto& state = state_.controller_state;
+
+  if (seq_idx >= state.sizes.size()) {
+    return;
+  }
+
+  const size_t num_events = state.sizes[seq_idx];
+  auto& widget = sequencer_widgets_[seq_idx];
+
+  // Build header text
+  std::string header_text = "Sequencer " + std::to_string(seq_idx);
+  header_text += " [" + std::to_string(num_events) + " steps]";
+
+  // Add play/pause indicator
+  if (seq_idx < state.scheduling.size() && state.scheduling[seq_idx]) {
+    header_text += " ▶";
+  } else {
+    header_text += " ⏸";
+  }
+
+  // Add mute indicator
+  if (controller_.is_sequencer_toggled(seq_idx)) {
+    header_text += " 🔇";
+  }
+
+  // Update the label
+  gtk_label_set_text(GTK_LABEL(widget.header_label), header_text.c_str());
 }
 
 // Focus the currently selected cell
@@ -1421,6 +1525,111 @@ void Gui<Event_t>::gui_clear_sequence() {
   }
 }
 
+// Tempo modification methods
+
+// Multiply durations for a single sequencer
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::gui_multiply_durations(Seq_idx seq_idx, double factor) {
+  try {
+    controller_.multiply_durations(seq_idx, factor);
+    rebuild_sequencer_widget(seq_idx);
+    state_.state_dirty = true;
+  } catch (const std::exception& e) {
+    show_error(std::string("Failed to multiply durations: ") + e.what());
+  }
+}
+
+// Multiply durations for all sequencers
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::gui_multiply_durations_all(double factor) {
+  try {
+    controller_.multiply_durations_all(factor);
+    // Rebuild all sequencer widgets
+    for (Seq_idx i = 0; i < controller_.size(); ++i) {
+      rebuild_sequencer_widget(i);
+    }
+    state_.state_dirty = true;
+  } catch (const std::exception& e) {
+    show_error(std::string("Failed to multiply durations: ") + e.what());
+  }
+}
+
+// Adjust durations for a single sequencer
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::gui_adjust_durations(Seq_idx seq_idx, typename Controller::Duration delta, bool increment) {
+  try {
+    auto actual_delta = increment ? delta : -delta;
+    controller_.adjust_durations(seq_idx, actual_delta);
+    rebuild_sequencer_widget(seq_idx);
+    state_.state_dirty = true;
+  } catch (const std::exception& e) {
+    show_error(std::string("Failed to adjust durations: ") + e.what());
+  }
+}
+
+// Adjust durations for all sequencers
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::gui_adjust_durations_all(typename Controller::Duration delta, bool increment) {
+  try {
+    auto actual_delta = increment ? delta : -delta;
+    controller_.adjust_durations_all(actual_delta);
+    // Rebuild all sequencer widgets
+    for (Seq_idx i = 0; i < controller_.size(); ++i) {
+      rebuild_sequencer_widget(i);
+    }
+    state_.state_dirty = true;
+  } catch (const std::exception& e) {
+    show_error(std::string("Failed to adjust durations: ") + e.what());
+  }
+}
+
+// Enter tempo multiply mode
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::gui_enter_tempo_multiply_mode() {
+  state_.in_tempo_multiply_mode = true;
+  state_.tempo_input_buffer.clear();
+  update_window_title();
+}
+
+// Apply tempo multiplication from input buffer
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::gui_apply_tempo_multiply() {
+  if (!state_.in_tempo_multiply_mode) {
+    return;
+  }
+
+  // Parse the buffer as a double
+  try {
+    double factor = std::stod(state_.tempo_input_buffer);
+
+    if (factor <= 0.0) {
+      show_error("Tempo factor must be positive");
+    } else {
+      auto sel_seq = controller_.selected_seq();
+      if (sel_seq) {
+        gui_multiply_durations(*sel_seq, factor);
+      } else {
+        show_error("No sequencer selected");
+      }
+    }
+  } catch (const std::exception& e) {
+    show_error(std::string("Invalid tempo factor: ") + e.what());
+  }
+
+  // Exit tempo multiply mode
+  state_.in_tempo_multiply_mode = false;
+  state_.tempo_input_buffer.clear();
+  update_window_title();
+}
+
+// Cancel tempo multiply mode
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::gui_cancel_tempo_multiply() {
+  state_.in_tempo_multiply_mode = false;
+  state_.tempo_input_buffer.clear();
+  update_window_title();
+}
+
 // Build menu bar
 template <sequencable::Mut_seq_event Event_t>
 void Gui<Event_t>::build_menu_bar() {
@@ -1440,6 +1649,45 @@ void Gui<Event_t>::build_menu_bar() {
   GtkWidget* load_item = gtk_menu_item_new_with_label("Load...");
   g_signal_connect(load_item, "activate", G_CALLBACK(on_load_activate), this);
   gtk_menu_shell_append(GTK_MENU_SHELL(file_menu), load_item);
+
+  // Create Sequencer menu
+  GtkWidget* sequencer_menu = gtk_menu_new();
+  GtkWidget* sequencer_item = gtk_menu_item_new_with_label("Sequencer");
+  gtk_menu_item_set_submenu(GTK_MENU_ITEM(sequencer_item), sequencer_menu);
+  gtk_menu_shell_append(GTK_MENU_SHELL(menu_bar_), sequencer_item);
+
+  // Add tempo modification items
+  GtkWidget* multiply_tempo_item = gtk_menu_item_new_with_label("Multiply Tempo... (*)");
+  g_signal_connect(multiply_tempo_item, "activate",
+                   G_CALLBACK(+[](GtkMenuItem*, gpointer data) {
+                     auto* gui = static_cast<Gui*>(data);
+                     gui->gui_enter_tempo_multiply_mode();
+                   }), this);
+  gtk_menu_shell_append(GTK_MENU_SHELL(sequencer_menu), multiply_tempo_item);
+
+  GtkWidget* inc_tempo_item = gtk_menu_item_new_with_label("Increment Tempo (>)");
+  g_signal_connect(inc_tempo_item, "activate",
+                   G_CALLBACK(+[](GtkMenuItem*, gpointer data) {
+                     auto* gui = static_cast<Gui*>(data);
+                     auto sel_seq = gui->controller_.selected_seq();
+                     if (sel_seq) {
+                       constexpr auto TEMPO_INCREMENT_DELTA = std::chrono::milliseconds(10);
+                       gui->gui_adjust_durations(*sel_seq, TEMPO_INCREMENT_DELTA, true);
+                     }
+                   }), this);
+  gtk_menu_shell_append(GTK_MENU_SHELL(sequencer_menu), inc_tempo_item);
+
+  GtkWidget* dec_tempo_item = gtk_menu_item_new_with_label("Decrement Tempo (<)");
+  g_signal_connect(dec_tempo_item, "activate",
+                   G_CALLBACK(+[](GtkMenuItem*, gpointer data) {
+                     auto* gui = static_cast<Gui*>(data);
+                     auto sel_seq = gui->controller_.selected_seq();
+                     if (sel_seq) {
+                       constexpr auto TEMPO_INCREMENT_DELTA = std::chrono::milliseconds(10);
+                       gui->gui_adjust_durations(*sel_seq, TEMPO_INCREMENT_DELTA, false);
+                     }
+                   }), this);
+  gtk_menu_shell_append(GTK_MENU_SHELL(sequencer_menu), dec_tempo_item);
 
   // Create Help menu
   GtkWidget* help_menu = gtk_menu_new();
@@ -1521,6 +1769,13 @@ EDITING
   Ctrl+A           Add new event to selected sequencer
   Ctrl+D           Remove last event from selected sequencer
   Ctrl+C           Clear all events (with confirmation)
+
+TEMPO
+  *              Enter tempo multiply mode (type factor, press ENTER)
+  >              Increment selected sequencer tempo by 10ms
+  <              Decrement selected sequencer tempo by 10ms
+  Ctrl+>         Increment ALL sequencers tempo by 10ms
+  Ctrl+<         Decrement ALL sequencers tempo by 10ms
 
 HELP
   F1             Show this help dialog

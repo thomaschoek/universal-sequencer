@@ -80,6 +80,10 @@ public:
     // Global GUI state
     Mode mode{Mode::Normal};
     bool state_dirty{true}; // True on first render
+
+    // Tempo multiply input mode
+    bool in_tempo_multiply_mode{false};
+    std::string tempo_input_buffer;
   };
 
   // Constructor
@@ -110,6 +114,15 @@ public:
   void gui_add_event();
   void gui_remove_event();
   void gui_clear_sequence();
+
+  // Tempo modification
+  void gui_multiply_durations(Seq_idx seq_idx, double factor);
+  void gui_multiply_durations_all(double factor);
+  void gui_adjust_durations(Seq_idx seq_idx, typename Controller::Duration delta, bool increment);
+  void gui_adjust_durations_all(typename Controller::Duration delta, bool increment);
+  void gui_enter_tempo_multiply_mode();
+  void gui_apply_tempo_multiply();
+  void gui_cancel_tempo_multiply();
 
 private:
   // Controller actions (mapped to keyboard events)
@@ -160,6 +173,7 @@ private:
   void update_playhead_visual(Seq_idx seq_idx, Event_idx old_pos,
                               Event_idx new_pos);
   void update_window_title();
+  void update_sequencer_header(Seq_idx seq_idx);
   void focus_selected_cell();
   void build_sequencer_widgets();
   void rebuild_sequencer_widget(Seq_idx seq_idx);
