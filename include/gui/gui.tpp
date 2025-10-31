@@ -104,9 +104,6 @@ Gui<Event_t>::Gui(Controller& controller, unsigned int fps)
     }
   };
 
-  // Tempo modification keys
-  normal_mode_actions_[GDK_KEY_asterisk] = [this]() { gui_enter_tempo_multiply_mode(); };
-
   // Edit mode mappings
   edit_mode_actions_[GDK_KEY_Escape] = [this]() {
     state_.mode = Mode::Normal;
@@ -792,6 +789,13 @@ gboolean Gui<Event_t>::on_key_press(GtkWidget* widget, GdkEventKey* event,
     return TRUE;
   }
 
+  // Check for Shift+8 (asterisk) to enter tempo multiply mode
+  if ((event->state & GDK_SHIFT_MASK) && event->keyval == GDK_KEY_8 &&
+      gui->state_.mode == Mode::Normal) {
+    gui->gui_enter_tempo_multiply_mode();
+    return TRUE;
+  }
+
   // Handle tempo multiply mode input
   if (gui->state_.in_tempo_multiply_mode) {
     if (event->keyval == GDK_KEY_Return) {
@@ -814,8 +818,8 @@ gboolean Gui<Event_t>::on_key_press(GtkWidget* widget, GdkEventKey* event,
       gui->state_.tempo_input_buffer += static_cast<char>('0' + (event->keyval - GDK_KEY_0));
       gui->update_window_title();
       return TRUE;
-    } else if (event->keyval == GDK_KEY_period) {
-      // Add decimal point to buffer
+    } else if (event->keyval == GDK_KEY_period && !(event->state & GDK_SHIFT_MASK)) {
+      // Add decimal point to buffer (but not if Shift is held, which is '>')
       gui->state_.tempo_input_buffer += '.';
       gui->update_window_title();
       return TRUE;
@@ -824,8 +828,8 @@ gboolean Gui<Event_t>::on_key_press(GtkWidget* widget, GdkEventKey* event,
     return TRUE;
   }
 
-  // Check for '>' key (increment tempo) - with Ctrl for all sequencers
-  if (event->keyval == GDK_KEY_greater) {
+  // Check for Shift+period ('>') key (increment tempo) - with Ctrl for all sequencers
+  if ((event->state & GDK_SHIFT_MASK) && event->keyval == GDK_KEY_period) {
     constexpr auto TEMPO_INCREMENT_DELTA = std::chrono::milliseconds(10);
     if (event->state & GDK_CONTROL_MASK) {
       gui->gui_adjust_durations_all(TEMPO_INCREMENT_DELTA, true);
@@ -838,8 +842,8 @@ gboolean Gui<Event_t>::on_key_press(GtkWidget* widget, GdkEventKey* event,
     return TRUE;
   }
 
-  // Check for '<' key (decrement tempo) - with Ctrl for all sequencers
-  if (event->keyval == GDK_KEY_less) {
+  // Check for Shift+comma ('<') key (decrement tempo) - with Ctrl for all sequencers
+  if ((event->state & GDK_SHIFT_MASK) && event->keyval == GDK_KEY_comma) {
     constexpr auto TEMPO_INCREMENT_DELTA = std::chrono::milliseconds(10);
     if (event->state & GDK_CONTROL_MASK) {
       gui->gui_adjust_durations_all(TEMPO_INCREMENT_DELTA, false);
