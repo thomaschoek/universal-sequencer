@@ -537,8 +537,13 @@ void Gui<Event_t>::on_entry_focus_out(GtkWidget* widget, GdkEventFocus* event,
       all_success = all_success && success;
     }
 
-    if (!all_success) {
-      // Restore all cells to original values
+    if (all_success) {
+      // Refresh all successfully edited cells to show new values
+      for (Event_idx evt_idx : gui->state_.selected_event_range) {
+        gui->update_cell_value(data->seq_idx, evt_idx, data->param_idx);
+      }
+    } else {
+      // Restore all cells to original values on failure
       using Traits = Event_parameter_traits<Event_t>;
       for (Event_idx evt_idx : gui->state_.selected_event_range) {
         gui->update_cell_value(data->seq_idx, evt_idx, data->param_idx);
@@ -591,15 +596,19 @@ void Gui<Event_t>::on_entry_activate(GtkEntry* entry, gpointer user_data) {
       all_success = all_success && success;
     }
 
-    if (!all_success) {
-      // Restore all cells to original values
+    if (all_success) {
+      // Refresh all successfully edited cells to show new values
+      for (Event_idx evt_idx : gui->state_.selected_event_range) {
+        gui->update_cell_value(data->seq_idx, evt_idx, data->param_idx);
+      }
+      // Success - remove focus from entry to exit edit mode visually
+      gtk_widget_grab_focus(gui->window_);
+    } else {
+      // Restore all cells to original values on failure
       using Traits = Event_parameter_traits<Event_t>;
       for (Event_idx evt_idx : gui->state_.selected_event_range) {
         gui->update_cell_value(data->seq_idx, evt_idx, data->param_idx);
       }
-    } else {
-      // Success - remove focus from entry to exit edit mode visually
-      gtk_widget_grab_focus(gui->window_);
     }
 
     // Clear multi-selection after apply
