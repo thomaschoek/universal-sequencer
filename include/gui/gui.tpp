@@ -47,17 +47,8 @@ Gui<Event_t>::Gui(Controller& controller, unsigned int fps)
     }
   };
 
-  normal_mode_actions_[GDK_KEY_t] = [this]() { gui_toggle_sequencer(); };
-
-  normal_mode_actions_[GDK_KEY_i] = [this]() {
-    state_.mode = Mode::Edit;
-    state_.state_dirty = true;
-    update_window_title();
-    focus_selected_cell();
-    // Note: Keep multi-selection active when entering edit mode
-  };
-
-  normal_mode_actions_[GDK_KEY_Return] = [this]() {
+  // 't' key toggles individual event enabled/disabled
+  normal_mode_actions_[GDK_KEY_t] = [this]() {
     auto sel_seq = controller_.selected_seq();
     auto sel_evt = controller_.selected_event();
     if (sel_seq && sel_evt) {
@@ -66,6 +57,23 @@ Gui<Event_t>::Gui(Controller& controller, unsigned int fps)
       update_cell_value(*sel_seq, *sel_evt, 0);
       state_.state_dirty = true;
     }
+  };
+
+  // 'i' key enters edit mode
+  normal_mode_actions_[GDK_KEY_i] = [this]() {
+    state_.mode = Mode::Edit;
+    state_.state_dirty = true;
+    update_window_title();
+    focus_selected_cell();
+    // Note: Keep multi-selection active when entering edit mode
+  };
+
+  // 'Enter' key also enters edit mode
+  normal_mode_actions_[GDK_KEY_Return] = [this]() {
+    state_.mode = Mode::Edit;
+    state_.state_dirty = true;
+    update_window_title();
+    focus_selected_cell();
   };
 
   // Keys 1-8 select events at indexes 0-7
@@ -730,6 +738,13 @@ gboolean Gui<Event_t>::on_key_press(GtkWidget* widget, GdkEventKey* event,
   if ((event->state & GDK_CONTROL_MASK) &&
       (event->keyval == GDK_KEY_r || event->keyval == GDK_KEY_R)) {
     gui->gui_select_all_in_row();
+    return TRUE;
+  }
+
+  // Check for Ctrl+T (toggle sequencer mute) in any mode
+  if ((event->state & GDK_CONTROL_MASK) &&
+      (event->keyval == GDK_KEY_t || event->keyval == GDK_KEY_T)) {
+    gui->gui_toggle_sequencer();
     return TRUE;
   }
 
