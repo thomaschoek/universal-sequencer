@@ -192,6 +192,8 @@ private:
                                   gpointer user_data);
   static void on_entry_activate(GtkEntry* entry, gpointer user_data);
   static void on_entry_changed(GtkEntry* entry, gpointer user_data);
+  static gboolean on_entry_scroll(GtkWidget* widget, GdkEventScroll* event,
+                                   gpointer user_data);
 
   // User data for entry callbacks
   struct Entry_user_data {

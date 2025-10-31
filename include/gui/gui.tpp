@@ -350,6 +350,8 @@ void Gui<Event_t>::build_sequencer_widgets() {
                          user_data);
         g_signal_connect(entry, "changed", G_CALLBACK(on_entry_changed),
                          user_data);
+        g_signal_connect(entry, "scroll-event", G_CALLBACK(on_entry_scroll),
+                         user_data);
 
         // Store cleanup data
         g_object_set_data_full(G_OBJECT(entry), "user-data", user_data, g_free);
@@ -480,6 +482,8 @@ void Gui<Event_t>::rebuild_sequencer_widget(Seq_idx seq_idx) {
       g_signal_connect(entry, "activate", G_CALLBACK(on_entry_activate),
                        user_data);
       g_signal_connect(entry, "changed", G_CALLBACK(on_entry_changed),
+                       user_data);
+      g_signal_connect(entry, "scroll-event", G_CALLBACK(on_entry_scroll),
                        user_data);
 
       // Store cleanup data
@@ -750,6 +754,35 @@ void Gui<Event_t>::on_entry_changed(GtkEntry* entry, gpointer user_data) {
   }
 
   gui->state_.in_text_update = false;
+}
+
+// Entry scroll callback - increment/decrement on scroll
+template <sequencable::Mut_seq_event Event_t>
+gboolean Gui<Event_t>::on_entry_scroll(GtkWidget* widget, GdkEventScroll* event,
+                                        gpointer user_data) {
+  auto* data = static_cast<Entry_user_data*>(user_data);
+  auto* gui = data->gui;
+
+  // Only allow scrolling in normal mode (not while editing)
+  if (gui->state_.mode != Mode::Normal) {
+    return FALSE;
+  }
+
+  // Determine scroll direction
+  bool increment = false;
+  if (event->direction == GDK_SCROLL_UP) {
+    increment = true;
+  } else if (event->direction == GDK_SCROLL_DOWN) {
+    increment = false;
+  } else {
+    // Ignore horizontal or smooth scroll
+    return FALSE;
+  }
+
+  // Apply increment/decrement to the cell
+  gui->increment_cell_value(data->seq_idx, data->event_idx, data->param_idx, increment);
+
+  return TRUE; // Event handled
 }
 
 // GTK key press callback
