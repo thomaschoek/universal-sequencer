@@ -188,6 +188,8 @@ private:
   static gboolean clear_error_timeout(gpointer user_data);
 
   // Entry widget callbacks
+  static gboolean on_entry_focus_in(GtkWidget* widget, GdkEventFocus* event,
+                                     gpointer user_data);
   static void on_entry_focus_out(GtkWidget* widget, GdkEventFocus* event,
                                   gpointer user_data);
   static void on_entry_activate(GtkEntry* entry, gpointer user_data);

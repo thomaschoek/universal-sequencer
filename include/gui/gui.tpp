@@ -344,6 +344,8 @@ void Gui<Event_t>::build_sequencer_widgets() {
             new Entry_user_data{this, seq_idx, evt_idx, param_idx};
 
         // Connect signals
+        g_signal_connect(entry, "focus-in-event",
+                         G_CALLBACK(on_entry_focus_in), user_data);
         g_signal_connect(entry, "focus-out-event",
                          G_CALLBACK(on_entry_focus_out), user_data);
         g_signal_connect(entry, "activate", G_CALLBACK(on_entry_activate),
@@ -477,6 +479,8 @@ void Gui<Event_t>::rebuild_sequencer_widget(Seq_idx seq_idx) {
       auto* user_data = new Entry_user_data{this, seq_idx, evt_idx, param_idx};
 
       // Connect signals
+      g_signal_connect(entry, "focus-in-event",
+                       G_CALLBACK(on_entry_focus_in), user_data);
       g_signal_connect(entry, "focus-out-event",
                        G_CALLBACK(on_entry_focus_out), user_data);
       g_signal_connect(entry, "activate", G_CALLBACK(on_entry_activate),
@@ -550,6 +554,24 @@ gboolean Gui<Event_t>::clear_error_timeout(gpointer user_data) {
   gtk_widget_hide(gui->error_label_);
   gui->error_timeout_id_ = 0;
   return FALSE; // Don't repeat
+}
+
+// Entry focus-in callback - sync selection with GTK focus
+template <sequencable::Mut_seq_event Event_t>
+gboolean Gui<Event_t>::on_entry_focus_in(GtkWidget* widget, GdkEventFocus* event,
+                                          gpointer user_data) {
+  (void)widget;  // Unused
+  (void)event;   // Unused
+  auto* data = static_cast<Entry_user_data*>(user_data);
+  auto* gui = data->gui;
+
+  // Sync our selection with GTK focus
+  // This ensures our h/j/k/l selection stays in sync with Tab navigation
+  gui->controller_.select(data->seq_idx, data->event_idx);
+  gui->state_.selected_param_idx = data->param_idx;
+  gui->state_.state_dirty = true;
+
+  return FALSE;  // Allow GTK to continue processing
 }
 
 // Entry focus-out callback - apply edit when focus leaves
