@@ -114,6 +114,45 @@ Gui<Event_t>::Gui(Controller& controller, unsigned int fps)
 
   // Edit mode mappings
   edit_mode_actions_[GDK_KEY_Escape] = [this]() {
+    // Apply edits from focused cell before exiting
+    GtkWidget* focused = gtk_window_get_focus(GTK_WINDOW(window_));
+    if (focused && GTK_IS_ENTRY(focused)) {
+      // Get the entered text
+      const char* text = gtk_entry_get_text(GTK_ENTRY(focused));
+      std::string value_str(text);
+
+      // Find the Entry_user_data for this widget
+      auto* user_data = static_cast<Entry_user_data*>(
+          g_object_get_data(G_OBJECT(focused), "user-data"));
+
+      if (user_data) {
+        // Check if multi-selection is active
+        if (!state_.selected_event_range.empty()) {
+          // Apply to all selected cells
+          for (Event_idx evt_idx : state_.selected_event_range) {
+            parse_and_apply_edit(user_data->seq_idx, evt_idx,
+                                user_data->param_idx, value_str);
+          }
+          // Refresh all cells and queue redraws
+          for (Event_idx evt_idx : state_.selected_event_range) {
+            update_cell_value(user_data->seq_idx, evt_idx, user_data->param_idx);
+            if (user_data->seq_idx < sequencer_widgets_.size()) {
+              auto& widget = sequencer_widgets_[user_data->seq_idx];
+              if (user_data->param_idx < widget.cells.size() &&
+                  evt_idx < widget.cells[user_data->param_idx].size()) {
+                gtk_widget_queue_draw(widget.cells[user_data->param_idx][evt_idx]);
+              }
+            }
+          }
+        } else {
+          // Single cell edit
+          parse_and_apply_edit(user_data->seq_idx, user_data->event_idx,
+                              user_data->param_idx, value_str);
+        }
+      }
+    }
+
+    // Exit edit mode
     state_.mode = Mode::Normal;
     clear_multi_selection();  // Clear multi-selection when exiting edit mode
     state_.state_dirty = true;
