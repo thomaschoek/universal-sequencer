@@ -11,7 +11,10 @@ project('MicroComposer', 'cpp',
 inc = include_directories('include')
 
 # System dependencies with pkg-config
-gtk3_dep = dependency('gtk+-3.0', required: false)
+gtkmm4_dep = dependency('gtkmm-4.0',
+  required: false,
+  fallback: ['gtkmm-4.0', 'gtkmm_dep']
+)
 alsa_dep = dependency('alsa', required: false)
 threads_dep = dependency('threads')
 
@@ -63,27 +66,27 @@ midi_output_src = files(
 )
 
 # Executable 1: MicroComposerCLI (Console Application)
-if gtk3_dep.found()
+if gtkmm4_dep.found()
   executable('MicroComposerCLI',
     sources: [
       'src/main.cpp',
       synth_output_src
     ],
     include_directories: inc,
-    dependencies: [gtk3_dep],
+    dependencies: [gtkmm4_dep],
     install: true
   )
 endif
 
 # Executable 2: MicroComposer (GUI Application)
-if gtk3_dep.found()
+if gtkmm4_dep.found()
   executable('MicroComposer',
     sources: [
       'src/main_gui.cpp',
       synth_output_src
     ],
     include_directories: inc,
-    dependencies: [gtk3_dep],
+    dependencies: [gtkmm4_dep],
     install: true
   )
 endif
@@ -106,7 +109,7 @@ if libremidi_dep.found() and alsa_dep.found()
 endif
 
 # Executable 4: midiguy (MIDI GUI Application)
-if gtk3_dep.found() and libremidi_dep.found() and alsa_dep.found()
+if gtkmm4_dep.found() and libremidi_dep.found() and alsa_dep.found()
   executable('midiguy',
     sources: [
       'src/main_midi_gui.cpp',
@@ -114,7 +117,7 @@ if gtk3_dep.found() and libremidi_dep.found() and alsa_dep.found()
     ],
     include_directories: inc,
     dependencies: [
-      gtk3_dep,
+      gtkmm4_dep,
       libremidi_dep,
       alsa_dep,
       threads_dep

@@ -62,20 +62,13 @@ entry {
   padding-right: 5px;
 }
 
-/* Playhead highlighting - GTK3 entry widgets need text node styling */
+/* Playhead highlighting - GTK4 compatible */
 #sequencer-grid entry.playhead,
 entry.playhead,
 .playhead {
   background: #4CAF50;
   background-color: #4CAF50;
   background-image: none;
-}
-
-#sequencer-grid entry.playhead text,
-entry.playhead text,
-.playhead text {
-  background: #4CAF50;
-  background-color: #4CAF50;
   font-weight: bold;
 }
 
@@ -83,26 +76,16 @@ entry.playhead text,
 #sequencer-grid entry.selected,
 entry.selected,
 .selected {
-  border: 2px solid #2196F3;
-}
-
-#sequencer-grid entry.selected text,
-entry.selected text,
-.selected text{
   background: #E3F2FD;
   background-color: #E3F2FD;
+  border: 2px solid #2196F3;
 }
 
 /* Multi-selection highlighting */
 #sequencer-grid entry.multi-selected,
 entry.multi-selected,
 .multi-selected {
-  border: 2px solid #FF9800;
-}
-
-#sequencer-grid entry.multi-selected text,
-entry.multi-selected text,
-.multi-selected text {
   background: #FFE0B2;
   background-color: #FFE0B2;
+  border: 2px solid #FF9800;
 }

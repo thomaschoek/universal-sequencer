@@ -5,7 +5,7 @@
 #include "sequencable/concepts.h"
 #include <chrono>
 #include <functional>
-#include <gtk/gtk.h>
+#include <gtkmm.h>
 #include <set>
 #include <string>
 #include <unordered_map>
@@ -41,13 +41,13 @@ public:
 
   // Sequencer widget structure (holds GTK widgets for one sequencer)
   struct Sequencer_widget {
-    GtkWidget* frame{nullptr};          // Outer frame with border
-    GtkWidget* header_label{nullptr};   // Status label
-    GtkWidget* vbox{nullptr};           // Vertical box container
-    GtkWidget* column_header{nullptr};  // Column header with event indices
-    GtkWidget* grid{nullptr};           // Grid for parameter rows
-    std::vector<GtkWidget*> row_labels; // Labels for parameter names
-    std::vector<std::vector<GtkWidget*>>
+    Gtk::Frame* frame{nullptr};          // Outer frame with border
+    Gtk::Label* header_label{nullptr};   // Status label
+    Gtk::Box* vbox{nullptr};           // Vertical box container
+    Gtk::Box* column_header{nullptr};  // Column header with event indices
+    Gtk::Grid* grid{nullptr};           // Grid for parameter rows
+    std::vector<Gtk::Label*> row_labels; // Labels for parameter names
+    std::vector<std::vector<Gtk::Entry*>>
         cells; // [param_idx][event_idx] = entry
   };
 
@@ -134,13 +134,12 @@ private:
   void update_playheads();
   void render();
 
-  // GTK callbacks
-  static gboolean on_key_press(GtkWidget* widget, GdkEventKey* event,
-                                gpointer user_data);
-  static gboolean on_tick(gpointer user_data);
+  // GTK event handlers (returning true stops propagation)
+  bool on_key_press(guint keyval, guint keycode, Gdk::ModifierType state);
+  bool on_tick();
 
   // Keyboard event handlers
-  void handle_normal_mode_key(guint keyval);
+  void handle_normal_mode_key(guint keyval, Gdk::ModifierType state);
   void handle_edit_mode_key(guint keyval);
 
   // Initialize GTK widgets
@@ -149,7 +148,7 @@ private:
   void build_menu_bar();
 
   // Menu callbacks
-  static void on_help_activate(GtkMenuItem* item, gpointer user_data);
+  void on_help_activate();
   void show_help_dialog();
 
   // Preferences
@@ -163,8 +162,8 @@ private:
   void load_sequences_from_file(const std::string& filepath);
   std::string sequences_to_json() const;
   void json_to_sequences(const std::string& json_str);
-  static void on_save_activate(GtkMenuItem* item, gpointer user_data);
-  static void on_load_activate(GtkMenuItem* item, gpointer user_data);
+  void on_save_activate();
+  void on_load_activate();
 
   // Rendering helpers
   void render_grid();
@@ -185,25 +184,14 @@ private:
 
   // Error handling
   void show_error(const std::string& message);
-  static gboolean clear_error_timeout(gpointer user_data);
+  bool clear_error_timeout();
 
-  // Entry widget callbacks
-  static gboolean on_entry_focus_in(GtkWidget* widget, GdkEventFocus* event,
-                                     gpointer user_data);
-  static void on_entry_focus_out(GtkWidget* widget, GdkEventFocus* event,
-                                  gpointer user_data);
-  static void on_entry_activate(GtkEntry* entry, gpointer user_data);
-  static void on_entry_changed(GtkEntry* entry, gpointer user_data);
-  static gboolean on_entry_scroll(GtkWidget* widget, GdkEventScroll* event,
-                                   gpointer user_data);
-
-  // User data for entry callbacks
-  struct Entry_user_data {
-    Gui* gui;
-    Seq_idx seq_idx;
-    Event_idx event_idx;
-    size_t param_idx;
-  };
+  // Entry widget event handlers
+  void on_entry_focus_in(Gtk::Entry* entry, Seq_idx seq_idx, Event_idx event_idx, size_t param_idx);
+  void on_entry_focus_out(Gtk::Entry* entry, Seq_idx seq_idx, Event_idx event_idx, size_t param_idx);
+  void on_entry_activate(Gtk::Entry* entry, Seq_idx seq_idx, Event_idx event_idx, size_t param_idx);
+  void on_entry_changed(Gtk::Entry* entry, Seq_idx seq_idx, Event_idx event_idx, size_t param_idx);
+  bool on_entry_scroll(Gtk::Entry* entry, double dx, double dy, Seq_idx seq_idx, Event_idx event_idx, size_t param_idx);
 
   // Data members
   Controller& controller_;
@@ -213,21 +201,23 @@ private:
   Duration frame_duration_;
   bool running_{false};
 
-  // GTK widgets
-  GtkWidget* window_{nullptr};
-  GtkWidget* menu_bar_{nullptr};         // Menu bar
-  GtkWidget* main_vbox_{nullptr};        // Main vertical container
-  GtkWidget* scrolled_window_{nullptr};  // Scrollable area
-  GtkWidget* sequencers_vbox_{nullptr};  // Container for sequencer widgets
-  GtkWidget* error_label_{nullptr};      // Error message display
+  // GTK widgets (managed by Gtk::Application)
+  Gtk::Window* window_{nullptr};
+  Gtk::Box* main_vbox_{nullptr};        // Main vertical container
+  Gtk::ScrolledWindow* scrolled_window_{nullptr};  // Scrollable area
+  Gtk::Box* sequencers_vbox_{nullptr};  // Container for sequencer widgets
+  Gtk::Label* error_label_{nullptr};      // Error message display
   std::vector<Sequencer_widget> sequencer_widgets_;
 
   // Error message timeout
-  guint error_timeout_id_{0};
+  sigc::connection error_timeout_connection_;
 
   // Keyboard event mapping
   std::unordered_map<guint, Controller_action> normal_mode_actions_;
   std::unordered_map<guint, Controller_action> edit_mode_actions_;
+
+  // Gtk::Application instance
+  Glib::RefPtr<Gtk::Application> app_;
 };
 
 } // namespace gui
