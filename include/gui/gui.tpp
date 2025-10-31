@@ -715,13 +715,17 @@ void Gui<Event_t>::on_entry_changed(GtkEntry* entry, gpointer user_data) {
   auto* data = static_cast<Entry_user_data*>(user_data);
   auto* gui = data->gui;
 
-  // Prevent recursion
+  // Prevent recursion - CHECK FIRST!
   if (gui->state_.in_text_update) {
     return;
   }
 
+  // Set flag immediately to block cascading signals
+  gui->state_.in_text_update = true;
+
   // Only propagate if multi-selection is active
   if (gui->state_.selected_event_range.empty()) {
+    gui->state_.in_text_update = false;  // Reset before early return
     return;
   }
 
@@ -729,14 +733,12 @@ void Gui<Event_t>::on_entry_changed(GtkEntry* entry, gpointer user_data) {
   auto sel_seq = gui->controller_.selected_seq();
   auto sel_evt = gui->controller_.selected_event();
   if (!sel_seq || !sel_evt || data->event_idx != *sel_evt) {
+    gui->state_.in_text_update = false;  // Reset before early return
     return;
   }
 
   // Get current text
   const char* text = gtk_entry_get_text(entry);
-
-  // Block recursion
-  gui->state_.in_text_update = true;
 
   // Update all other selected cells in the same row
   if (*sel_seq < gui->sequencer_widgets_.size()) {
