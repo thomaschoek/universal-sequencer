@@ -251,36 +251,29 @@ void Gui<Event_t>::build_sequencer_widgets() {
     gtk_box_pack_start(GTK_BOX(widget.vbox), widget.header_label, FALSE, FALSE,
                        2);
 
-    // Create column headers with event indices
-    widget.column_header = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
-    gtk_widget_set_name(widget.column_header, "column-headers");
-
-    // Add spacer for parameter name column (80px to match row labels)
-    GtkWidget* spacer = gtk_label_new("");
-    gtk_widget_set_size_request(spacer, 80, -1);
-    gtk_box_pack_start(GTK_BOX(widget.column_header), spacer, FALSE, FALSE, 0);
-
-    // Add column headers for each event
-    for (Event_idx evt_idx = 0; evt_idx < num_events; ++evt_idx) {
-      std::string col_label = std::to_string(evt_idx);
-      GtkWidget* col_header_label = gtk_label_new(col_label.c_str());
-      gtk_widget_set_size_request(col_header_label, 70,
-                                  -1); // Match entry width
-      gtk_box_pack_start(GTK_BOX(widget.column_header), col_header_label, FALSE,
-                         FALSE, 2);
-    }
-
-    gtk_box_pack_start(GTK_BOX(widget.vbox), widget.column_header, FALSE, FALSE,
-                       2);
-
-    // Create grid for parameters
+    // Create grid for column headers and parameters
     widget.grid = gtk_grid_new();
     gtk_widget_set_name(widget.grid, "sequencer-grid");
     gtk_grid_set_row_spacing(GTK_GRID(widget.grid), 2);
     gtk_grid_set_column_spacing(GTK_GRID(widget.grid), 2);
     gtk_box_pack_start(GTK_BOX(widget.vbox), widget.grid, TRUE, TRUE, 0);
 
-    // Build parameter rows
+    // Create column header row (row 0)
+    // Empty label for top-left corner (above parameter names)
+    GtkWidget* corner_label = gtk_label_new("");
+    gtk_widget_set_size_request(corner_label, 80, -1);
+    gtk_grid_attach(GTK_GRID(widget.grid), corner_label, 0, 0, 1, 1);
+
+    // Add column headers for each event
+    for (Event_idx evt_idx = 0; evt_idx < num_events; ++evt_idx) {
+      std::string col_label = std::to_string(evt_idx);
+      GtkWidget* col_header_label = gtk_label_new(col_label.c_str());
+      gtk_widget_set_size_request(col_header_label, 70, -1);
+      gtk_widget_set_name(col_header_label, "column-header");
+      gtk_grid_attach(GTK_GRID(widget.grid), col_header_label, evt_idx + 1, 0, 1, 1);
+    }
+
+    // Build parameter rows (starting from row 1, row 0 is headers)
     widget.cells.resize(num_params);
     widget.row_labels.resize(num_params);
 
@@ -290,7 +283,7 @@ void Gui<Event_t>::build_sequencer_widgets() {
           gtk_label_new(Traits::get_parameter_name(param_idx).c_str());
       gtk_widget_set_size_request(label, 80, -1);
       gtk_widget_set_halign(label, GTK_ALIGN_START);
-      gtk_grid_attach(GTK_GRID(widget.grid), label, 0, param_idx, 1, 1);
+      gtk_grid_attach(GTK_GRID(widget.grid), label, 0, param_idx + 1, 1, 1);
       widget.row_labels[param_idx] = label;
 
       // Create entry widgets for each event
@@ -322,7 +315,7 @@ void Gui<Event_t>::build_sequencer_widgets() {
         // Store cleanup data
         g_object_set_data_full(G_OBJECT(entry), "user-data", user_data, g_free);
 
-        gtk_grid_attach(GTK_GRID(widget.grid), entry, evt_idx + 1, param_idx, 1,
+        gtk_grid_attach(GTK_GRID(widget.grid), entry, evt_idx + 1, param_idx + 1, 1,
                         1);
         widget.cells[param_idx].push_back(entry);
       }
@@ -391,33 +384,29 @@ void Gui<Event_t>::rebuild_sequencer_widget(Seq_idx seq_idx) {
   gtk_widget_set_name(widget.header_label, "sequencer-header");
   gtk_box_pack_start(GTK_BOX(widget.vbox), widget.header_label, FALSE, FALSE, 2);
 
-  // Create column headers with event indices
-  widget.column_header = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
-  gtk_widget_set_name(widget.column_header, "column-headers");
-
-  // Add spacer for parameter name column
-  GtkWidget* spacer = gtk_label_new("");
-  gtk_widget_set_size_request(spacer, 80, -1);
-  gtk_box_pack_start(GTK_BOX(widget.column_header), spacer, FALSE, FALSE, 0);
-
-  // Add column headers for each event
-  for (Event_idx evt_idx = 0; evt_idx < num_events; ++evt_idx) {
-    std::string col_label = std::to_string(evt_idx);
-    GtkWidget* col_header_label = gtk_label_new(col_label.c_str());
-    gtk_widget_set_size_request(col_header_label, 70, -1);
-    gtk_box_pack_start(GTK_BOX(widget.column_header), col_header_label, FALSE, FALSE, 2);
-  }
-
-  gtk_box_pack_start(GTK_BOX(widget.vbox), widget.column_header, FALSE, FALSE, 2);
-
-  // Create grid for parameters
+  // Create grid for column headers and parameters
   widget.grid = gtk_grid_new();
   gtk_widget_set_name(widget.grid, "sequencer-grid");
   gtk_grid_set_row_spacing(GTK_GRID(widget.grid), 2);
   gtk_grid_set_column_spacing(GTK_GRID(widget.grid), 2);
   gtk_box_pack_start(GTK_BOX(widget.vbox), widget.grid, TRUE, TRUE, 0);
 
-  // Build parameter rows
+  // Create column header row (row 0)
+  // Empty label for top-left corner (above parameter names)
+  GtkWidget* corner_label = gtk_label_new("");
+  gtk_widget_set_size_request(corner_label, 80, -1);
+  gtk_grid_attach(GTK_GRID(widget.grid), corner_label, 0, 0, 1, 1);
+
+  // Add column headers for each event
+  for (Event_idx evt_idx = 0; evt_idx < num_events; ++evt_idx) {
+    std::string col_label = std::to_string(evt_idx);
+    GtkWidget* col_header_label = gtk_label_new(col_label.c_str());
+    gtk_widget_set_size_request(col_header_label, 70, -1);
+    gtk_widget_set_name(col_header_label, "column-header");
+    gtk_grid_attach(GTK_GRID(widget.grid), col_header_label, evt_idx + 1, 0, 1, 1);
+  }
+
+  // Build parameter rows (starting from row 1, row 0 is headers)
   widget.cells.resize(num_params);
   widget.row_labels.resize(num_params);
 
@@ -426,7 +415,7 @@ void Gui<Event_t>::rebuild_sequencer_widget(Seq_idx seq_idx) {
     GtkWidget* label = gtk_label_new(Traits::get_parameter_name(param_idx).c_str());
     gtk_widget_set_size_request(label, 80, -1);
     gtk_widget_set_halign(label, GTK_ALIGN_START);
-    gtk_grid_attach(GTK_GRID(widget.grid), label, 0, param_idx, 1, 1);
+    gtk_grid_attach(GTK_GRID(widget.grid), label, 0, param_idx + 1, 1, 1);
     widget.row_labels[param_idx] = label;
 
     // Create entry widgets for each event
@@ -457,7 +446,7 @@ void Gui<Event_t>::rebuild_sequencer_widget(Seq_idx seq_idx) {
       // Store cleanup data
       g_object_set_data_full(G_OBJECT(entry), "user-data", user_data, g_free);
 
-      gtk_grid_attach(GTK_GRID(widget.grid), entry, evt_idx + 1, param_idx, 1, 1);
+      gtk_grid_attach(GTK_GRID(widget.grid), entry, evt_idx + 1, param_idx + 1, 1, 1);
       widget.cells[param_idx].push_back(entry);
     }
   }
