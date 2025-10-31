@@ -1,0 +1,13 @@
+# MicroComposer Build Options
+
+# Build type: debug, release, debugoptimized, minsize
+# Set with: meson setup build --buildtype=release
+
+# C++ standard is set to C++20 in meson.build
+# Warning level is set to 2 in meson.build
+
+# To use system dependencies instead of subprojects:
+# meson setup build --force-fallback-for=''
+
+# To force use of subprojects:
+# meson setup build --wrap-mode=forcefallback

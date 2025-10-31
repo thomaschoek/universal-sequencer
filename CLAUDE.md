@@ -19,12 +19,15 @@ thread or on lock-free thread-safety mechanisms used by the scheduler thread. I 
  next event from `events_` so that it can get the duration and 2. push that event to the output queue `output_`.
 
 ## Build System
-- Use CMake as the primary build system
+- Use Meson as the primary build system
 - Standard commands:
-  - `mkdir build && cd build && cmake .. && make` - Initial build
-  - `make` - Incremental build from build directory
-  - `make clean` - Clean build artifacts
-  - `ctest` - Run tests (when test suite is implemented)
+  - `meson setup build` - Initial configuration (creates build directory)
+  - `meson compile -C build` - Build all targets
+  - `meson test -C build` - Run tests
+  - `meson compile -C build --clean` - Clean build artifacts
+- Reconfigure after changes:
+  - `meson setup build --reconfigure` - Reconfigure build
+  - `meson setup build --wipe` - Clean and reconfigure from scratch
 
 ## C++ Standards and Guidelines
 - Use C++20 or later standard features
@@ -39,7 +42,7 @@ thread or on lock-free thread-safety mechanisms used by the scheduler thread. I 
 ## Unit Tests
 - Use Catch2 as testing framework
 - tests are in the 'tests/' directory
-- tests directory has its own CMakeLists.txt
+- tests directory has its own meson.build
 - Write tests for all public interfaces and critical internal logic
 
 ## Audio Programming Specifics
@@ -86,7 +89,9 @@ thread or on lock-free thread-safety mechanisms used by the scheduler thread. I 
 - Minimize external dependencies
 - When using audio libraries, prefer cross-platform options (libremidi, JUCE, RtAudio, PortAudio)
 - Use header-only libraries when possible to simplify builds
-- Vendor critical dependencies or use git submodules for reproducible builds
+- Dependencies are managed via Meson wraps/subprojects (automatic fallback to vendored versions)
+- External dependencies: readerwriterqueue, libremidi, Catch2 (test only)
+- System dependencies: GTK3, ALSA, pthread
 
 ## Git Workflow
 - Follow git conventional commits syntax and style (see https://conventionalcommits.org for reference)
