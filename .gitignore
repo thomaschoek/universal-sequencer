@@ -2,3 +2,4 @@ claude-conversation-backup.md
 build/*
 .cache/*
 subprojects/*
+claude.out
