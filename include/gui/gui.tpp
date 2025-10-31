@@ -157,6 +157,9 @@ Gui<Event_t>::Gui(Controller& controller, unsigned int fps)
     clear_multi_selection();  // Clear multi-selection when exiting edit mode
     state_.state_dirty = true;
     update_window_title();
+
+    // Clear text cursor by removing focus from entry widgets
+    gtk_widget_grab_focus(window_);
   };
 
   // Load preferences
