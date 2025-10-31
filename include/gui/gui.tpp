@@ -1334,12 +1334,34 @@ template <sequencable::Mut_seq_event Event_t>
 void Gui<Event_t>::gui_select_next_pos() {
   controller_.select_next_pos();
   state_.state_dirty = true;
+
+  // Move GTK focus to match selection
+  auto sel_seq = controller_.selected_seq();
+  auto sel_evt = controller_.selected_event();
+  if (sel_seq && sel_evt && *sel_seq < sequencer_widgets_.size()) {
+    auto& widget = sequencer_widgets_[*sel_seq];
+    size_t param_idx = state_.selected_param_idx;
+    if (param_idx < widget.cells.size() && *sel_evt < widget.cells[param_idx].size()) {
+      gtk_widget_grab_focus(widget.cells[param_idx][*sel_evt]);
+    }
+  }
 }
 
 template <sequencable::Mut_seq_event Event_t>
 void Gui<Event_t>::gui_select_prev_pos() {
   controller_.select_prev_pos();
   state_.state_dirty = true;
+
+  // Move GTK focus to match selection
+  auto sel_seq = controller_.selected_seq();
+  auto sel_evt = controller_.selected_event();
+  if (sel_seq && sel_evt && *sel_seq < sequencer_widgets_.size()) {
+    auto& widget = sequencer_widgets_[*sel_seq];
+    size_t param_idx = state_.selected_param_idx;
+    if (param_idx < widget.cells.size() && *sel_evt < widget.cells[param_idx].size()) {
+      gtk_widget_grab_focus(widget.cells[param_idx][*sel_evt]);
+    }
+  }
 }
 
 template <sequencable::Mut_seq_event Event_t>
@@ -1347,6 +1369,17 @@ void Gui<Event_t>::gui_select_next_param() {
   using Traits = Event_parameter_traits<Event_t>;
   state_.selected_param_idx = (state_.selected_param_idx + 1) % Traits::parameter_count;
   state_.state_dirty = true;
+
+  // Move GTK focus to match selection
+  auto sel_seq = controller_.selected_seq();
+  auto sel_evt = controller_.selected_event();
+  if (sel_seq && sel_evt && *sel_seq < sequencer_widgets_.size()) {
+    auto& widget = sequencer_widgets_[*sel_seq];
+    size_t param_idx = state_.selected_param_idx;
+    if (param_idx < widget.cells.size() && *sel_evt < widget.cells[param_idx].size()) {
+      gtk_widget_grab_focus(widget.cells[param_idx][*sel_evt]);
+    }
+  }
 }
 
 template <sequencable::Mut_seq_event Event_t>
@@ -1358,6 +1391,17 @@ void Gui<Event_t>::gui_select_prev_param() {
     state_.selected_param_idx--;
   }
   state_.state_dirty = true;
+
+  // Move GTK focus to match selection
+  auto sel_seq = controller_.selected_seq();
+  auto sel_evt = controller_.selected_event();
+  if (sel_seq && sel_evt && *sel_seq < sequencer_widgets_.size()) {
+    auto& widget = sequencer_widgets_[*sel_seq];
+    size_t param_idx = state_.selected_param_idx;
+    if (param_idx < widget.cells.size() && *sel_evt < widget.cells[param_idx].size()) {
+      gtk_widget_grab_focus(widget.cells[param_idx][*sel_evt]);
+    }
+  }
 }
 
 template <sequencable::Mut_seq_event Event_t>
