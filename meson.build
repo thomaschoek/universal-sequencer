@@ -33,7 +33,8 @@ libremidi_dep = dependency('libremidi',
 # Will use WrapDB if not found on system
 catch2_dep = dependency('catch2-with-main',
   version: '>=3.0.0',
-  required: false
+  required: false,
+  fallback: ['catch2', 'catch2_with_main_dep']
 )
 
 # Copy resources to build directory
