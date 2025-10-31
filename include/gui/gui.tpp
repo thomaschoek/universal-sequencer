@@ -535,12 +535,28 @@ void Gui<Event_t>::on_entry_focus_out(GtkWidget* widget, GdkEventFocus* event,
       // Refresh all successfully edited cells to show new values
       for (Event_idx evt_idx : gui->state_.selected_event_range) {
         gui->update_cell_value(data->seq_idx, evt_idx, data->param_idx);
+        // Force GTK to redraw the entry widget
+        if (data->seq_idx < gui->sequencer_widgets_.size()) {
+          auto& widget = gui->sequencer_widgets_[data->seq_idx];
+          if (data->param_idx < widget.cells.size() &&
+              evt_idx < widget.cells[data->param_idx].size()) {
+            gtk_widget_queue_draw(widget.cells[data->param_idx][evt_idx]);
+          }
+        }
       }
     } else {
       // Restore all cells to original values on failure
       using Traits = Event_parameter_traits<Event_t>;
       for (Event_idx evt_idx : gui->state_.selected_event_range) {
         gui->update_cell_value(data->seq_idx, evt_idx, data->param_idx);
+        // Force GTK to redraw the entry widget
+        if (data->seq_idx < gui->sequencer_widgets_.size()) {
+          auto& widget = gui->sequencer_widgets_[data->seq_idx];
+          if (data->param_idx < widget.cells.size() &&
+              evt_idx < widget.cells[data->param_idx].size()) {
+            gtk_widget_queue_draw(widget.cells[data->param_idx][evt_idx]);
+          }
+        }
       }
     }
 
@@ -594,6 +610,14 @@ void Gui<Event_t>::on_entry_activate(GtkEntry* entry, gpointer user_data) {
       // Refresh all successfully edited cells to show new values
       for (Event_idx evt_idx : gui->state_.selected_event_range) {
         gui->update_cell_value(data->seq_idx, evt_idx, data->param_idx);
+        // Force GTK to redraw the entry widget
+        if (data->seq_idx < gui->sequencer_widgets_.size()) {
+          auto& widget = gui->sequencer_widgets_[data->seq_idx];
+          if (data->param_idx < widget.cells.size() &&
+              evt_idx < widget.cells[data->param_idx].size()) {
+            gtk_widget_queue_draw(widget.cells[data->param_idx][evt_idx]);
+          }
+        }
       }
       // Success - remove focus from entry to exit edit mode visually
       gtk_widget_grab_focus(gui->window_);
@@ -602,6 +626,14 @@ void Gui<Event_t>::on_entry_activate(GtkEntry* entry, gpointer user_data) {
       using Traits = Event_parameter_traits<Event_t>;
       for (Event_idx evt_idx : gui->state_.selected_event_range) {
         gui->update_cell_value(data->seq_idx, evt_idx, data->param_idx);
+        // Force GTK to redraw the entry widget
+        if (data->seq_idx < gui->sequencer_widgets_.size()) {
+          auto& widget = gui->sequencer_widgets_[data->seq_idx];
+          if (data->param_idx < widget.cells.size() &&
+              evt_idx < widget.cells[data->param_idx].size()) {
+            gtk_widget_queue_draw(widget.cells[data->param_idx][evt_idx]);
+          }
+        }
       }
     }
 
