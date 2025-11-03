@@ -1180,18 +1180,27 @@ void Gui<Event_t>::gui_select(Seq_idx seq_idx, Event_idx event_idx) {
 
 template <sequencable::Mut_seq_event Event_t>
 void Gui<Event_t>::gui_select_next_seq() {
+  // Clear multi-selection when changing sequencers
+  clear_multi_selection();
+
   controller_.select_next_seq();
   state_.state_dirty = true;
 }
 
 template <sequencable::Mut_seq_event Event_t>
 void Gui<Event_t>::gui_select_prev_seq() {
+  // Clear multi-selection when changing sequencers
+  clear_multi_selection();
+
   controller_.select_prev_seq();
   state_.state_dirty = true;
 }
 
 template <sequencable::Mut_seq_event Event_t>
 void Gui<Event_t>::gui_select_next_pos() {
+  // Clear multi-selection when moving without shift
+  clear_multi_selection();
+
   controller_.select_next_pos();
   state_.state_dirty = true;
 
@@ -1208,6 +1217,9 @@ void Gui<Event_t>::gui_select_next_pos() {
 
 template <sequencable::Mut_seq_event Event_t>
 void Gui<Event_t>::gui_select_prev_pos() {
+  // Clear multi-selection when moving without shift
+  clear_multi_selection();
+
   controller_.select_prev_pos();
   state_.state_dirty = true;
 
@@ -1225,6 +1237,10 @@ void Gui<Event_t>::gui_select_prev_pos() {
 template <sequencable::Mut_seq_event Event_t>
 void Gui<Event_t>::gui_select_next_param() {
   using Traits = Event_parameter_traits<Event_t>;
+
+  // Clear multi-selection when changing rows
+  clear_multi_selection();
+
   state_.selected_param_idx = (state_.selected_param_idx + 1) % Traits::parameter_count;
   state_.state_dirty = true;
 
@@ -1242,6 +1258,10 @@ void Gui<Event_t>::gui_select_next_param() {
 template <sequencable::Mut_seq_event Event_t>
 void Gui<Event_t>::gui_select_prev_param() {
   using Traits = Event_parameter_traits<Event_t>;
+
+  // Clear multi-selection when changing rows
+  clear_multi_selection();
+
   if (state_.selected_param_idx == 0) {
     state_.selected_param_idx = Traits::parameter_count - 1;
   } else {
