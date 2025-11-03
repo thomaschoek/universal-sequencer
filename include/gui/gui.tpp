@@ -159,15 +159,23 @@ template <sequencable::Mut_seq_event Event_t> Gui<Event_t>::~Gui() {
 template <sequencable::Mut_seq_event Event_t> void Gui<Event_t>::run() {
   running_ = true;
 
+  // Register the application first (required before setting menubar and adding windows)
+  app_->register_application();
+
+  // Now we can build the menu bar (requires registered application)
+  build_menu_bar();
+
   // Add timeout for event loop ticks
   Glib::signal_timeout().connect(
     sigc::mem_fun(*this, &Gui::on_tick),
     static_cast<unsigned int>(frame_duration_.count() * 1000)
   );
 
-  // In gtkmm4, we need to add the window to the application
+  // Add the window to the application and show it
   app_->add_window(*window_);
   window_->show();
+
+  // Run the application main loop
   app_->run();
 }
 
@@ -199,8 +207,7 @@ void Gui<Event_t>::init_widgets() {
   main_vbox_ = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::VERTICAL, 0);
   window_->set_child(*main_vbox_);
 
-  // Build menu bar
-  build_menu_bar();
+  // Note: build_menu_bar() will be called in run() after app registration
 
   // Create error label (initially hidden)
   error_label_ = Gtk::make_managed<Gtk::Label>("");
