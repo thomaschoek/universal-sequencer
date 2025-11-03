@@ -613,9 +613,17 @@ template <sequencable::Mut_seq_event Event_t>
 void Gui<Event_t>::on_entry_activate(Gtk::Entry* entry, Seq_idx seq_idx, Event_idx event_idx, size_t param_idx) {
   std::string value_str = entry->get_text();
 
+  debug::msg("[GUI] on_entry_activate: value='" + value_str +
+             "' seq=" + std::to_string(seq_idx) +
+             " evt=" + std::to_string(event_idx) +
+             " param=" + std::to_string(param_idx) +
+             " selected_param=" + std::to_string(state_.selected_param_idx) +
+             " range_size=" + std::to_string(state_.selected_event_range.size()));
+
   // Check if param_idx matches current selected parameter (should be same row)
   if (param_idx != state_.selected_param_idx) {
     // Different row - just apply to single cell
+    debug::msg("[GUI] param_idx mismatch, applying to single cell");
     bool success = parse_and_apply_edit(seq_idx, event_idx, param_idx, value_str);
     if (success) {
       state_.state_dirty = true;
@@ -625,6 +633,7 @@ void Gui<Event_t>::on_entry_activate(Gtk::Entry* entry, Seq_idx seq_idx, Event_i
   }
 
   if (!state_.selected_event_range.empty()) {
+    debug::msg("[GUI] Applying to multi-selection range");
     bool all_success = true;
     for (Event_idx evt_idx : state_.selected_event_range) {
       bool success = parse_and_apply_edit(seq_idx, evt_idx, param_idx, value_str);
@@ -1011,7 +1020,8 @@ template <sequencable::Mut_seq_event Event_t> void Gui<Event_t>::render_grid() {
 
   bool selection_changed = (state.selected_seq != state_.last_selected_seq) ||
                            (state.selected_event != state_.last_selected_event) ||
-                           (state_.selected_param_idx != state_.last_selected_param);
+                           (state_.selected_param_idx != state_.last_selected_param) ||
+                           (state_.selected_event_range != state_.last_selected_event_range);
 
   if (!selection_changed) {
     return;
@@ -1306,6 +1316,7 @@ void Gui<Event_t>::gui_extend_selection_left() {
   Event_idx seq_size = state.sizes[*sel_seq];
 
   if (state_.selected_event_range.empty()) {
+    debug::msg("[GUI] extend_selection_left: initializing range with anchor=" + std::to_string(*sel_evt));
     state_.anchor_event = *sel_evt;
     state_.selected_event_range.insert(*sel_evt);
   }
@@ -1314,10 +1325,14 @@ void Gui<Event_t>::gui_extend_selection_left() {
 
   auto it = state_.selected_event_range.find(prev_evt);
   if (it != state_.selected_event_range.end()) {
+    debug::msg("[GUI] extend_selection_left: removing evt=" + std::to_string(prev_evt));
     state_.selected_event_range.erase(it);
   } else {
+    debug::msg("[GUI] extend_selection_left: adding evt=" + std::to_string(prev_evt));
     state_.selected_event_range.insert(prev_evt);
   }
+
+  debug::msg("[GUI] extend_selection_left: range_size=" + std::to_string(state_.selected_event_range.size()));
 
   controller_.select(*sel_seq, prev_evt);
   state_.state_dirty = true;
