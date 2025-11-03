@@ -30,6 +30,12 @@
   /* Remove explicit background to inherit system theme */
 }
 
+/* Selected sequencer frame highlighting */
+#sequencer-frame.selected-sequencer {
+  border: 3px solid #2196F3;
+  background-color: alpha(#2196F3, 0.05);
+}
+
 /* Sequencer header styling */
 #sequencer-header {
   font-weight: bold;

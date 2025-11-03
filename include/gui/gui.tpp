@@ -1006,7 +1006,7 @@ template <sequencable::Mut_seq_event Event_t> void Gui<Event_t>::render_grid() {
     return;
   }
 
-  // Remove selection from previous cell
+  // Remove selection from previous cell and frame
   if (state_.last_selected_seq && state_.last_selected_event && state_.last_selected_param) {
     Seq_idx prev_seq = *state_.last_selected_seq;
     Event_idx prev_evt = *state_.last_selected_event;
@@ -1014,6 +1014,12 @@ template <sequencable::Mut_seq_event Event_t> void Gui<Event_t>::render_grid() {
 
     if (prev_seq < sequencer_widgets_.size()) {
       const auto& widget = sequencer_widgets_[prev_seq];
+
+      // Remove frame selection highlight
+      if (widget.frame) {
+        widget.frame->get_style_context()->remove_class("selected-sequencer");
+      }
+
       if (prev_param < widget.cells.size() && prev_evt < widget.cells[prev_param].size()) {
         widget.cells[prev_param][prev_evt]->get_style_context()->remove_class("selected");
       }
@@ -1028,7 +1034,7 @@ template <sequencable::Mut_seq_event Event_t> void Gui<Event_t>::render_grid() {
     }
   }
 
-  // Add selection to new cell
+  // Add selection to new cell and frame
   if (state.selected_seq && state.selected_event) {
     Seq_idx sel_seq = *state.selected_seq;
     Event_idx sel_evt = *state.selected_event;
@@ -1036,6 +1042,12 @@ template <sequencable::Mut_seq_event Event_t> void Gui<Event_t>::render_grid() {
 
     if (sel_seq < sequencer_widgets_.size()) {
       const auto& widget = sequencer_widgets_[sel_seq];
+
+      // Add frame selection highlight
+      if (widget.frame) {
+        widget.frame->get_style_context()->add_class("selected-sequencer");
+      }
+
       if (sel_param < widget.cells.size() && sel_evt < widget.cells[sel_param].size()) {
         widget.cells[sel_param][sel_evt]->get_style_context()->add_class("selected");
       }
