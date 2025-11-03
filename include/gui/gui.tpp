@@ -613,6 +613,17 @@ template <sequencable::Mut_seq_event Event_t>
 void Gui<Event_t>::on_entry_activate(Gtk::Entry* entry, Seq_idx seq_idx, Event_idx event_idx, size_t param_idx) {
   std::string value_str = entry->get_text();
 
+  // Check if param_idx matches current selected parameter (should be same row)
+  if (param_idx != state_.selected_param_idx) {
+    // Different row - just apply to single cell
+    bool success = parse_and_apply_edit(seq_idx, event_idx, param_idx, value_str);
+    if (success) {
+      state_.state_dirty = true;
+      window_->set_focus(*window_);
+    }
+    return;
+  }
+
   if (!state_.selected_event_range.empty()) {
     bool all_success = true;
     for (Event_idx evt_idx : state_.selected_event_range) {
@@ -1055,9 +1066,8 @@ template <sequencable::Mut_seq_event Event_t> void Gui<Event_t>::render_grid() {
       if (!state_.selected_event_range.empty()) {
         for (Event_idx evt_idx : state_.selected_event_range) {
           if (sel_param < widget.cells.size() && evt_idx < widget.cells[sel_param].size()) {
-            if (evt_idx != sel_evt) {
-              widget.cells[sel_param][evt_idx]->get_style_context()->add_class("multi-selected");
-            }
+            // Apply multi-selected class to all cells in the range
+            widget.cells[sel_param][evt_idx]->get_style_context()->add_class("multi-selected");
           }
         }
       }
