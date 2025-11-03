@@ -56,6 +56,8 @@ Gui<Event_t>::Gui(Controller& controller, unsigned int fps)
 
   // 'i' key enters edit mode
   normal_mode_actions_[GDK_KEY_i] = [this]() {
+    debug::msg("[GUI] 'i' key pressed: entering edit mode, range_size=" +
+               std::to_string(state_.selected_event_range.size()));
     state_.mode = Mode::Edit;
     state_.state_dirty = true;
     update_window_title();
@@ -543,10 +545,18 @@ bool Gui<Event_t>::clear_error_timeout() {
 // Entry focus-in handler
 template <sequencable::Mut_seq_event Event_t>
 void Gui<Event_t>::on_entry_focus_in(Gtk::Entry* entry, Seq_idx seq_idx, Event_idx event_idx, size_t param_idx) {
+  debug::msg("[GUI] on_entry_focus_in: seq=" + std::to_string(seq_idx) +
+             " evt=" + std::to_string(event_idx) +
+             " param=" + std::to_string(param_idx) +
+             " range_size_before=" + std::to_string(state_.selected_event_range.size()));
+
   // Sync our selection with GTK focus
   controller_.select(seq_idx, event_idx);
   state_.selected_param_idx = param_idx;
   state_.state_dirty = true;
+
+  debug::msg("[GUI] on_entry_focus_in: range_size_after=" +
+             std::to_string(state_.selected_event_range.size()));
 }
 
 // Entry focus-out handler
@@ -1169,6 +1179,9 @@ void Gui<Event_t>::clear_multi_selection() {
   if (state_.selected_event_range.empty()) {
     return;
   }
+
+  debug::msg("[GUI] clear_multi_selection: clearing range of size " +
+             std::to_string(state_.selected_event_range.size()));
 
   auto sel_seq = controller_.selected_seq();
   if (!sel_seq || *sel_seq >= sequencer_widgets_.size()) {
