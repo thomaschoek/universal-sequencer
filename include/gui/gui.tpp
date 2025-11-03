@@ -188,7 +188,9 @@ void Gui<Event_t>::init_widgets() {
   window_->set_default_size(1000, 700);
 
   // Connect key press signal using EventControllerKey
+  // Use CAPTURE phase to intercept keys before Entry widgets consume them
   auto key_controller = Gtk::EventControllerKey::create();
+  key_controller->set_propagation_phase(Gtk::PropagationPhase::CAPTURE);
   key_controller->signal_key_pressed().connect(
     sigc::mem_fun(*this, &Gui::on_key_press), false
   );
