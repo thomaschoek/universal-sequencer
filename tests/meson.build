@@ -6,6 +6,7 @@ test_sources = files(
   'sequencer/test_sequencer_template.cpp',
   'sequencer/test_poly_sequencer.cpp',
   'controller/test_poly_sequencer_controller.cpp',
+  'gui/test_json_serialization.cpp',
 
   # Disabled tests (compilation issues):
   # 'container/test_atomic_deque.cpp',
