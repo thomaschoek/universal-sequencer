@@ -220,6 +220,10 @@ void Sequencer<T_event>::insert(Size_type pos, const T_event& event) {
   await_scheduler();
   events_.insert(pos, event);
 
+  // FIX TOCTOU: Reload current_ after await_scheduler() to get fresh value
+  // The scheduler may have advanced between the initial load (line 211) and here
+  current = current_.load(std::memory_order_acquire);
+
   if (current > pos) {
     // We need to increment current to account for the inserted event
 #ifndef NDEBUG
