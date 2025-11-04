@@ -6,6 +6,7 @@ test_sources = files(
   'sequencer/test_sequencer_template.cpp',
   'sequencer/test_poly_sequencer.cpp',
   'sequencer/test_insert_race_condition.cpp',
+  'sequencer/test_atomic_load_optimization.cpp',
   'controller/test_poly_sequencer_controller.cpp',
   'gui/test_json_serialization.cpp',
   'gui/test_file_operations.cpp',
