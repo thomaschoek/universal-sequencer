@@ -206,8 +206,11 @@ void Sequencer<T_event>::insert(Size_type pos, const T_event& event) {
   validate(event);
   range_check(pos);
 
+  // Optimization: Track if we entered the scheduling loop to avoid redundant loads
+  bool was_scheduling = false;
   Size_type current{0};
   while (is_scheduling()) {
+    was_scheduling = true;
     current = current_.load(std::memory_order_acquire);
     if (current < pos) {
       break;
@@ -220,9 +223,16 @@ void Sequencer<T_event>::insert(Size_type pos, const T_event& event) {
   await_scheduler();
   events_.insert(pos, event);
 
-  // FIX TOCTOU: Reload current_ after await_scheduler() to get fresh value
-  // The scheduler may have advanced between the initial load (line 211) and here
-  current = current_.load(std::memory_order_acquire);
+  // Load current position: reload if we were scheduling (TOCTOU fix),
+  // single load with relaxed ordering if not scheduling
+  if (was_scheduling) {
+    // FIX TOCTOU: Reload current_ after await_scheduler() to get fresh value
+    // The scheduler may have advanced between the initial load and here
+    current = current_.load(std::memory_order_acquire);
+  } else {
+    // Not scheduling: single load sufficient, can use relaxed ordering
+    current = current_.load(std::memory_order_relaxed);
+  }
 
   if (current > pos) {
     // We need to increment current to account for the inserted event
@@ -457,16 +467,32 @@ void Sequencer<T_event>::pop_back() {
 template <sequencable::Mut_seq_event T_event>
 void Sequencer<T_event>::erase(Size_type idx) {
   range_check(idx);
+
+  // Optimization: Track if we entered the scheduling loop to avoid redundant loads
+  bool was_scheduling = false;
   Size_type current{0};
   while (is_scheduling()) {
+    was_scheduling = true;
     current = current_.load(std::memory_order_acquire);
     if (current != idx) {
       break;
     }
     std::this_thread::yield();
   }
+
   await_scheduler();
   events_.erase(idx);
+
+  // Load current position: reload if we were scheduling (TOCTOU fix),
+  // single load with relaxed ordering if not scheduling
+  if (was_scheduling) {
+    // FIX TOCTOU: Reload current_ after await_scheduler() to get fresh value
+    current = current_.load(std::memory_order_acquire);
+  } else {
+    // Not scheduling: single load sufficient, can use relaxed ordering
+    current = current_.load(std::memory_order_relaxed);
+  }
+
   // If current > idx decrement current to account for the removed event
   if (current > idx) {
     // unsigned Size_type idx >= 0; so current > idx implies current > 0
