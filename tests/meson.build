@@ -10,6 +10,7 @@ test_sources = files(
   'controller/test_poly_sequencer_controller.cpp',
   'gui/test_json_serialization.cpp',
   'gui/test_file_operations.cpp',
+  'midi/test_midi_output_contention.cpp',
 
   # Disabled tests (compilation issues):
   # 'container/test_atomic_deque.cpp',
@@ -21,10 +22,11 @@ test_sources = files(
 test_exe = executable('tests',
   sources: [
     test_sources,
-    synth_output_src  # From parent meson.build
+    synth_output_src,  # From parent meson.build
+    midi_output_src    # From parent meson.build (for MIDI contention tests)
   ],
   include_directories: inc,  # From parent meson.build
-  dependencies: [catch2_dep, nlohmann_json_dep],
+  dependencies: [catch2_dep, nlohmann_json_dep, libremidi_dep, alsa_dep],
   build_by_default: true
 )
 
