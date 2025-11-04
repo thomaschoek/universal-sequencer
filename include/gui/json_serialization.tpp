@@ -2,59 +2,47 @@
 #define MICRO_COMPOSER_JSON_SERIALIZATION_TPP
 
 #include "gui/json_serialization.h"
-#include <sstream>
+#include <nlohmann/json.hpp>
 
 namespace Micro_composer {
 namespace gui {
 
-// Temporary implementation using old hand-rolled parser
-// This will be replaced with nlohmann/json in the next commit
+// Implementation using nlohmann/json for proper security and validation
 
 template <sequencable::Mut_seq_event Event_t>
 std::string sequences_to_json(
     const std::vector<std::vector<Event_t>>& sequences) {
   using Traits = Event_parameter_traits<Event_t>;
+  using json = nlohmann::json;
 
-  std::ostringstream json;
-  json << "{\n  \"sequencers\": [\n";
+  json root;
+  json sequencers_array = json::array();
 
-  for (size_t seq_idx = 0; seq_idx < sequences.size(); ++seq_idx) {
-    if (seq_idx > 0) json << ",\n";
-    json << "    {\n";
-    json << "      \"events\": [\n";
+  for (const auto& sequence : sequences) {
+    json sequencer_obj;
+    json events_array = json::array();
 
-    const auto& events = sequences[seq_idx];
-    for (size_t evt_idx = 0; evt_idx < events.size(); ++evt_idx) {
-      if (evt_idx > 0) json << ",\n";
-      json << "        {\n";
-
-      const auto& event = events[evt_idx];
+    for (const auto& event : sequence) {
+      json event_obj;
       constexpr size_t num_params = Traits::parameter_count;
 
       for (size_t param_idx = 0; param_idx < num_params; ++param_idx) {
-        if (param_idx > 0) json << ",\n";
         std::string param_name = Traits::get_parameter_name(param_idx);
         std::string param_value = Traits::get_parameter_value(event, param_idx);
-
-        // Escape quotes in values
-        size_t pos = 0;
-        while ((pos = param_value.find('"', pos)) != std::string::npos) {
-          param_value.insert(pos, "\\");
-          pos += 2;
-        }
-
-        json << "          \"" << param_name << "\": \"" << param_value << "\"";
+        event_obj[param_name] = param_value;
       }
 
-      json << "\n        }";
+      events_array.push_back(event_obj);
     }
 
-    json << "\n      ]\n";
-    json << "    }";
+    sequencer_obj["events"] = events_array;
+    sequencers_array.push_back(sequencer_obj);
   }
 
-  json << "\n  ]\n}\n";
-  return json.str();
+  root["sequencers"] = sequencers_array;
+
+  // Serialize with indentation for readability
+  return root.dump(2);
 }
 
 template <sequencable::Mut_seq_event Event_t>
@@ -62,81 +50,135 @@ std::vector<std::vector<Event_t>> json_to_sequences(
     const std::string& json_str,
     const Json_parse_config& config) {
   using Traits = Event_parameter_traits<Event_t>;
+  using json = nlohmann::json;
 
-  // TEMPORARY: Old hand-rolled parser (has security issues!)
-  // This will be replaced with nlohmann/json
-
-  // Basic file size check
+  // Validate file size before parsing
   if (json_str.size() > config.max_file_size) {
-    throw Json_parse_error("JSON file exceeds maximum size limit");
+    throw Json_parse_error("JSON file exceeds maximum size limit of " +
+                           std::to_string(config.max_file_size) + " bytes");
   }
 
-  std::istringstream input(json_str);
-  std::string line;
+  // Parse JSON with exception handling
+  json root;
+  try {
+    root = json::parse(json_str);
+  } catch (const json::parse_error& e) {
+    throw Json_parse_error(std::string("JSON parse error: ") + e.what());
+  }
 
-  std::vector<std::vector<Event_t>> new_sequences;
-  std::vector<Event_t> current_sequence;
-  Event_t current_event{};
-  bool in_event = false;
+  // Validate structure
+  if (!root.is_object()) {
+    throw Json_parse_error("JSON root must be an object");
+  }
 
-  while (std::getline(input, line)) {
-    // Strip whitespace
-    line.erase(0, line.find_first_not_of(" \t\n\r"));
-    line.erase(line.find_last_not_of(" \t\n\r") + 1);
+  if (!root.contains("sequencers")) {
+    throw Json_parse_error("JSON missing 'sequencers' field");
+  }
 
-    if (line == "{" && !in_event) {
-      in_event = true;
-      current_event = Event_t{};
-      continue;
+  if (!root["sequencers"].is_array()) {
+    throw Json_parse_error("'sequencers' field must be an array");
+  }
+
+  const auto& sequencers = root["sequencers"];
+
+  // Validate array size
+  if (sequencers.size() > config.max_array_size) {
+    throw Json_parse_error("Too many sequencers: " +
+                           std::to_string(sequencers.size()) +
+                           " exceeds limit of " +
+                           std::to_string(config.max_array_size));
+  }
+
+  std::vector<std::vector<Event_t>> result;
+
+  for (size_t seq_idx = 0; seq_idx < sequencers.size(); ++seq_idx) {
+    const auto& sequencer = sequencers[seq_idx];
+
+    if (!sequencer.is_object()) {
+      throw Json_parse_error("Sequencer at index " +
+                             std::to_string(seq_idx) + " must be an object");
     }
 
-    if (line == "}," || line == "}") {
-      if (in_event) {
-        current_sequence.push_back(current_event);
-        in_event = false;
+    if (!sequencer.contains("events")) {
+      throw Json_parse_error("Sequencer at index " +
+                             std::to_string(seq_idx) +
+                             " missing 'events' field");
+    }
+
+    if (!sequencer["events"].is_array()) {
+      throw Json_parse_error("'events' field at sequencer " +
+                             std::to_string(seq_idx) + " must be an array");
+    }
+
+    const auto& events = sequencer["events"];
+
+    // Validate events array size
+    if (events.size() > config.max_array_size) {
+      throw Json_parse_error("Too many events in sequencer " +
+                             std::to_string(seq_idx) + ": " +
+                             std::to_string(events.size()) +
+                             " exceeds limit of " +
+                             std::to_string(config.max_array_size));
+    }
+
+    std::vector<Event_t> sequence;
+
+    for (size_t evt_idx = 0; evt_idx < events.size(); ++evt_idx) {
+      const auto& event_obj = events[evt_idx];
+
+      if (!event_obj.is_object()) {
+        throw Json_parse_error("Event at index " + std::to_string(evt_idx) +
+                               " in sequencer " + std::to_string(seq_idx) +
+                               " must be an object");
       }
-      continue;
-    }
 
-    size_t colon_pos = line.find(':');
-    if (colon_pos != std::string::npos && in_event) {
-      std::string param_part = line.substr(0, colon_pos);
-      std::string value_part = line.substr(colon_pos + 1);
-
-      auto remove_quotes = [](std::string& s) {
-        s.erase(0, s.find_first_not_of(" \t\""));
-        s.erase(s.find_last_not_of(" \t\",") + 1);
-      };
-
-      remove_quotes(param_part);
-      remove_quotes(value_part);
-
+      Event_t event{};
       constexpr size_t num_params = Traits::parameter_count;
-      for (size_t i = 0; i < num_params; ++i) {
-        if (Traits::get_parameter_name(i) == param_part) {
-          try {
-            Traits::set_parameter_value(current_event, i, value_part);
-          } catch (const std::exception& e) {
-            throw Json_parse_error(std::string("Error parsing parameter '") +
-                                   param_part + "': " + e.what());
+
+      // Parse each parameter
+      for (size_t param_idx = 0; param_idx < num_params; ++param_idx) {
+        std::string param_name = Traits::get_parameter_name(param_idx);
+
+        if (event_obj.contains(param_name)) {
+          // Get value as string
+          std::string value_str;
+
+          const auto& value = event_obj[param_name];
+          if (value.is_string()) {
+            value_str = value.get<std::string>();
+
+            // Validate string length
+            if (value_str.size() > config.max_string_length) {
+              throw Json_parse_error(
+                  "String value for parameter '" + param_name +
+                  "' exceeds maximum length of " +
+                  std::to_string(config.max_string_length) + " characters");
+            }
+          } else {
+            // Convert non-string values to string
+            value_str = value.dump();
           }
-          break;
+
+          // Set parameter value
+          try {
+            Traits::set_parameter_value(event, param_idx, value_str);
+          } catch (const std::exception& e) {
+            throw Json_parse_error("Error setting parameter '" + param_name +
+                                   "' at event " + std::to_string(evt_idx) +
+                                   " in sequencer " + std::to_string(seq_idx) +
+                                   ": " + e.what());
+          }
         }
+        // Note: Missing parameters keep their default values
       }
+
+      sequence.push_back(event);
     }
 
-    if (line.find("\"events\":") != std::string::npos &&
-        !current_sequence.empty()) {
-      new_sequences.push_back(current_sequence);
-      current_sequence.clear();
-    }
+    result.push_back(sequence);
   }
 
-  if (!current_sequence.empty()) {
-    new_sequences.push_back(current_sequence);
-  }
-
-  return new_sequences;
+  return result;
 }
 
 } // namespace gui

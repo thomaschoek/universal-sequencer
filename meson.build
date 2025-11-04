@@ -32,6 +32,13 @@ libremidi_dep = dependency('libremidi',
   fallback: ['libremidi', 'libremidi_dep']
 )
 
+# nlohmann/json - JSON library for C++
+nlohmann_json_dep = dependency('nlohmann_json',
+  version: '>=3.11.0',
+  required: false,
+  fallback: ['nlohmann_json', 'nlohmann_json_dep']
+)
+
 # Catch2 - testing framework (only needed for tests)
 # Will use WrapDB if not found on system
 catch2_dep = dependency('catch2-with-main',
@@ -79,14 +86,14 @@ if gtkmm4_dep.found()
 endif
 
 # Executable 2: MicroComposer (GUI Application)
-if gtkmm4_dep.found()
+if gtkmm4_dep.found() and nlohmann_json_dep.found()
   executable('MicroComposer',
     sources: [
       'src/main_gui.cpp',
       synth_output_src
     ],
     include_directories: inc,
-    dependencies: [gtkmm4_dep],
+    dependencies: [gtkmm4_dep, nlohmann_json_dep],
     install: true
   )
 endif
@@ -109,7 +116,7 @@ if libremidi_dep.found() and alsa_dep.found()
 endif
 
 # Executable 4: midiguy (MIDI GUI Application)
-if gtkmm4_dep.found() and libremidi_dep.found() and alsa_dep.found()
+if gtkmm4_dep.found() and libremidi_dep.found() and alsa_dep.found() and nlohmann_json_dep.found()
   executable('midiguy',
     sources: [
       'src/main_midi_gui.cpp',
@@ -120,7 +127,8 @@ if gtkmm4_dep.found() and libremidi_dep.found() and alsa_dep.found()
       gtkmm4_dep,
       libremidi_dep,
       alsa_dep,
-      threads_dep
+      threads_dep,
+      nlohmann_json_dep
     ],
     install: true
   )

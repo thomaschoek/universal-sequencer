@@ -178,7 +178,7 @@ TEST_CASE("JSON parsing - security: DoS protection",
                       Json_parse_error);
   }
 
-  SECTION("Extremely long string should be handled") {
+  SECTION("Extremely long string should be rejected") {
     Json_parse_config config;
     config.max_string_length = 1000;
 
@@ -190,11 +190,9 @@ TEST_CASE("JSON parsing - security: DoS protection",
     std::vector<std::vector<Test_json_event>> sequences = {{event}};
     std::string json = sequences_to_json(sequences);
 
-    // Should either truncate or reject, not crash
-    // Current implementation will likely fail this test
-    auto parsed = json_to_sequences<Test_json_event>(json, config);
-    // Should handle gracefully
-    REQUIRE(parsed[0][0].name.size() <= config.max_string_length);
+    // Should reject strings exceeding max length with clear error
+    REQUIRE_THROWS_AS(json_to_sequences<Test_json_event>(json, config),
+                      Json_parse_error);
   }
 }
 

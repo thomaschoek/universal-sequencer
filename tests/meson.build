@@ -21,7 +21,7 @@ test_exe = executable('tests',
     synth_output_src  # From parent meson.build
   ],
   include_directories: inc,  # From parent meson.build
-  dependencies: [catch2_dep],
+  dependencies: [catch2_dep, nlohmann_json_dep],
   build_by_default: true
 )
 
