@@ -299,33 +299,57 @@ void Sequencer<T_event>::toggle(Size_type idx) {
 
 template <sequencable::Mut_seq_event T_event>
 void Sequencer<T_event>::adjust_durations(Duration delta) {
+  constexpr auto MAX_DURATION = std::chrono::hours(24); // Maximum 24 hours
   const Duration min_duration = min_duration_;
-  events_.mutate([delta, min_duration](T_event&& event) {
+  const auto max_duration = std::chrono::duration_cast<Duration>(MAX_DURATION);
+
+  events_.mutate([delta, min_duration, max_duration](T_event&& event) {
     const Duration new_duration = event.duration + delta;
-    if (new_duration < min_duration) {
-      return std::forward<T_event>(event);
-    } else {
-      event.set_duration(new_duration);
-      return std::forward<T_event>(event);
+
+    // Validate bounds: must be >= min and <= max
+    if (new_duration < min_duration || new_duration > max_duration) {
+      return std::forward<T_event>(event);  // Skip adjustment if out of bounds
     }
+
+    event.set_duration(new_duration);
+    return std::forward<T_event>(event);
   });
 }
 
 template <sequencable::Mut_seq_event T_event>
 void Sequencer<T_event>::multiply_durations(double factor) {
-  if (factor < 0.0) {
-    throw std::invalid_argument("Invalid factor: '" + std::to_string(factor) +
-                                "'; Tempo factor cannot be negative!");
+  // Input validation: prevent integer overflow and extreme values
+  constexpr double MIN_FACTOR = 0.01;  // Minimum 1% of original duration
+  constexpr double MAX_FACTOR = 100.0; // Maximum 100x duration
+  constexpr auto MAX_DURATION = std::chrono::hours(24); // Maximum 24 hours
+
+  if (factor < MIN_FACTOR || factor > MAX_FACTOR) {
+    throw std::invalid_argument(
+        "Invalid factor: " + std::to_string(factor) +
+        "; Factor must be between " + std::to_string(MIN_FACTOR) +
+        " and " + std::to_string(MAX_FACTOR));
   }
+
   debug_msg("Multiplying durations by factor: " + std::to_string(factor));
   await_scheduler();
   const Duration min_dur = min_duration_;
-  events_.mutate([min_dur, factor](T_event&& event) {
+  const auto max_dur = std::chrono::duration_cast<Duration>(MAX_DURATION);
+
+  events_.mutate([min_dur, max_dur, factor](T_event&& event) {
     // Convert to floating-point duration, multiply, then round and convert back
+    const auto fp_duration = std::chrono::duration_cast<
+        std::chrono::duration<double, Duration::period>>(event.duration);
+    const double new_count = fp_duration.count() * factor;
+
+    // Check for overflow before casting back to Duration
+    if (new_count > max_dur.count()) {
+      throw std::overflow_error(
+          "Duration multiplication overflow: result exceeds maximum duration of 24 hours");
+    }
+
     const Duration new_duration = std::chrono::duration_cast<Duration>(
-        std::chrono::duration_cast<
-            std::chrono::duration<double, Duration::period>>(event.duration) *
-        factor);
+        fp_duration * factor);
+
     debug_msg(
         "Old duration: " +
         std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -336,10 +360,11 @@ void Sequencer<T_event>::multiply_durations(double factor) {
             std::chrono::duration_cast<std::chrono::milliseconds>(new_duration)
                 .count()) +
         " ms");
+
     if (new_duration >= min_dur) {
       event.set_duration(new_duration);
     }
-    return std::move(event);
+    return std::forward<T_event>(event);
   });
 }
 
