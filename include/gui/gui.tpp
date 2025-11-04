@@ -4,8 +4,8 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
-#include <sstream>
 #include <pwd.h>
+#include <sstream>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -79,7 +79,8 @@ Gui<Event_t>::Gui(Controller& controller, unsigned int fps)
       if (sel_seq) {
         Event_idx event_idx = key - GDK_KEY_1;
         auto& state = state_.controller_state;
-        if (*sel_seq < state.sizes.size() && event_idx < state.sizes[*sel_seq]) {
+        if (*sel_seq < state.sizes.size() &&
+            event_idx < state.sizes[*sel_seq]) {
           controller_.select(*sel_seq, event_idx);
           state_.state_dirty = true;
         }
@@ -143,7 +144,8 @@ Gui<Event_t>::Gui(Controller& controller, unsigned int fps)
 template <sequencable::Mut_seq_event Event_t> Gui<Event_t>::~Gui() {
   // Save current window size to preferences
   if (window_) {
-    window_->get_default_size(preferences_.window_width, preferences_.window_height);
+    window_->get_default_size(preferences_.window_width,
+                              preferences_.window_height);
   }
 
   // Save preferences to config file
@@ -151,17 +153,20 @@ template <sequencable::Mut_seq_event Event_t> Gui<Event_t>::~Gui() {
 
   // Clean up dynamically allocated widgets
   for (auto& seq_widget : sequencer_widgets_) {
-    if (seq_widget.frame) delete seq_widget.frame;
+    if (seq_widget.frame)
+      delete seq_widget.frame;
   }
 
-  if (window_) delete window_;
+  if (window_)
+    delete window_;
 }
 
 // Run the GUI
 template <sequencable::Mut_seq_event Event_t> void Gui<Event_t>::run() {
   running_ = true;
 
-  // Register the application first (required before setting menubar and adding windows)
+  // Register the application first (required before setting menubar and adding
+  // windows)
   app_->register_application();
 
   // Now we can build the menu bar (requires registered application)
@@ -169,9 +174,8 @@ template <sequencable::Mut_seq_event Event_t> void Gui<Event_t>::run() {
 
   // Add timeout for event loop ticks
   Glib::signal_timeout().connect(
-    sigc::mem_fun(*this, &Gui::on_tick),
-    static_cast<unsigned int>(frame_duration_.count() * 1000)
-  );
+      sigc::mem_fun(*this, &Gui::on_tick),
+      static_cast<unsigned int>(frame_duration_.count() * 1000));
 
   // Add the window to the application and show it
   app_->add_window(*window_);
@@ -194,18 +198,15 @@ void Gui<Event_t>::init_widgets() {
   auto key_controller = Gtk::EventControllerKey::create();
   key_controller->set_propagation_phase(Gtk::PropagationPhase::CAPTURE);
   key_controller->signal_key_pressed().connect(
-    sigc::mem_fun(*this, &Gui::on_key_press), false
-  );
+      sigc::mem_fun(*this, &Gui::on_key_press), false);
   window_->add_controller(key_controller);
 
   // Load CSS
   auto css_provider = Gtk::CssProvider::create();
   css_provider->load_from_path("resources/gui_style.css");
   Gtk::StyleContext::add_provider_for_display(
-    window_->get_display(),
-    css_provider,
-    GTK_STYLE_PROVIDER_PRIORITY_APPLICATION
-  );
+      window_->get_display(), css_provider,
+      GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
 
   // Create main vertical box
   main_vbox_ = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::VERTICAL, 0);
@@ -225,7 +226,8 @@ void Gui<Event_t>::init_widgets() {
   scrolled_window_->set_vexpand(true);
 
   // Create vertical box to hold sequencer widgets
-  sequencers_vbox_ = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::VERTICAL, 10);
+  sequencers_vbox_ =
+      Gtk::make_managed<Gtk::Box>(Gtk::Orientation::VERTICAL, 10);
   scrolled_window_->set_child(*sequencers_vbox_);
 
   // Build sequencer widgets
@@ -305,7 +307,8 @@ void Gui<Event_t>::build_sequencer_widgets() {
 
     for (size_t param_idx = 0; param_idx < num_params; ++param_idx) {
       // Create row label
-      auto label = Gtk::make_managed<Gtk::Label>(Traits::get_parameter_name(param_idx));
+      auto label =
+          Gtk::make_managed<Gtk::Label>(Traits::get_parameter_name(param_idx));
       label->set_size_request(80, -1);
       label->set_halign(Gtk::Align::START);
       widget.grid->attach(*label, 0, param_idx + 1, 1, 1);
@@ -327,27 +330,35 @@ void Gui<Event_t>::build_sequencer_widgets() {
 
         // Connect signals with lambda captures
         auto focus_controller = Gtk::EventControllerFocus::create();
-        focus_controller->signal_enter().connect([this, entry, seq_idx, evt_idx, param_idx]() {
-          on_entry_focus_in(entry, seq_idx, evt_idx, param_idx);
-        });
-        focus_controller->signal_leave().connect([this, entry, seq_idx, evt_idx, param_idx]() {
-          on_entry_focus_out(entry, seq_idx, evt_idx, param_idx);
-        });
+        focus_controller->signal_enter().connect(
+            [this, entry, seq_idx, evt_idx, param_idx]() {
+              on_entry_focus_in(entry, seq_idx, evt_idx, param_idx);
+            });
+        focus_controller->signal_leave().connect(
+            [this, entry, seq_idx, evt_idx, param_idx]() {
+              on_entry_focus_out(entry, seq_idx, evt_idx, param_idx);
+            });
         entry->add_controller(focus_controller);
 
-        entry->signal_activate().connect([this, entry, seq_idx, evt_idx, param_idx]() {
-          on_entry_activate(entry, seq_idx, evt_idx, param_idx);
-        });
+        entry->signal_activate().connect(
+            [this, entry, seq_idx, evt_idx, param_idx]() {
+              on_entry_activate(entry, seq_idx, evt_idx, param_idx);
+            });
 
-        entry->signal_changed().connect([this, entry, seq_idx, evt_idx, param_idx]() {
-          on_entry_changed(entry, seq_idx, evt_idx, param_idx);
-        });
+        entry->signal_changed().connect(
+            [this, entry, seq_idx, evt_idx, param_idx]() {
+              on_entry_changed(entry, seq_idx, evt_idx, param_idx);
+            });
 
         auto scroll_controller = Gtk::EventControllerScroll::create();
-        scroll_controller->set_flags(Gtk::EventControllerScroll::Flags::VERTICAL);
-        scroll_controller->signal_scroll().connect([this, entry, seq_idx, evt_idx, param_idx](double dx, double dy) {
-          return on_entry_scroll(entry, dx, dy, seq_idx, evt_idx, param_idx);
-        }, false);
+        scroll_controller->set_flags(
+            Gtk::EventControllerScroll::Flags::VERTICAL);
+        scroll_controller->signal_scroll().connect(
+            [this, entry, seq_idx, evt_idx, param_idx](double dx, double dy) {
+              return on_entry_scroll(entry, dx, dy, seq_idx, evt_idx,
+                                     param_idx);
+            },
+            false);
         entry->add_controller(scroll_controller);
 
         widget.grid->attach(*entry, evt_idx + 1, param_idx + 1, 1, 1);
@@ -441,7 +452,8 @@ void Gui<Event_t>::rebuild_sequencer_widget(Seq_idx seq_idx) {
   widget.row_labels.resize(num_params);
 
   for (size_t param_idx = 0; param_idx < num_params; ++param_idx) {
-    auto label = Gtk::make_managed<Gtk::Label>(Traits::get_parameter_name(param_idx));
+    auto label =
+        Gtk::make_managed<Gtk::Label>(Traits::get_parameter_name(param_idx));
     label->set_size_request(80, -1);
     label->set_halign(Gtk::Align::START);
     widget.grid->attach(*label, 0, param_idx + 1, 1, 1);
@@ -461,27 +473,33 @@ void Gui<Event_t>::rebuild_sequencer_widget(Seq_idx seq_idx) {
 
       // Connect signals
       auto focus_controller = Gtk::EventControllerFocus::create();
-      focus_controller->signal_enter().connect([this, entry, seq_idx, evt_idx, param_idx]() {
-        on_entry_focus_in(entry, seq_idx, evt_idx, param_idx);
-      });
-      focus_controller->signal_leave().connect([this, entry, seq_idx, evt_idx, param_idx]() {
-        on_entry_focus_out(entry, seq_idx, evt_idx, param_idx);
-      });
+      focus_controller->signal_enter().connect(
+          [this, entry, seq_idx, evt_idx, param_idx]() {
+            on_entry_focus_in(entry, seq_idx, evt_idx, param_idx);
+          });
+      focus_controller->signal_leave().connect(
+          [this, entry, seq_idx, evt_idx, param_idx]() {
+            on_entry_focus_out(entry, seq_idx, evt_idx, param_idx);
+          });
       entry->add_controller(focus_controller);
 
-      entry->signal_activate().connect([this, entry, seq_idx, evt_idx, param_idx]() {
-        on_entry_activate(entry, seq_idx, evt_idx, param_idx);
-      });
+      entry->signal_activate().connect(
+          [this, entry, seq_idx, evt_idx, param_idx]() {
+            on_entry_activate(entry, seq_idx, evt_idx, param_idx);
+          });
 
-      entry->signal_changed().connect([this, entry, seq_idx, evt_idx, param_idx]() {
-        on_entry_changed(entry, seq_idx, evt_idx, param_idx);
-      });
+      entry->signal_changed().connect(
+          [this, entry, seq_idx, evt_idx, param_idx]() {
+            on_entry_changed(entry, seq_idx, evt_idx, param_idx);
+          });
 
       auto scroll_controller = Gtk::EventControllerScroll::create();
       scroll_controller->set_flags(Gtk::EventControllerScroll::Flags::VERTICAL);
-      scroll_controller->signal_scroll().connect([this, entry, seq_idx, evt_idx, param_idx](double dx, double dy) {
-        return on_entry_scroll(entry, dx, dy, seq_idx, evt_idx, param_idx);
-      }, false);
+      scroll_controller->signal_scroll().connect(
+          [this, entry, seq_idx, evt_idx, param_idx](double dx, double dy) {
+            return on_entry_scroll(entry, dx, dy, seq_idx, evt_idx, param_idx);
+          },
+          false);
       entry->add_controller(scroll_controller);
 
       widget.grid->attach(*entry, evt_idx + 1, param_idx + 1, 1, 1);
@@ -530,9 +548,7 @@ void Gui<Event_t>::show_error(const std::string& message) {
 
   // Set timeout to clear after 5 seconds
   error_timeout_connection_ = Glib::signal_timeout().connect(
-    sigc::mem_fun(*this, &Gui::clear_error_timeout),
-    5000
-  );
+      sigc::mem_fun(*this, &Gui::clear_error_timeout), 5000);
 }
 
 // Timeout callback to clear error message
@@ -544,11 +560,12 @@ bool Gui<Event_t>::clear_error_timeout() {
 
 // Entry focus-in handler
 template <sequencable::Mut_seq_event Event_t>
-void Gui<Event_t>::on_entry_focus_in(Gtk::Entry* entry, Seq_idx seq_idx, Event_idx event_idx, size_t param_idx) {
+void Gui<Event_t>::on_entry_focus_in(Gtk::Entry* entry, Seq_idx seq_idx,
+                                     Event_idx event_idx, size_t param_idx) {
   debug::msg("[GUI] on_entry_focus_in: seq=" + std::to_string(seq_idx) +
              " evt=" + std::to_string(event_idx) +
-             " param=" + std::to_string(param_idx) +
-             " range_size_before=" + std::to_string(state_.selected_event_range.size()));
+             " param=" + std::to_string(param_idx) + " range_size_before=" +
+             std::to_string(state_.selected_event_range.size()));
 
   // Sync our selection with GTK focus
   controller_.select(seq_idx, event_idx);
@@ -561,14 +578,16 @@ void Gui<Event_t>::on_entry_focus_in(Gtk::Entry* entry, Seq_idx seq_idx, Event_i
 
 // Entry focus-out handler
 template <sequencable::Mut_seq_event Event_t>
-void Gui<Event_t>::on_entry_focus_out(Gtk::Entry* entry, Seq_idx seq_idx, Event_idx event_idx, size_t param_idx) {
+void Gui<Event_t>::on_entry_focus_out(Gtk::Entry* entry, Seq_idx seq_idx,
+                                      Event_idx event_idx, size_t param_idx) {
   std::string value_str = entry->get_text();
 
   // Check if multi-selection is active
   if (!state_.selected_event_range.empty()) {
     bool all_success = true;
     for (Event_idx evt_idx : state_.selected_event_range) {
-      bool success = parse_and_apply_edit(seq_idx, evt_idx, param_idx, value_str);
+      bool success =
+          parse_and_apply_edit(seq_idx, evt_idx, param_idx, value_str);
       all_success = all_success && success;
     }
 
@@ -600,7 +619,8 @@ void Gui<Event_t>::on_entry_focus_out(Gtk::Entry* entry, Seq_idx seq_idx, Event_
     clear_multi_selection();
     state_.state_dirty = true;
   } else {
-    bool success = parse_and_apply_edit(seq_idx, event_idx, param_idx, value_str);
+    bool success =
+        parse_and_apply_edit(seq_idx, event_idx, param_idx, value_str);
 
     if (success) {
       state_.state_dirty = true;
@@ -620,21 +640,23 @@ void Gui<Event_t>::on_entry_focus_out(Gtk::Entry* entry, Seq_idx seq_idx, Event_
 
 // Entry activate handler
 template <sequencable::Mut_seq_event Event_t>
-void Gui<Event_t>::on_entry_activate(Gtk::Entry* entry, Seq_idx seq_idx, Event_idx event_idx, size_t param_idx) {
+void Gui<Event_t>::on_entry_activate(Gtk::Entry* entry, Seq_idx seq_idx,
+                                     Event_idx event_idx, size_t param_idx) {
   std::string value_str = entry->get_text();
 
-  debug::msg("[GUI] on_entry_activate: value='" + value_str +
-             "' seq=" + std::to_string(seq_idx) +
-             " evt=" + std::to_string(event_idx) +
-             " param=" + std::to_string(param_idx) +
-             " selected_param=" + std::to_string(state_.selected_param_idx) +
-             " range_size=" + std::to_string(state_.selected_event_range.size()));
+  debug::msg(
+      "[GUI] on_entry_activate: value='" + value_str +
+      "' seq=" + std::to_string(seq_idx) + " evt=" + std::to_string(event_idx) +
+      " param=" + std::to_string(param_idx) +
+      " selected_param=" + std::to_string(state_.selected_param_idx) +
+      " range_size=" + std::to_string(state_.selected_event_range.size()));
 
   // Check if param_idx matches current selected parameter (should be same row)
   if (param_idx != state_.selected_param_idx) {
     // Different row - just apply to single cell
     debug::msg("[GUI] param_idx mismatch, applying to single cell");
-    bool success = parse_and_apply_edit(seq_idx, event_idx, param_idx, value_str);
+    bool success =
+        parse_and_apply_edit(seq_idx, event_idx, param_idx, value_str);
     if (success) {
       state_.state_dirty = true;
       window_->set_focus(*window_);
@@ -646,7 +668,8 @@ void Gui<Event_t>::on_entry_activate(Gtk::Entry* entry, Seq_idx seq_idx, Event_i
     debug::msg("[GUI] Applying to multi-selection range");
     bool all_success = true;
     for (Event_idx evt_idx : state_.selected_event_range) {
-      bool success = parse_and_apply_edit(seq_idx, evt_idx, param_idx, value_str);
+      bool success =
+          parse_and_apply_edit(seq_idx, evt_idx, param_idx, value_str);
       all_success = all_success && success;
     }
 
@@ -679,7 +702,8 @@ void Gui<Event_t>::on_entry_activate(Gtk::Entry* entry, Seq_idx seq_idx, Event_i
     clear_multi_selection();
     state_.state_dirty = true;
   } else {
-    bool success = parse_and_apply_edit(seq_idx, event_idx, param_idx, value_str);
+    bool success =
+        parse_and_apply_edit(seq_idx, event_idx, param_idx, value_str);
 
     if (success) {
       state_.state_dirty = true;
@@ -700,7 +724,8 @@ void Gui<Event_t>::on_entry_activate(Gtk::Entry* entry, Seq_idx seq_idx, Event_i
 
 // Entry changed handler
 template <sequencable::Mut_seq_event Event_t>
-void Gui<Event_t>::on_entry_changed(Gtk::Entry* entry, Seq_idx seq_idx, Event_idx event_idx, size_t param_idx) {
+void Gui<Event_t>::on_entry_changed(Gtk::Entry* entry, Seq_idx seq_idx,
+                                    Event_idx event_idx, size_t param_idx) {
   if (state_.in_text_update) {
     return;
   }
@@ -726,8 +751,7 @@ void Gui<Event_t>::on_entry_changed(Gtk::Entry* entry, Seq_idx seq_idx, Event_id
     size_t param = state_.selected_param_idx;
 
     for (Event_idx evt_idx : state_.selected_event_range) {
-      if (evt_idx != event_idx &&
-          param < widget.cells.size() &&
+      if (evt_idx != event_idx && param < widget.cells.size() &&
           evt_idx < widget.cells[param].size()) {
         widget.cells[param][evt_idx]->set_text(text);
       }
@@ -739,7 +763,9 @@ void Gui<Event_t>::on_entry_changed(Gtk::Entry* entry, Seq_idx seq_idx, Event_id
 
 // Entry scroll handler
 template <sequencable::Mut_seq_event Event_t>
-bool Gui<Event_t>::on_entry_scroll(Gtk::Entry* entry, double dx, double dy, Seq_idx seq_idx, Event_idx event_idx, size_t param_idx) {
+bool Gui<Event_t>::on_entry_scroll(Gtk::Entry* entry, double dx, double dy,
+                                   Seq_idx seq_idx, Event_idx event_idx,
+                                   size_t param_idx) {
   if (state_.mode != Mode::Normal) {
     return false;
   }
@@ -752,7 +778,8 @@ bool Gui<Event_t>::on_entry_scroll(Gtk::Entry* entry, double dx, double dy, Seq_
 
 // GTK key press handler
 template <sequencable::Mut_seq_event Event_t>
-bool Gui<Event_t>::on_key_press(guint keyval, guint keycode, Gdk::ModifierType state) {
+bool Gui<Event_t>::on_key_press(guint keyval, guint keycode,
+                                Gdk::ModifierType state) {
   // Helper to check modifier
   auto has_modifier = [](Gdk::ModifierType state, Gdk::ModifierType mask) {
     return static_cast<bool>(state & mask);
@@ -765,31 +792,36 @@ bool Gui<Event_t>::on_key_press(guint keyval, guint keycode, Gdk::ModifierType s
   }
 
   // Check for Ctrl+A (add event) in any mode
-  if (has_modifier(state, Gdk::ModifierType::CONTROL_MASK) && keyval == GDK_KEY_a) {
+  if (has_modifier(state, Gdk::ModifierType::CONTROL_MASK) &&
+      keyval == GDK_KEY_a) {
     gui_add_event();
     return true;
   }
 
   // Check for Ctrl+D (remove event) in any mode
-  if (has_modifier(state, Gdk::ModifierType::CONTROL_MASK) && keyval == GDK_KEY_d) {
+  if (has_modifier(state, Gdk::ModifierType::CONTROL_MASK) &&
+      keyval == GDK_KEY_d) {
     gui_remove_event();
     return true;
   }
 
   // Check for Ctrl+C (clear sequence) in any mode
-  if (has_modifier(state, Gdk::ModifierType::CONTROL_MASK) && keyval == GDK_KEY_c) {
+  if (has_modifier(state, Gdk::ModifierType::CONTROL_MASK) &&
+      keyval == GDK_KEY_c) {
     gui_clear_sequence();
     return true;
   }
 
   // Check for Ctrl+J (next sequencer) in any mode
-  if (has_modifier(state, Gdk::ModifierType::CONTROL_MASK) && keyval == GDK_KEY_j) {
+  if (has_modifier(state, Gdk::ModifierType::CONTROL_MASK) &&
+      keyval == GDK_KEY_j) {
     gui_select_next_seq();
     return true;
   }
 
   // Check for Ctrl+K (previous sequencer) in any mode
-  if (has_modifier(state, Gdk::ModifierType::CONTROL_MASK) && keyval == GDK_KEY_k) {
+  if (has_modifier(state, Gdk::ModifierType::CONTROL_MASK) &&
+      keyval == GDK_KEY_k) {
     gui_select_prev_seq();
     return true;
   }
@@ -809,7 +841,8 @@ bool Gui<Event_t>::on_key_press(guint keyval, guint keycode, Gdk::ModifierType s
   }
 
   // Check for Ctrl+Space (start/stop all sequencers) in any mode
-  if (has_modifier(state, Gdk::ModifierType::CONTROL_MASK) && keyval == GDK_KEY_space) {
+  if (has_modifier(state, Gdk::ModifierType::CONTROL_MASK) &&
+      keyval == GDK_KEY_space) {
     auto time = Controller::Clock::now() + std::chrono::milliseconds(50);
     if (controller_.any_scheduling()) {
       controller_.pause(time);
@@ -820,15 +853,18 @@ bool Gui<Event_t>::on_key_press(guint keyval, guint keycode, Gdk::ModifierType s
     return true;
   }
 
-  // Check for Ctrl+0 (reset selected sequencer) or Ctrl+) (reset all sequencers)
+  // Check for Ctrl+0 (reset selected sequencer) or Ctrl+) (reset all
+  // sequencers)
   if (has_modifier(state, Gdk::ModifierType::CONTROL_MASK) &&
       (keyval == GDK_KEY_0 || keyval == GDK_KEY_parenright)) {
     auto time = Controller::Clock::now() + std::chrono::milliseconds(50);
 
-    if (has_modifier(state, Gdk::ModifierType::SHIFT_MASK) || keyval == GDK_KEY_parenright) {
+    if (has_modifier(state, Gdk::ModifierType::SHIFT_MASK) ||
+        keyval == GDK_KEY_parenright) {
       controller_.stop(time, 0);
 
-      for (Seq_idx seq_idx = 0; seq_idx < state_.sequencer_gui_states.size(); ++seq_idx) {
+      for (Seq_idx seq_idx = 0; seq_idx < state_.sequencer_gui_states.size();
+           ++seq_idx) {
         auto& gui_state = state_.sequencer_gui_states[seq_idx];
         update_playhead_visual(seq_idx, gui_state.last_rendered_playhead, 0);
         gui_state.last_rendered_playhead = 0;
@@ -862,8 +898,8 @@ bool Gui<Event_t>::on_key_press(guint keyval, guint keycode, Gdk::ModifierType s
   }
 
   // Check for Shift+8 (asterisk) to enter tempo multiply mode
-  if (has_modifier(state, Gdk::ModifierType::SHIFT_MASK) && keyval == GDK_KEY_8 &&
-      state_.mode == Mode::Normal) {
+  if (has_modifier(state, Gdk::ModifierType::SHIFT_MASK) &&
+      keyval == GDK_KEY_8 && state_.mode == Mode::Normal) {
     gui_enter_tempo_multiply_mode();
     return true;
   }
@@ -883,10 +919,12 @@ bool Gui<Event_t>::on_key_press(guint keyval, guint keycode, Gdk::ModifierType s
       }
       return true;
     } else if (keyval >= GDK_KEY_0 && keyval <= GDK_KEY_9) {
-      state_.tempo_input_buffer += static_cast<char>('0' + (keyval - GDK_KEY_0));
+      state_.tempo_input_buffer +=
+          static_cast<char>('0' + (keyval - GDK_KEY_0));
       update_window_title();
       return true;
-    } else if (keyval == GDK_KEY_period && !has_modifier(state, Gdk::ModifierType::SHIFT_MASK)) {
+    } else if (keyval == GDK_KEY_period &&
+               !has_modifier(state, Gdk::ModifierType::SHIFT_MASK)) {
       state_.tempo_input_buffer += '.';
       update_window_title();
       return true;
@@ -895,7 +933,8 @@ bool Gui<Event_t>::on_key_press(guint keyval, guint keycode, Gdk::ModifierType s
   }
 
   // Check for Shift+period ('>') key (increment tempo)
-  if (has_modifier(state, Gdk::ModifierType::SHIFT_MASK) && keyval == GDK_KEY_period) {
+  if (has_modifier(state, Gdk::ModifierType::SHIFT_MASK) &&
+      keyval == GDK_KEY_period) {
     constexpr auto TEMPO_INCREMENT_DELTA = std::chrono::milliseconds(10);
     if (has_modifier(state, Gdk::ModifierType::CONTROL_MASK)) {
       gui_adjust_durations_all(TEMPO_INCREMENT_DELTA, true);
@@ -909,7 +948,8 @@ bool Gui<Event_t>::on_key_press(guint keyval, guint keycode, Gdk::ModifierType s
   }
 
   // Check for Shift+comma ('<') key (decrement tempo)
-  if (has_modifier(state, Gdk::ModifierType::SHIFT_MASK) && keyval == GDK_KEY_comma) {
+  if (has_modifier(state, Gdk::ModifierType::SHIFT_MASK) &&
+      keyval == GDK_KEY_comma) {
     constexpr auto TEMPO_INCREMENT_DELTA = std::chrono::milliseconds(10);
     if (has_modifier(state, Gdk::ModifierType::CONTROL_MASK)) {
       gui_adjust_durations_all(TEMPO_INCREMENT_DELTA, false);
@@ -936,7 +976,8 @@ bool Gui<Event_t>::on_key_press(guint keyval, guint keycode, Gdk::ModifierType s
 
 // Handle normal mode keyboard input
 template <sequencable::Mut_seq_event Event_t>
-void Gui<Event_t>::handle_normal_mode_key(guint keyval, Gdk::ModifierType state) {
+void Gui<Event_t>::handle_normal_mode_key(guint keyval,
+                                          Gdk::ModifierType state) {
   auto it = normal_mode_actions_.find(keyval);
   if (it != normal_mode_actions_.end()) {
     it->second();
@@ -953,8 +994,7 @@ void Gui<Event_t>::handle_edit_mode_key(guint keyval) {
 }
 
 // Event loop tick callback
-template <sequencable::Mut_seq_event Event_t>
-bool Gui<Event_t>::on_tick() {
+template <sequencable::Mut_seq_event Event_t> bool Gui<Event_t>::on_tick() {
   if (!running_) {
     return false;
   }
@@ -1028,17 +1068,19 @@ template <sequencable::Mut_seq_event Event_t> void Gui<Event_t>::render() {
 template <sequencable::Mut_seq_event Event_t> void Gui<Event_t>::render_grid() {
   const auto& state = state_.controller_state;
 
-  bool selection_changed = (state.selected_seq != state_.last_selected_seq) ||
-                           (state.selected_event != state_.last_selected_event) ||
-                           (state_.selected_param_idx != state_.last_selected_param) ||
-                           (state_.selected_event_range != state_.last_selected_event_range);
+  bool selection_changed =
+      (state.selected_seq != state_.last_selected_seq) ||
+      (state.selected_event != state_.last_selected_event) ||
+      (state_.selected_param_idx != state_.last_selected_param) ||
+      (state_.selected_event_range != state_.last_selected_event_range);
 
   if (!selection_changed) {
     return;
   }
 
   // Remove selection from previous cell and frame
-  if (state_.last_selected_seq && state_.last_selected_event && state_.last_selected_param) {
+  if (state_.last_selected_seq && state_.last_selected_event &&
+      state_.last_selected_param) {
     Seq_idx prev_seq = *state_.last_selected_seq;
     Event_idx prev_evt = *state_.last_selected_event;
     size_t prev_param = *state_.last_selected_param;
@@ -1051,14 +1093,19 @@ template <sequencable::Mut_seq_event Event_t> void Gui<Event_t>::render_grid() {
         widget.frame->get_style_context()->remove_class("selected-sequencer");
       }
 
-      if (prev_param < widget.cells.size() && prev_evt < widget.cells[prev_param].size()) {
-        widget.cells[prev_param][prev_evt]->get_style_context()->remove_class("selected");
+      if (prev_param < widget.cells.size() &&
+          prev_evt < widget.cells[prev_param].size()) {
+        widget.cells[prev_param][prev_evt]->get_style_context()->remove_class(
+            "selected");
       }
 
       if (!state_.last_selected_event_range.empty()) {
         for (Event_idx evt_idx : state_.last_selected_event_range) {
-          if (prev_param < widget.cells.size() && evt_idx < widget.cells[prev_param].size()) {
-            widget.cells[prev_param][evt_idx]->get_style_context()->remove_class("multi-selected");
+          if (prev_param < widget.cells.size() &&
+              evt_idx < widget.cells[prev_param].size()) {
+            widget.cells[prev_param][evt_idx]
+                ->get_style_context()
+                ->remove_class("multi-selected");
           }
         }
       }
@@ -1079,15 +1126,19 @@ template <sequencable::Mut_seq_event Event_t> void Gui<Event_t>::render_grid() {
         widget.frame->get_style_context()->add_class("selected-sequencer");
       }
 
-      if (sel_param < widget.cells.size() && sel_evt < widget.cells[sel_param].size()) {
-        widget.cells[sel_param][sel_evt]->get_style_context()->add_class("selected");
+      if (sel_param < widget.cells.size() &&
+          sel_evt < widget.cells[sel_param].size()) {
+        widget.cells[sel_param][sel_evt]->get_style_context()->add_class(
+            "selected");
       }
 
       if (!state_.selected_event_range.empty()) {
         for (Event_idx evt_idx : state_.selected_event_range) {
-          if (sel_param < widget.cells.size() && evt_idx < widget.cells[sel_param].size()) {
+          if (sel_param < widget.cells.size() &&
+              evt_idx < widget.cells[sel_param].size()) {
             // Apply multi-selected class to all cells in the range
-            widget.cells[sel_param][evt_idx]->get_style_context()->add_class("multi-selected");
+            widget.cells[sel_param][evt_idx]->get_style_context()->add_class(
+                "multi-selected");
           }
         }
       }
@@ -1102,7 +1153,8 @@ template <sequencable::Mut_seq_event Event_t> void Gui<Event_t>::render_grid() {
 
 // Update a specific cell's value from the controller state
 template <sequencable::Mut_seq_event Event_t>
-void Gui<Event_t>::update_cell_value(Seq_idx seq_idx, Event_idx event_idx, size_t param_idx) {
+void Gui<Event_t>::update_cell_value(Seq_idx seq_idx, Event_idx event_idx,
+                                     size_t param_idx) {
   using Traits = Event_parameter_traits<Event_t>;
 
   if (seq_idx >= sequencer_widgets_.size()) {
@@ -1110,14 +1162,16 @@ void Gui<Event_t>::update_cell_value(Seq_idx seq_idx, Event_idx event_idx, size_
   }
 
   const auto& widget = sequencer_widgets_[seq_idx];
-  if (param_idx >= widget.cells.size() || event_idx >= widget.cells[param_idx].size()) {
+  if (param_idx >= widget.cells.size() ||
+      event_idx >= widget.cells[param_idx].size()) {
     return;
   }
 
   state_.controller_state = controller_.get_state();
   const auto& state = state_.controller_state;
 
-  if (seq_idx < state.events.size() && event_idx < state.events[seq_idx].size()) {
+  if (seq_idx < state.events.size() &&
+      event_idx < state.events[seq_idx].size()) {
     const auto& event = state.events[seq_idx][event_idx];
     std::string value_str = Traits::get_parameter_value(event, param_idx);
     widget.cells[param_idx][event_idx]->set_text(value_str);
@@ -1126,13 +1180,15 @@ void Gui<Event_t>::update_cell_value(Seq_idx seq_idx, Event_idx event_idx, size_
 
 // Increment or decrement a cell's numeric value
 template <sequencable::Mut_seq_event Event_t>
-void Gui<Event_t>::increment_cell_value(Seq_idx seq_idx, Event_idx event_idx, size_t param_idx, bool increment) {
+void Gui<Event_t>::increment_cell_value(Seq_idx seq_idx, Event_idx event_idx,
+                                        size_t param_idx, bool increment) {
   using Traits = Event_parameter_traits<Event_t>;
 
   state_.controller_state = controller_.get_state();
   const auto& state = state_.controller_state;
 
-  if (seq_idx >= state.events.size() || event_idx >= state.events[seq_idx].size()) {
+  if (seq_idx >= state.events.size() ||
+      event_idx >= state.events[seq_idx].size()) {
     return;
   }
 
@@ -1162,10 +1218,11 @@ void Gui<Event_t>::increment_cell_value(Seq_idx seq_idx, Event_idx event_idx, si
     }
     std::string new_value(buffer);
 
-    controller_.mutate(seq_idx, event_idx, [param_idx, &new_value](Event_t&& evt) {
-      Traits::set_parameter_value(evt, param_idx, new_value);
-      return std::move(evt);
-    });
+    controller_.mutate(seq_idx, event_idx,
+                       [param_idx, &new_value](Event_t&& evt) {
+                         Traits::set_parameter_value(evt, param_idx, new_value);
+                         return std::move(evt);
+                       });
 
     update_cell_value(seq_idx, event_idx, param_idx);
   } catch (const std::exception& e) {
@@ -1194,7 +1251,8 @@ void Gui<Event_t>::clear_multi_selection() {
 
   for (Event_idx evt_idx : state_.selected_event_range) {
     if (param < widget.cells.size() && evt_idx < widget.cells[param].size()) {
-      widget.cells[param][evt_idx]->get_style_context()->remove_class("multi-selected");
+      widget.cells[param][evt_idx]->get_style_context()->remove_class(
+          "multi-selected");
     }
   }
 
@@ -1242,7 +1300,8 @@ void Gui<Event_t>::gui_select_next_pos() {
   if (sel_seq && sel_evt && *sel_seq < sequencer_widgets_.size()) {
     auto& widget = sequencer_widgets_[*sel_seq];
     size_t param_idx = state_.selected_param_idx;
-    if (param_idx < widget.cells.size() && *sel_evt < widget.cells[param_idx].size()) {
+    if (param_idx < widget.cells.size() &&
+        *sel_evt < widget.cells[param_idx].size()) {
       widget.cells[param_idx][*sel_evt]->grab_focus();
     }
   }
@@ -1261,7 +1320,8 @@ void Gui<Event_t>::gui_select_prev_pos() {
   if (sel_seq && sel_evt && *sel_seq < sequencer_widgets_.size()) {
     auto& widget = sequencer_widgets_[*sel_seq];
     size_t param_idx = state_.selected_param_idx;
-    if (param_idx < widget.cells.size() && *sel_evt < widget.cells[param_idx].size()) {
+    if (param_idx < widget.cells.size() &&
+        *sel_evt < widget.cells[param_idx].size()) {
       widget.cells[param_idx][*sel_evt]->grab_focus();
     }
   }
@@ -1274,7 +1334,8 @@ void Gui<Event_t>::gui_select_next_param() {
   // Clear multi-selection when changing rows
   clear_multi_selection();
 
-  state_.selected_param_idx = (state_.selected_param_idx + 1) % Traits::parameter_count;
+  state_.selected_param_idx =
+      (state_.selected_param_idx + 1) % Traits::parameter_count;
   state_.state_dirty = true;
 
   auto sel_seq = controller_.selected_seq();
@@ -1282,7 +1343,8 @@ void Gui<Event_t>::gui_select_next_param() {
   if (sel_seq && sel_evt && *sel_seq < sequencer_widgets_.size()) {
     auto& widget = sequencer_widgets_[*sel_seq];
     size_t param_idx = state_.selected_param_idx;
-    if (param_idx < widget.cells.size() && *sel_evt < widget.cells[param_idx].size()) {
+    if (param_idx < widget.cells.size() &&
+        *sel_evt < widget.cells[param_idx].size()) {
       widget.cells[param_idx][*sel_evt]->grab_focus();
     }
   }
@@ -1307,7 +1369,8 @@ void Gui<Event_t>::gui_select_prev_param() {
   if (sel_seq && sel_evt && *sel_seq < sequencer_widgets_.size()) {
     auto& widget = sequencer_widgets_[*sel_seq];
     size_t param_idx = state_.selected_param_idx;
-    if (param_idx < widget.cells.size() && *sel_evt < widget.cells[param_idx].size()) {
+    if (param_idx < widget.cells.size() &&
+        *sel_evt < widget.cells[param_idx].size()) {
       widget.cells[param_idx][*sel_evt]->grab_focus();
     }
   }
@@ -1329,7 +1392,8 @@ void Gui<Event_t>::gui_extend_selection_left() {
   Event_idx seq_size = state.sizes[*sel_seq];
 
   if (state_.selected_event_range.empty()) {
-    debug::msg("[GUI] extend_selection_left: initializing range with anchor=" + std::to_string(*sel_evt));
+    debug::msg("[GUI] extend_selection_left: initializing range with anchor=" +
+               std::to_string(*sel_evt));
     state_.anchor_event = *sel_evt;
     state_.selected_event_range.insert(*sel_evt);
   }
@@ -1338,14 +1402,17 @@ void Gui<Event_t>::gui_extend_selection_left() {
 
   auto it = state_.selected_event_range.find(prev_evt);
   if (it != state_.selected_event_range.end()) {
-    debug::msg("[GUI] extend_selection_left: removing evt=" + std::to_string(prev_evt));
+    debug::msg("[GUI] extend_selection_left: removing evt=" +
+               std::to_string(prev_evt));
     state_.selected_event_range.erase(it);
   } else {
-    debug::msg("[GUI] extend_selection_left: adding evt=" + std::to_string(prev_evt));
+    debug::msg("[GUI] extend_selection_left: adding evt=" +
+               std::to_string(prev_evt));
     state_.selected_event_range.insert(prev_evt);
   }
 
-  debug::msg("[GUI] extend_selection_left: range_size=" + std::to_string(state_.selected_event_range.size()));
+  debug::msg("[GUI] extend_selection_left: range_size=" +
+             std::to_string(state_.selected_event_range.size()));
 
   controller_.select(*sel_seq, prev_evt);
   state_.state_dirty = true;
@@ -1600,21 +1667,18 @@ void Gui<Event_t>::gui_clear_sequence() {
   }
 
   // Create confirmation dialog
-  auto dialog = Gtk::make_managed<Gtk::MessageDialog>(*window_,
-    "Clear Sequence " + std::to_string(*sel_seq) + "?",
-    false,
-    Gtk::MessageType::QUESTION,
-    Gtk::ButtonsType::OK_CANCEL,
-    true);
+  auto dialog = Gtk::make_managed<Gtk::MessageDialog>(
+      *window_, "Clear Sequence " + std::to_string(*sel_seq) + "?", false,
+      Gtk::MessageType::QUESTION, Gtk::ButtonsType::OK_CANCEL, true);
 
   dialog->set_modal(true);
 
   dialog->signal_response().connect([this, dialog, sel_seq](int response) {
     if (response == Gtk::ResponseType::OK) {
       try {
-        controller_.stop(*sel_seq,
-                        Controller::Clock::now() + std::chrono::milliseconds(50),
-                        0);
+        controller_.stop(
+            *sel_seq, Controller::Clock::now() + std::chrono::milliseconds(50),
+            0);
 
         controller_[*sel_seq].clear();
 
@@ -1658,7 +1722,9 @@ void Gui<Event_t>::gui_multiply_durations_all(double factor) {
 }
 
 template <sequencable::Mut_seq_event Event_t>
-void Gui<Event_t>::gui_adjust_durations(Seq_idx seq_idx, typename Controller::Duration delta, bool increment) {
+void Gui<Event_t>::gui_adjust_durations(Seq_idx seq_idx,
+                                        typename Controller::Duration delta,
+                                        bool increment) {
   try {
     auto actual_delta = increment ? delta : -delta;
     controller_.adjust_durations(seq_idx, actual_delta);
@@ -1670,7 +1736,8 @@ void Gui<Event_t>::gui_adjust_durations(Seq_idx seq_idx, typename Controller::Du
 }
 
 template <sequencable::Mut_seq_event Event_t>
-void Gui<Event_t>::gui_adjust_durations_all(typename Controller::Duration delta, bool increment) {
+void Gui<Event_t>::gui_adjust_durations_all(typename Controller::Duration delta,
+                                            bool increment) {
   try {
     auto actual_delta = increment ? delta : -delta;
     controller_.adjust_durations_all(actual_delta);
@@ -1752,7 +1819,8 @@ void Gui<Event_t>::build_menu_bar() {
   app_->add_action("save", sigc::mem_fun(*this, &Gui::on_save_activate));
   app_->add_action("load", sigc::mem_fun(*this, &Gui::on_load_activate));
   app_->add_action("help", sigc::mem_fun(*this, &Gui::on_help_activate));
-  app_->add_action("multiply_tempo", sigc::mem_fun(*this, &Gui::gui_enter_tempo_multiply_mode));
+  app_->add_action("multiply_tempo",
+                   sigc::mem_fun(*this, &Gui::gui_enter_tempo_multiply_mode));
 
   app_->add_action("increment_tempo", [this]() {
     auto sel_seq = controller_.selected_seq();
@@ -1782,12 +1850,9 @@ void Gui<Event_t>::on_help_activate() {
 // Show help dialog with keyboard shortcuts
 template <sequencable::Mut_seq_event Event_t>
 void Gui<Event_t>::show_help_dialog() {
-  auto dialog = Gtk::make_managed<Gtk::MessageDialog>(*window_,
-    "Keyboard Shortcuts",
-    false,
-    Gtk::MessageType::INFO,
-    Gtk::ButtonsType::OK,
-    true);
+  auto dialog = Gtk::make_managed<Gtk::MessageDialog>(
+      *window_, "Keyboard Shortcuts", false, Gtk::MessageType::INFO,
+      Gtk::ButtonsType::OK, true);
 
   dialog->set_secondary_text(R"(MicroComposer Keyboard Shortcuts
 
@@ -1825,9 +1890,8 @@ HELP
   F1             Show this dialog)");
 
   dialog->set_modal(true);
-  dialog->signal_response().connect([dialog](int) {
-    dialog->set_visible(false);
-  });
+  dialog->signal_response().connect(
+      [dialog](int) { dialog->set_visible(false); });
   dialog->show();
 }
 
@@ -1909,7 +1973,8 @@ void Gui<Event_t>::save_preferences() {
   config_file << "window_width=" << preferences_.window_width << "\n";
   config_file << "window_height=" << preferences_.window_height << "\n";
   if (!preferences_.last_save_directory.empty()) {
-    config_file << "last_save_directory=" << preferences_.last_save_directory << "\n";
+    config_file << "last_save_directory=" << preferences_.last_save_directory
+                << "\n";
   }
 
   config_file.close();
@@ -1937,20 +2002,23 @@ std::string Gui<Event_t>::sequences_to_json() const {
   json << "{\n  \"sequencers\": [\n";
 
   for (size_t seq_idx = 0; seq_idx < state.events.size(); ++seq_idx) {
-    if (seq_idx > 0) json << ",\n";
+    if (seq_idx > 0)
+      json << ",\n";
     json << "    {\n";
     json << "      \"events\": [\n";
 
     const auto& events = state.events[seq_idx];
     for (size_t evt_idx = 0; evt_idx < events.size(); ++evt_idx) {
-      if (evt_idx > 0) json << ",\n";
+      if (evt_idx > 0)
+        json << ",\n";
       json << "        {\n";
 
       const auto& event = events[evt_idx];
       constexpr size_t num_params = Traits::parameter_count;
 
       for (size_t param_idx = 0; param_idx < num_params; ++param_idx) {
-        if (param_idx > 0) json << ",\n";
+        if (param_idx > 0)
+          json << ",\n";
         std::string param_name = Traits::get_parameter_name(param_idx);
         std::string param_value = Traits::get_parameter_value(event, param_idx);
 
@@ -2027,7 +2095,7 @@ void Gui<Event_t>::json_to_sequences(const std::string& json_str) {
             Traits::set_parameter_value(current_event, i, value_part);
           } catch (const std::exception& e) {
             show_error(std::string("Error parsing parameter '") + param_part +
-                      "': " + e.what());
+                       "': " + e.what());
             return;
           }
           break;
@@ -2035,7 +2103,8 @@ void Gui<Event_t>::json_to_sequences(const std::string& json_str) {
       }
     }
 
-    if (line.find("\"events\":") != std::string::npos && !current_sequence.empty()) {
+    if (line.find("\"events\":") != std::string::npos &&
+        !current_sequence.empty()) {
       new_sequences.push_back(current_sequence);
       current_sequence.clear();
     }
@@ -2049,7 +2118,9 @@ void Gui<Event_t>::json_to_sequences(const std::string& json_str) {
     controller_[seq_idx].clear();
   }
 
-  for (size_t seq_idx = 0; seq_idx < new_sequences.size() && seq_idx < controller_.size(); ++seq_idx) {
+  for (size_t seq_idx = 0;
+       seq_idx < new_sequences.size() && seq_idx < controller_.size();
+       ++seq_idx) {
     for (const auto& event : new_sequences[seq_idx]) {
       controller_.push_back_event(seq_idx, event);
     }
@@ -2105,15 +2176,15 @@ void Gui<Event_t>::load_sequences_from_file(const std::string& filepath) {
 // Save menu handler
 template <sequencable::Mut_seq_event Event_t>
 void Gui<Event_t>::on_save_activate() {
-  auto dialog = Gtk::make_managed<Gtk::FileChooserDialog>(*window_,
-    "Save Sequences",
-    Gtk::FileChooser::Action::SAVE);
+  auto dialog = Gtk::make_managed<Gtk::FileChooserDialog>(
+      *window_, "Save Sequences", Gtk::FileChooser::Action::SAVE);
 
   dialog->add_button("_Cancel", Gtk::ResponseType::CANCEL);
   dialog->add_button("_Save", Gtk::ResponseType::OK);
 
   if (!preferences_.last_save_directory.empty()) {
-    dialog->set_current_folder(Gio::File::create_for_path(preferences_.last_save_directory));
+    dialog->set_current_folder(
+        Gio::File::create_for_path(preferences_.last_save_directory));
   }
 
   dialog->set_current_name("sequences.json");
@@ -2134,15 +2205,15 @@ void Gui<Event_t>::on_save_activate() {
 // Load menu handler
 template <sequencable::Mut_seq_event Event_t>
 void Gui<Event_t>::on_load_activate() {
-  auto dialog = Gtk::make_managed<Gtk::FileChooserDialog>(*window_,
-    "Load Sequences",
-    Gtk::FileChooser::Action::OPEN);
+  auto dialog = Gtk::make_managed<Gtk::FileChooserDialog>(
+      *window_, "Load Sequences", Gtk::FileChooser::Action::OPEN);
 
   dialog->add_button("_Cancel", Gtk::ResponseType::CANCEL);
   dialog->add_button("_Load", Gtk::ResponseType::OK);
 
   if (!preferences_.last_save_directory.empty()) {
-    dialog->set_current_folder(Gio::File::create_for_path(preferences_.last_save_directory));
+    dialog->set_current_folder(
+        Gio::File::create_for_path(preferences_.last_save_directory));
   }
 
   dialog->set_modal(true);
