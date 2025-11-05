@@ -2176,6 +2176,19 @@ std::string Gui<Event_t>::sequences_to_json() const {
   for (size_t seq_idx = 0; seq_idx < state.events.size(); ++seq_idx) {
     if (seq_idx > 0) json << ",\n";
     json << "    {\n";
+
+    // Add MIDI port name if available
+    if (midi_config_ && seq_idx < midi_config_->port_names.size()) {
+      std::string port_name = midi_config_->port_names[seq_idx];
+      // Escape quotes in port name
+      size_t pos = 0;
+      while ((pos = port_name.find('"', pos)) != std::string::npos) {
+        port_name.insert(pos, "\\");
+        pos += 2;
+      }
+      json << "      \"port_name\": \"" << port_name << "\",\n";
+    }
+
     json << "      \"events\": [\n";
 
     const auto& events = state.events[seq_idx];
@@ -2220,10 +2233,17 @@ void Gui<Event_t>::json_to_sequences(const std::string& json_str) {
   std::string line;
 
   std::vector<std::vector<Event_t>> new_sequences;
+  std::vector<std::string> loaded_port_names;  // Port names from JSON
   std::vector<Event_t> current_sequence;
   Event_t current_event{};
   size_t param_idx = 0;
   bool in_event = false;
+  std::string current_port_name;  // Port name for current sequencer
+
+  auto remove_quotes = [](std::string& s) {
+    s.erase(0, s.find_first_not_of(" \t\""));
+    s.erase(s.find_last_not_of(" \t\",") + 1);
+  };
 
   while (std::getline(input, line)) {
     line.erase(0, line.find_first_not_of(" \t\n\r"));
@@ -2245,41 +2265,48 @@ void Gui<Event_t>::json_to_sequences(const std::string& json_str) {
     }
 
     size_t colon_pos = line.find(':');
-    if (colon_pos != std::string::npos && in_event) {
+    if (colon_pos != std::string::npos) {
       std::string param_part = line.substr(0, colon_pos);
       std::string value_part = line.substr(colon_pos + 1);
-
-      auto remove_quotes = [](std::string& s) {
-        s.erase(0, s.find_first_not_of(" \t\""));
-        s.erase(s.find_last_not_of(" \t\",") + 1);
-      };
 
       remove_quotes(param_part);
       remove_quotes(value_part);
 
-      constexpr size_t num_params = Traits::parameter_count;
-      for (size_t i = 0; i < num_params; ++i) {
-        if (Traits::get_parameter_name(i) == param_part) {
-          try {
-            Traits::set_parameter_value(current_event, i, value_part);
-          } catch (const std::exception& e) {
-            show_error(std::string("Error parsing parameter '") + param_part +
-                      "': " + e.what());
-            return;
+      // Check for port_name field (outside event)
+      if (param_part == "port_name" && !in_event) {
+        current_port_name = value_part;
+        continue;
+      }
+
+      // Parse event parameters
+      if (in_event) {
+        constexpr size_t num_params = Traits::parameter_count;
+        for (size_t i = 0; i < num_params; ++i) {
+          if (Traits::get_parameter_name(i) == param_part) {
+            try {
+              Traits::set_parameter_value(current_event, i, value_part);
+            } catch (const std::exception& e) {
+              show_error(std::string("Error parsing parameter '") + param_part +
+                        "': " + e.what());
+              return;
+            }
+            break;
           }
-          break;
         }
       }
     }
 
     if (line.find("\"events\":") != std::string::npos && !current_sequence.empty()) {
       new_sequences.push_back(current_sequence);
+      loaded_port_names.push_back(current_port_name);
       current_sequence.clear();
+      current_port_name.clear();
     }
   }
 
   if (!current_sequence.empty()) {
     new_sequences.push_back(current_sequence);
+    loaded_port_names.push_back(current_port_name);
   }
 
   for (size_t seq_idx = 0; seq_idx < controller_.size(); ++seq_idx) {
@@ -2298,6 +2325,64 @@ void Gui<Event_t>::json_to_sequences(const std::string& json_str) {
 
   // Re-enable focus handlers
   state_.in_widget_rebuild = false;
+
+  // Apply loaded MIDI port assignments (if MIDI config is available)
+  if (midi_config_ && !loaded_port_names.empty()) {
+    if constexpr (requires(Event_t e) { e.to_midi_messages(); }) {
+      for (size_t seq_idx = 0; seq_idx < loaded_port_names.size() && seq_idx < midi_config_->outputs.size(); ++seq_idx) {
+        const std::string& port_name = loaded_port_names[seq_idx];
+
+        // Skip empty port names
+        if (port_name.empty()) {
+          continue;
+        }
+
+        // Find the port index for this port name
+        int port_index = -1;
+        for (const auto& port : midi_config_->available_ports) {
+          if (port.display_name == port_name) {
+            port_index = port.index;
+            break;
+          }
+        }
+
+        if (port_index >= 0) {
+          // Port found - update MIDI output
+          try {
+            auto& midi_output = midi_config_->outputs[seq_idx];
+            midi_output->close_port();
+            midi_output->open_port(port_index);
+            midi_config_->port_names[seq_idx] = port_name;
+
+            // Update handler with new MIDI output
+            auto new_handler = [midi_output](Event_t&& event) {
+              auto msgs = event.to_midi_messages();
+              midi_output->send_message(msgs.note_on);
+
+              auto note_off_time = event.scheduled_time + event.duration;
+              std::this_thread::sleep_until(note_off_time - std::chrono::milliseconds(5));
+              while (std::chrono::steady_clock::now() < note_off_time - std::chrono::milliseconds(2));
+              midi_output->send_message(msgs.note_off);
+            };
+            controller_.set_handler(seq_idx, new_handler);
+
+            // Update port selector widget
+            if (seq_idx < sequencer_widgets_.size() && sequencer_widgets_[seq_idx].port_selector) {
+              sequencer_widgets_[seq_idx].port_selector->set_active_text(port_name);
+            }
+          } catch (const std::exception& e) {
+            show_error(std::string("Failed to open MIDI port '") + port_name + "': " + e.what());
+          }
+        } else {
+          // Port not found - show error and let user select alternative
+          show_error(std::string("MIDI port '") + port_name + "' not found for sequencer " + std::to_string(seq_idx));
+
+          // The user can manually change the port using the dropdown
+          // For now, we'll leave it at the default port that was selected at startup
+        }
+      }
+    }
+  }
 
   state_.state_dirty = true;
 }
