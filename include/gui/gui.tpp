@@ -550,6 +550,12 @@ void Gui<Event_t>::on_entry_focus_in(Gtk::Entry* entry, Seq_idx seq_idx, Event_i
              " param=" + std::to_string(param_idx) +
              " range_size_before=" + std::to_string(state_.selected_event_range.size()));
 
+  // Don't change selection during widget rebuilds (prevents round-robin bug)
+  if (state_.in_widget_rebuild) {
+    debug::msg("[GUI] on_entry_focus_in: skipping selection change (in_widget_rebuild=true)");
+    return;
+  }
+
   // Sync our selection with GTK focus
   controller_.select(seq_idx, event_idx);
   state_.selected_param_idx = param_idx;
@@ -1552,9 +1558,15 @@ void Gui<Event_t>::gui_add_event() {
     debug::msg("[GUI] Successfully pushed back event to " +
                std::to_string(*sel_seq));
 
+    // Prevent focus handlers from changing selection during rebuild
+    state_.in_widget_rebuild = true;
+
     debug::msg("[GUI] Rebuilding sequencer widget " + std::to_string(*sel_seq));
     rebuild_sequencer_widget(*sel_seq);
     debug::msg("[GUI] Returned from rebuild_sequencer_widget()");
+
+    // Re-enable focus handlers
+    state_.in_widget_rebuild = false;
 
     state_.state_dirty = true;
 
@@ -1568,6 +1580,8 @@ void Gui<Event_t>::gui_add_event() {
       debug::msg("[GUI] Returned from controller_.select");
     }
   } catch (const std::exception& e) {
+    // Re-enable focus handlers even on error
+    state_.in_widget_rebuild = false;
     show_error(std::string("Failed to add event: ") + e.what());
   }
 }
@@ -1582,10 +1596,30 @@ void Gui<Event_t>::gui_remove_event() {
   }
 
   try {
+    // Save current selection before removing event
+    auto current_sel_seq = *sel_seq;
+    auto current_sel_evt = controller_.selected_event();
+
     controller_.pop_back_event(*sel_seq);
+
+    // Prevent focus handlers from changing selection during rebuild
+    state_.in_widget_rebuild = true;
+
     rebuild_sequencer_widget(*sel_seq);
+
+    // Re-enable focus handlers
+    state_.in_widget_rebuild = false;
+
+    // Restore selection (controller already adjusts if out of bounds)
+    auto new_sel_evt = controller_.selected_event();
+    if (new_sel_evt) {
+      controller_.select(current_sel_seq, *new_sel_evt);
+    }
+
     state_.state_dirty = true;
   } catch (const std::exception& e) {
+    // Re-enable focus handlers even on error
+    state_.in_widget_rebuild = false;
     show_error(std::string("Failed to remove event: ") + e.what());
   }
 }
@@ -1618,10 +1652,18 @@ void Gui<Event_t>::gui_clear_sequence() {
 
         controller_[*sel_seq].clear();
 
+        // Prevent focus handlers from changing selection during rebuild
+        state_.in_widget_rebuild = true;
+
         rebuild_sequencer_widget(*sel_seq);
+
+        // Re-enable focus handlers
+        state_.in_widget_rebuild = false;
 
         state_.state_dirty = true;
       } catch (const std::exception& e) {
+        // Re-enable focus handlers even on error
+        state_.in_widget_rebuild = false;
         show_error(std::string("Failed to clear sequence: ") + e.what());
       }
     }
@@ -1637,9 +1679,15 @@ template <sequencable::Mut_seq_event Event_t>
 void Gui<Event_t>::gui_multiply_durations(Seq_idx seq_idx, double factor) {
   try {
     controller_.multiply_durations(seq_idx, factor);
+
+    // Prevent focus handlers from changing selection during rebuild
+    state_.in_widget_rebuild = true;
     rebuild_sequencer_widget(seq_idx);
+    state_.in_widget_rebuild = false;
+
     state_.state_dirty = true;
   } catch (const std::exception& e) {
+    state_.in_widget_rebuild = false;
     show_error(std::string("Failed to multiply durations: ") + e.what());
   }
 }
@@ -1648,11 +1696,17 @@ template <sequencable::Mut_seq_event Event_t>
 void Gui<Event_t>::gui_multiply_durations_all(double factor) {
   try {
     controller_.multiply_durations_all(factor);
+
+    // Prevent focus handlers from changing selection during rebuild
+    state_.in_widget_rebuild = true;
     for (Seq_idx i = 0; i < controller_.size(); ++i) {
       rebuild_sequencer_widget(i);
     }
+    state_.in_widget_rebuild = false;
+
     state_.state_dirty = true;
   } catch (const std::exception& e) {
+    state_.in_widget_rebuild = false;
     show_error(std::string("Failed to multiply durations: ") + e.what());
   }
 }
@@ -1662,9 +1716,15 @@ void Gui<Event_t>::gui_adjust_durations(Seq_idx seq_idx, typename Controller::Du
   try {
     auto actual_delta = increment ? delta : -delta;
     controller_.adjust_durations(seq_idx, actual_delta);
+
+    // Prevent focus handlers from changing selection during rebuild
+    state_.in_widget_rebuild = true;
     rebuild_sequencer_widget(seq_idx);
+    state_.in_widget_rebuild = false;
+
     state_.state_dirty = true;
   } catch (const std::exception& e) {
+    state_.in_widget_rebuild = false;
     show_error(std::string("Failed to adjust durations: ") + e.what());
   }
 }
@@ -1674,11 +1734,17 @@ void Gui<Event_t>::gui_adjust_durations_all(typename Controller::Duration delta,
   try {
     auto actual_delta = increment ? delta : -delta;
     controller_.adjust_durations_all(actual_delta);
+
+    // Prevent focus handlers from changing selection during rebuild
+    state_.in_widget_rebuild = true;
     for (Seq_idx i = 0; i < controller_.size(); ++i) {
       rebuild_sequencer_widget(i);
     }
+    state_.in_widget_rebuild = false;
+
     state_.state_dirty = true;
   } catch (const std::exception& e) {
+    state_.in_widget_rebuild = false;
     show_error(std::string("Failed to adjust durations: ") + e.what());
   }
 }
@@ -2049,12 +2115,18 @@ void Gui<Event_t>::json_to_sequences(const std::string& json_str) {
     controller_[seq_idx].clear();
   }
 
+  // Prevent focus handlers from changing selection during rebuild
+  state_.in_widget_rebuild = true;
+
   for (size_t seq_idx = 0; seq_idx < new_sequences.size() && seq_idx < controller_.size(); ++seq_idx) {
     for (const auto& event : new_sequences[seq_idx]) {
       controller_.push_back_event(seq_idx, event);
     }
     rebuild_sequencer_widget(seq_idx);
   }
+
+  // Re-enable focus handlers
+  state_.in_widget_rebuild = false;
 
   state_.state_dirty = true;
 }

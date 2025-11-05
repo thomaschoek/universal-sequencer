@@ -76,6 +76,7 @@ public:
     std::set<Event_idx> last_selected_event_range;  // Previous multi-selection for cleanup
     Event_idx anchor_event{0};                 // Selection anchor point
     bool in_text_update{false};                // Prevents signal recursion
+    bool in_widget_rebuild{false};             // Prevents selection changes during widget rebuild
 
     // Global GUI state
     Mode mode{Mode::Normal};
