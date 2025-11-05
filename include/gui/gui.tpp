@@ -1,10 +1,13 @@
 #include "gui/event_parameter_traits.h"
 #include "gui/gui.h"
 #include "utility/debug.h"
+// MIDI headers included conditionally in main_midi_gui.cpp before gui.h
+#include <chrono>
 #include <cstring>
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <thread>
 #include <pwd.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -125,6 +128,122 @@ Gui<Event_t>::Gui(Controller& controller, unsigned int fps)
     update_window_title();
 
     // Clear text cursor by removing focus from entry widgets
+    window_->set_focus(*window_);
+  };
+
+  // Load preferences
+  load_preferences();
+
+  // Create GTK application
+  app_ = Gtk::Application::create("com.microcomposer.app");
+
+  init_widgets();
+  apply_preferences();
+  update_window_title();
+}
+
+// Constructor with MIDI support
+template <sequencable::Mut_seq_event Event_t>
+Gui<Event_t>::Gui(Controller& controller, Midi_config& midi_config, unsigned int fps)
+    : controller_{controller}, midi_config_{&midi_config}, fps_{fps},
+      frame_duration_{1.0 / static_cast<double>(fps)} {
+  // Initialize state
+  state_.controller_state = controller_.get_state();
+  state_.sequencer_gui_states.resize(state_.controller_state.sizes.size());
+
+  // Select first sequencer and first event by default
+  if (!state_.controller_state.sizes.empty() &&
+      state_.controller_state.sizes[0] > 0) {
+    controller_.select(0, 0);
+    state_.controller_state = controller_.get_state();
+  }
+
+  // Initialize keyboard mappings (same as non-MIDI constructor)
+  // Normal mode mappings
+  normal_mode_actions_[GDK_KEY_h] = [this]() { gui_select_prev_pos(); };
+  normal_mode_actions_[GDK_KEY_j] = [this]() { gui_select_next_param(); };
+  normal_mode_actions_[GDK_KEY_k] = [this]() { gui_select_prev_param(); };
+  normal_mode_actions_[GDK_KEY_l] = [this]() { gui_select_next_pos(); };
+
+  normal_mode_actions_[GDK_KEY_space] = [this]() {
+    auto sel_seq = controller_.selected_seq();
+    if (sel_seq) {
+      gui_toggle_play(*sel_seq);
+    }
+  };
+
+  normal_mode_actions_[GDK_KEY_t] = [this]() {
+    auto sel_seq = controller_.selected_seq();
+    auto sel_evt = controller_.selected_event();
+    if (sel_seq && sel_evt) {
+      controller_.toggle(*sel_seq, *sel_evt);
+      update_cell_value(*sel_seq, *sel_evt, 0);
+      state_.state_dirty = true;
+    }
+  };
+
+  normal_mode_actions_[GDK_KEY_i] = [this]() {
+    debug::msg("[GUI] 'i' key pressed: entering edit mode, range_size=" +
+               std::to_string(state_.selected_event_range.size()));
+    state_.mode = Mode::Edit;
+    state_.state_dirty = true;
+    update_window_title();
+    focus_selected_cell();
+  };
+
+  normal_mode_actions_[GDK_KEY_Return] = [this]() {
+    state_.mode = Mode::Edit;
+    state_.state_dirty = true;
+    update_window_title();
+    focus_selected_cell();
+  };
+
+  for (guint key = GDK_KEY_1; key <= GDK_KEY_8; ++key) {
+    normal_mode_actions_[key] = [this, key]() {
+      auto sel_seq = controller_.selected_seq();
+      if (sel_seq) {
+        Event_idx event_idx = key - GDK_KEY_1;
+        auto& state = state_.controller_state;
+        if (*sel_seq < state.sizes.size() && event_idx < state.sizes[*sel_seq]) {
+          controller_.select(*sel_seq, event_idx);
+          state_.state_dirty = true;
+        }
+      }
+    };
+  }
+
+  normal_mode_actions_[GDK_KEY_Up] = [this]() {
+    auto sel_seq = controller_.selected_seq();
+    auto sel_evt = controller_.selected_event();
+    if (sel_seq && sel_evt) {
+      size_t param_idx = state_.selected_param_idx;
+      increment_cell_value(*sel_seq, *sel_evt, param_idx, true);
+    }
+  };
+
+  normal_mode_actions_[GDK_KEY_Down] = [this]() {
+    auto sel_seq = controller_.selected_seq();
+    auto sel_evt = controller_.selected_event();
+    if (sel_seq && sel_evt) {
+      size_t param_idx = state_.selected_param_idx;
+      increment_cell_value(*sel_seq, *sel_evt, param_idx, false);
+    }
+  };
+
+  edit_mode_actions_[GDK_KEY_Escape] = [this]() {
+    auto focused = window_->get_focus();
+    if (focused) {
+      Gtk::Entry* entry = dynamic_cast<Gtk::Entry*>(focused);
+      if (entry) {
+        // The focus-out handler will apply the edit
+      }
+    }
+
+    state_.mode = Mode::Normal;
+    clear_multi_selection();
+    state_.state_dirty = true;
+    update_window_title();
+
     window_->set_focus(*window_);
   };
 
@@ -262,6 +381,10 @@ void Gui<Event_t>::build_sequencer_widgets() {
     widget.vbox = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::VERTICAL, 2);
     widget.frame->set_child(*widget.vbox);
 
+    // Create header box to hold label and port selector
+    widget.header_box = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::HORIZONTAL, 10);
+    widget.vbox->append(*widget.header_box);
+
     // Create header label with sequencer status
     std::string header_text = "Sequencer " + std::to_string(seq_idx);
     header_text += " [" + std::to_string(num_events) + " steps]";
@@ -275,7 +398,29 @@ void Gui<Event_t>::build_sequencer_widgets() {
     }
     widget.header_label = Gtk::make_managed<Gtk::Label>(header_text);
     widget.header_label->set_name("sequencer-header");
-    widget.vbox->append(*widget.header_label);
+    widget.header_box->append(*widget.header_label);
+
+    // Add MIDI port selector if MIDI config is available
+    if (midi_config_) {
+      widget.port_selector = Gtk::make_managed<Gtk::ComboBoxText>();
+
+      // Populate with available ports from config
+      for (const auto& port : midi_config_->available_ports) {
+        widget.port_selector->append(port.display_name);
+      }
+
+      // Set current port
+      if (seq_idx < midi_config_->port_names.size()) {
+        widget.port_selector->set_active_text(midi_config_->port_names[seq_idx]);
+      }
+
+      // Connect change signal
+      widget.port_selector->signal_changed().connect([this, seq_idx]() {
+        on_port_changed(seq_idx);
+      });
+
+      widget.header_box->append(*widget.port_selector);
+    }
 
     // Create grid for column headers and parameters
     widget.grid = Gtk::make_managed<Gtk::Grid>();
@@ -399,6 +544,10 @@ void Gui<Event_t>::rebuild_sequencer_widget(Seq_idx seq_idx) {
   widget.vbox = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::VERTICAL, 2);
   widget.frame->set_child(*widget.vbox);
 
+  // Create header box to hold label and port selector
+  widget.header_box = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::HORIZONTAL, 10);
+  widget.vbox->append(*widget.header_box);
+
   // Create header label with sequencer status
   std::string header_text = "Sequencer " + std::to_string(seq_idx);
   header_text += " [" + std::to_string(num_events) + " steps]";
@@ -412,7 +561,29 @@ void Gui<Event_t>::rebuild_sequencer_widget(Seq_idx seq_idx) {
   }
   widget.header_label = Gtk::make_managed<Gtk::Label>(header_text);
   widget.header_label->set_name("sequencer-header");
-  widget.vbox->append(*widget.header_label);
+  widget.header_box->append(*widget.header_label);
+
+  // Add MIDI port selector if MIDI config is available
+  if (midi_config_) {
+    widget.port_selector = Gtk::make_managed<Gtk::ComboBoxText>();
+
+    // Populate with available ports from config
+    for (const auto& port : midi_config_->available_ports) {
+      widget.port_selector->append(port.display_name);
+    }
+
+    // Set current port
+    if (seq_idx < midi_config_->port_names.size()) {
+      widget.port_selector->set_active_text(midi_config_->port_names[seq_idx]);
+    }
+
+    // Connect change signal
+    widget.port_selector->signal_changed().connect([this, seq_idx]() {
+      on_port_changed(seq_idx);
+    });
+
+    widget.header_box->append(*widget.port_selector);
+  }
 
   // Create grid for column headers and parameters
   widget.grid = Gtk::make_managed<Gtk::Grid>();
@@ -2228,6 +2399,85 @@ void Gui<Event_t>::on_load_activate() {
     dialog->set_visible(false);
   });
   dialog->show();
+}
+
+// MIDI port change handler
+template <sequencable::Mut_seq_event Event_t>
+void Gui<Event_t>::on_port_changed(Seq_idx seq_idx) {
+  if (!midi_config_) {
+    return;  // Not in MIDI mode
+  }
+
+  // Get selected port name
+  if (seq_idx >= sequencer_widgets_.size()) {
+    return;
+  }
+
+  auto& widget = sequencer_widgets_[seq_idx];
+  if (!widget.port_selector) {
+    return;
+  }
+
+  std::string selected_port_name = widget.port_selector->get_active_text();
+  if (selected_port_name.empty()) {
+    return;
+  }
+
+  // Find port index from available ports in config
+  int port_index = -1;
+  for (const auto& port : midi_config_->available_ports) {
+    if (port.display_name == selected_port_name) {
+      port_index = port.index;
+      break;
+    }
+  }
+
+  if (port_index < 0) {
+    show_error("Failed to find MIDI port: " + selected_port_name);
+    return;
+  }
+
+  // MIDI port changing is only available when Event_t has to_midi_messages()
+  // User must include midi/midi_output.h and sequencable/midi_event.h before gui.h
+  if constexpr (requires(Event_t e) { e.to_midi_messages(); }) {
+    try {
+      // Close old port and open new one
+      if (seq_idx < midi_config_->outputs.size()) {
+        auto& midi_output = midi_config_->outputs[seq_idx];
+        midi_output->close_port();
+        midi_output->open_port(port_index);
+
+        // Update port name in config
+        if (seq_idx < midi_config_->port_names.size()) {
+          midi_config_->port_names[seq_idx] = selected_port_name;
+        }
+
+        // Create new handler for this sequencer
+        auto new_handler = [midi_output](Event_t&& event) {
+          // Generate note-on and note-off messages
+          auto msgs = event.to_midi_messages();
+
+          // Send note-on immediately
+          midi_output->send_message(msgs.note_on);
+
+          // Schedule note-off after duration
+          auto note_off_time = event.scheduled_time + event.duration;
+
+          std::this_thread::sleep_until(note_off_time -
+                                        std::chrono::milliseconds(5));
+          while (std::chrono::steady_clock::now() <
+                 note_off_time - std::chrono::milliseconds(2))
+            ;
+          midi_output->send_message(msgs.note_off);
+        };
+
+        // Update handler in controller
+        controller_.set_handler(seq_idx, new_handler);
+      }
+    } catch (const std::exception& e) {
+      show_error(std::string("Failed to change MIDI port: ") + e.what());
+    }
+  }
 }
 
 } // namespace gui

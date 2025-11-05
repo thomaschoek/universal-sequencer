@@ -6,12 +6,18 @@
 #include <chrono>
 #include <functional>
 #include <gtkmm.h>
+#include <memory>
 #include <set>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 namespace Micro_composer {
+
+// Forward declarations
+namespace midi {
+  class Midi_output;
+}
 
 namespace gui {
 
@@ -43,6 +49,8 @@ public:
   struct Sequencer_widget {
     Gtk::Frame* frame{nullptr};          // Outer frame with border
     Gtk::Label* header_label{nullptr};   // Status label
+    Gtk::Box* header_box{nullptr};       // Horizontal box for header elements
+    Gtk::ComboBoxText* port_selector{nullptr};  // MIDI port dropdown
     Gtk::Box* vbox{nullptr};           // Vertical box container
     Gtk::Box* column_header{nullptr};  // Column header with event indices
     Gtk::Grid* grid{nullptr};           // Grid for parameter rows
@@ -87,8 +95,24 @@ public:
     std::string tempo_input_buffer;
   };
 
+  // MIDI port information (name and index)
+  struct Midi_port_info {
+    std::string display_name;
+    int index;
+  };
+
+  // MIDI-specific configuration (optional, only for MIDI GUI apps)
+  struct Midi_config {
+    std::vector<std::shared_ptr<midi::Midi_output>>& outputs;
+    std::vector<std::string> port_names;  // Current port name per sequencer
+    std::vector<Midi_port_info> available_ports;  // All available MIDI ports
+  };
+
   // Constructor
   explicit Gui(Controller& controller, unsigned int fps = 50);
+
+  // Constructor with MIDI support (for MIDI GUI apps)
+  explicit Gui(Controller& controller, Midi_config& midi_config, unsigned int fps = 50);
 
   // Destructor
   ~Gui();
@@ -194,6 +218,9 @@ private:
   void on_entry_changed(Gtk::Entry* entry, Seq_idx seq_idx, Event_idx event_idx, size_t param_idx);
   bool on_entry_scroll(Gtk::Entry* entry, double dx, double dy, Seq_idx seq_idx, Event_idx event_idx, size_t param_idx);
 
+  // MIDI port change handler
+  void on_port_changed(Seq_idx seq_idx);
+
   // Data members
   Controller& controller_;
   Gui_state state_;
@@ -219,6 +246,9 @@ private:
 
   // Gtk::Application instance
   Glib::RefPtr<Gtk::Application> app_;
+
+  // MIDI-specific configuration (nullptr if not using MIDI)
+  Midi_config* midi_config_{nullptr};
 };
 
 } // namespace gui

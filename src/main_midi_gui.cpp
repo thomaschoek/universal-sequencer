@@ -1,8 +1,9 @@
 #include "controller/poly_sequencer_controller.h"
 #include "gui/event_parameter_traits_midi.h"
-#include "gui/gui.h"
 #include "midi/midi_output.h"
 #include "sequencable/midi_event.h"
+// Include MIDI headers before gui.h so gui.tpp can use them
+#include "gui/gui.h"
 #include <chrono>
 #include <iostream>
 #include <thread>
@@ -134,19 +135,38 @@ int main(int argc, char** argv) {
     // Enable all events
     controller.enable();
 
-    // Create and run GUI
-    Gui<Midi_event> gui(controller, 50); // 50 FPS
+    // Create MIDI configuration for GUI
+    std::vector<std::string> port_names;
+    for (const auto& selection : port_selections) {
+      port_names.push_back(selection.port_name);
+    }
+
+    // Get available MIDI ports for GUI dropdowns
+    auto ports = Midi_output::list_ports();
+    std::vector<Gui<Midi_event>::Midi_port_info> available_ports;
+    for (size_t i = 0; i < ports.size(); ++i) {
+      available_ports.push_back({ports[i].display_name, static_cast<int>(i)});
+    }
+
+    Gui<Midi_event>::Midi_config midi_config{midi_outputs, port_names, available_ports};
+
+    // Create and run GUI with MIDI support
+    Gui<Midi_event> gui(controller, midi_config, 50); // 50 FPS
 
     // Print instructions
     std::cout << "Starting MicroComposer GUI..." << std::endl;
-    std::cout << "Audio output initialized" << std::endl;
-    std::cout << "Controls:" << std::endl;
+    std::cout << "MIDI outputs initialized" << std::endl;
+    for (size_t i = 0; i < port_selections.size(); ++i) {
+      std::cout << "  Sequencer " << i << ": " << port_selections[i].port_name << std::endl;
+    }
+    std::cout << "\nControls:" << std::endl;
     std::cout << "  h/j/k/l - Navigate grid (vim-style)" << std::endl;
     std::cout << "  Space   - Toggle play/pause for selected sequencer"
               << std::endl;
     std::cout << "  i       - Enter edit mode" << std::endl;
     std::cout << "  Esc     - Return to normal mode" << std::endl;
-    std::cout << "Window title shows current mode (NORMAL/EDIT)" << std::endl;
+    std::cout << "  Port dropdowns in headers - Change MIDI output per sequencer" << std::endl;
+    std::cout << "\nWindow title shows current mode (NORMAL/EDIT)" << std::endl;
 
     gui.run();
 
