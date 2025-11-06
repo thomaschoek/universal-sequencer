@@ -660,8 +660,17 @@ void Gui<Event_t>::rebuild_sequencer_widget(Seq_idx seq_idx) {
     }
   }
 
-  // Insert at correct position
-  sequencers_vbox_->append(*widget.frame);
+  // Insert at correct position to maintain order
+  if (seq_idx == 0) {
+    // Insert at the beginning
+    sequencers_vbox_->prepend(*widget.frame);
+  } else if (seq_idx < sequencer_widgets_.size() && sequencer_widgets_[seq_idx - 1].frame) {
+    // Insert after the previous sequencer's frame
+    sequencers_vbox_->insert_child_after(*widget.frame, *sequencer_widgets_[seq_idx - 1].frame);
+  } else {
+    // Fallback to append if we can't find the right position
+    sequencers_vbox_->append(*widget.frame);
+  }
 
   // Replace in our vector
   sequencer_widgets_[seq_idx] = widget;
