@@ -326,6 +326,10 @@ void Gui<Event_t>::init_widgets() {
     GTK_STYLE_PROVIDER_PRIORITY_APPLICATION
   );
 
+  // Create a header bar with menu button (GTK4 style)
+  header_bar_ = Gtk::make_managed<Gtk::HeaderBar>();
+  window_->set_titlebar(*header_bar_);
+
   // Create main vertical box
   main_vbox_ = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::VERTICAL, 0);
   window_->set_child(*main_vbox_);
@@ -2017,6 +2021,15 @@ void Gui<Event_t>::build_menu_bar() {
   });
 
   app_->set_menubar(menu_bar);
+
+  // Add menu button to header bar for GTK4
+  if (header_bar_) {
+    auto menu_button = Gtk::make_managed<Gtk::MenuButton>();
+    menu_button->set_icon_name("open-menu-symbolic");
+    menu_button->set_tooltip_text("Menu");
+    menu_button->set_menu_model(menu_bar);
+    header_bar_->pack_end(*menu_button);
+  }
 }
 
 // Help menu handler

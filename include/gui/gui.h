@@ -231,6 +231,7 @@ private:
 
   // GTK widgets (managed by Gtk::Application)
   Gtk::Window* window_{nullptr};
+  Gtk::HeaderBar* header_bar_{nullptr};  // Header bar with menu button
   Gtk::Box* main_vbox_{nullptr};        // Main vertical container
   Gtk::ScrolledWindow* scrolled_window_{nullptr};  // Scrollable area
   Gtk::Box* sequencers_vbox_{nullptr};  // Container for sequencer widgets
