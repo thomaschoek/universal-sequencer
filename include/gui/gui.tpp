@@ -2365,13 +2365,18 @@ void Gui<Event_t>::json_to_sequences(const std::string& json_str) {
 
             // Update handler with new MIDI output
             auto new_handler = [midi_output](Event_t&& event) {
-              auto msgs = event.to_midi_messages();
-              midi_output->send_message(msgs.note_on);
+              try {
+                auto msgs = event.to_midi_messages();
+                midi_output->send_message(msgs.note_on);
 
-              auto note_off_time = event.scheduled_time + event.duration;
-              std::this_thread::sleep_until(note_off_time - std::chrono::milliseconds(5));
-              while (std::chrono::steady_clock::now() < note_off_time - std::chrono::milliseconds(2));
-              midi_output->send_message(msgs.note_off);
+                auto note_off_time = event.scheduled_time + event.duration;
+                std::this_thread::sleep_until(note_off_time - std::chrono::milliseconds(5));
+                while (std::chrono::steady_clock::now() < note_off_time - std::chrono::milliseconds(2));
+                midi_output->send_message(msgs.note_off);
+              } catch (const std::exception& e) {
+                // Silently ignore MIDI send errors (port may be closed or changed)
+                // Error will be shown in GUI when port is changed
+              }
             };
             controller_.set_handler(seq_idx, new_handler);
 
@@ -2548,21 +2553,26 @@ void Gui<Event_t>::on_port_changed(Seq_idx seq_idx) {
 
         // Create new handler for this sequencer
         auto new_handler = [midi_output](Event_t&& event) {
-          // Generate note-on and note-off messages
-          auto msgs = event.to_midi_messages();
+          try {
+            // Generate note-on and note-off messages
+            auto msgs = event.to_midi_messages();
 
-          // Send note-on immediately
-          midi_output->send_message(msgs.note_on);
+            // Send note-on immediately
+            midi_output->send_message(msgs.note_on);
 
-          // Schedule note-off after duration
-          auto note_off_time = event.scheduled_time + event.duration;
+            // Schedule note-off after duration
+            auto note_off_time = event.scheduled_time + event.duration;
 
-          std::this_thread::sleep_until(note_off_time -
-                                        std::chrono::milliseconds(5));
-          while (std::chrono::steady_clock::now() <
-                 note_off_time - std::chrono::milliseconds(2))
-            ;
-          midi_output->send_message(msgs.note_off);
+            std::this_thread::sleep_until(note_off_time -
+                                          std::chrono::milliseconds(5));
+            while (std::chrono::steady_clock::now() <
+                   note_off_time - std::chrono::milliseconds(2))
+              ;
+            midi_output->send_message(msgs.note_off);
+          } catch (const std::exception& e) {
+            // Silently ignore MIDI send errors (port may be closed or changed)
+            // Error will be shown in GUI when port is changed
+          }
         };
 
         // Update handler in controller
