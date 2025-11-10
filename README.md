@@ -16,7 +16,7 @@ To combine these on-the-fly edits with the timing accuracy requirement, we use a
 
 ### Generic events
 
-We want this sequencer to be generic; it should be able to schedule a wide variety of data types including user defined classes. This is why we need to work with containers of pointers to atomic pointers to the actual data types being scheduled (for instance, if we are using a vector, `std::vector<std::atomic<T*>*> sequence_`).
+We want this sequencer to be generic; it should be able to schedule a wide variety of data types including user defined classes.
 
 ## Build Instructions
 
