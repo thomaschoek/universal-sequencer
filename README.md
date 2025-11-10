@@ -1,6 +1,6 @@
 # micro-composer
 
-A C++ step sequencer application that provides precise timing control for musical sequences.
+A C++ step sequencer application that aims to provide precise timing, on-the-fly edits and compile-time polymorphism
 
 ## Design Philosophy
 
