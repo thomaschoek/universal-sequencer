@@ -12,8 +12,6 @@ Prioritize timing accuracy over data accuracy: it is more important that events 
 On-the-fly edit event values: we want to be able to edit the queued-up events even as the sequencer is running.
 On-the-fly edits to event container: we want on-the-fly push, pop, resize, insert, erase etc. operations the data structure containing the events being sequenced.
 
-Since we want on-the-fly edits to both the individual elements and their entire container data structures, barring some very clever atomic wizardry that for the time being we are not yet implementing, we need to lock the whole data structure in any operation that tries to load or write to an element. If we only needed on-the-fly edits to individual parameter values (so the container data structure itself remains constant, nothing is added/removed etc while running), then we would be safe with just `memory_order_relaxed` atomic loads and writes to those individual elements.
-
 To combine these on-the-fly edits with the timing accuracy requirement, we use atomic stores and loads of the time at which the next event is to be scheduled (`Scheduler::t_next_`) in addition to conventional `std::scoped_lock`'s so that any edits made to a running sequencer will not cause interference during the critical time window in which the `Scheduler::runner_` thread needs immediate access to the data structure to maintain timing accuracy. See `Scheduler::await_runner_idle()` (@include/scheduler/scheduler.h, @src/scheduler/scheduler.cpp).
 
 ### Generic events
