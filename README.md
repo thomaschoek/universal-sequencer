@@ -2,6 +2,8 @@
 
 A C++ step sequencer application that aims to provide precise timing, on-the-fly edits and compile-time polymorphism
 
+A work in progress
+
 ## Design Philosophy
 
 ### Timing accuracy
