@@ -26,8 +26,7 @@ We want this sequencer to be generic; it should be able to schedule a wide varie
 
 ### Building the Project
 
-- **build:** `meson setup build && cd build && meson compile`
-- **Run tests:** `cd build && meson test`
+- `meson setup build && cd build && meson compile`
 
 ### Project Structure
 
@@ -37,12 +36,8 @@ We want this sequencer to be generic; it should be able to schedule a wide varie
 
 ### Testing
 
-- Catch2 v3.4.0 integrated via CMake FetchContent (no manual installation needed)
-- Comprehensive tests for Sequence_clock covering:
-  - Basic state management (is_live, intervals)
-  - Start/stop operations and edge cases
-  - Timing precision validation
-- Automatic test discovery - new tests are found automatically
+- catch2
+- `cd build && meson test`
 
 Usage:
 - meson setup build
