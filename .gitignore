@@ -4,3 +4,5 @@ build/*
 .cache/*
 subprojects/*
 claude.out
+.claude/*
+CLAUDE.md
